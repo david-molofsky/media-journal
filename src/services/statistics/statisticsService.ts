@@ -1,5 +1,6 @@
 import { db } from '@/services/database/db';
 import type { MediaEntry } from '@/models';
+import { comicIssueCount } from '@/utils/comicIssues';
 
 /**
  * Statistics service.
@@ -24,6 +25,27 @@ async function entriesForYear(year: number): Promise<MediaEntry[]> {
   return db.mediaEntries.where('completedYear').equals(year).toArray();
 }
 
+/**
+ * How much a single entry counts toward volume statistics (totals,
+ * monthly/weekly breakdowns). Per PRD section 5 ("the application
+ * automatically calculates the number of comic issues represented by
+ * the issue range") and section 5's dashboard spec ("Total comic
+ * issues"), a comic entry counts as however many issues it covers,
+ * not as one record — issues 6–11 contribute 6, not 1. Every other
+ * media type counts as 1 per entry. This only applies to *counting*
+ * statistics; ratings, streaks and entry lists (highest-rated, recent
+ * activity) still treat each record as one item, since a six-issue
+ * entry is still a single rating and a single thing to revisit.
+ */
+function getEntryWeight(entry: MediaEntry): number {
+  if (entry.mediaType !== 'comic') return 1;
+  const { issueStart, issueEnd } = entry.metadata;
+  if (typeof issueStart !== 'number' || typeof issueEnd !== 'number' || issueEnd < issueStart) {
+    return 1;
+  }
+  return comicIssueCount(issueStart, issueEnd);
+}
+
 export interface YearSummary {
   year: number;
   totalEntries: number;
@@ -33,13 +55,18 @@ export interface YearSummary {
 export async function getYearSummary(year: number): Promise<YearSummary> {
   const entries = await entriesForYear(year);
   const totalsByMediaType: Record<string, number> = {};
+  let totalEntries = 0;
   for (const entry of entries) {
-    totalsByMediaType[entry.mediaType] = (totalsByMediaType[entry.mediaType] ?? 0) + 1;
+    const weight = getEntryWeight(entry);
+    totalsByMediaType[entry.mediaType] = (totalsByMediaType[entry.mediaType] ?? 0) + weight;
+    totalEntries += weight;
   }
-  return { year, totalEntries: entries.length, totalsByMediaType };
+  return { year, totalEntries, totalsByMediaType };
 }
 
-/** Entry counts for each calendar month (1–12) within `year`. */
+/** Entry counts for each calendar month (1–12) within `year`, weighted
+ * by `getEntryWeight` so a multi-issue comic entry contributes its
+ * full issue count rather than one. */
 export async function getMonthlyBreakdown(year: number): Promise<Record<number, number>> {
   const entries = await entriesForYear(year);
   const breakdown: Record<number, number> = {};
@@ -48,7 +75,7 @@ export async function getMonthlyBreakdown(year: number): Promise<Record<number, 
   }
   for (const entry of entries) {
     const month = new Date(entry.completedDate).getMonth() + 1;
-    breakdown[month] = (breakdown[month] ?? 0) + 1;
+    breakdown[month] = (breakdown[month] ?? 0) + getEntryWeight(entry);
   }
   return breakdown;
 }
@@ -102,10 +129,11 @@ export async function getAverageRatingByMediaType(
   );
 }
 
-/** Entry counts grouped by ISO-ish week (1–53) within `year`. Weeks are
- * simple 7-day buckets from 1 January rather than true ISO weeks —
- * close enough for the activity chart this powers (UI & UX
- * Specification, section 8) without adding a date library plugin. */
+/** Entry counts grouped by ISO-ish week (1–53) within `year`, weighted
+ * by `getEntryWeight`. Weeks are simple 7-day buckets from 1 January
+ * rather than true ISO weeks — close enough for the activity chart
+ * this powers (UI & UX Specification, section 8) without adding a
+ * date library plugin. */
 export async function getWeeklyTotals(year: number): Promise<Record<number, number>> {
   const entries = await entriesForYear(year);
   const startOfYear = new Date(Date.UTC(year, 0, 1));
@@ -114,7 +142,7 @@ export async function getWeeklyTotals(year: number): Promise<Record<number, numb
     const date = new Date(entry.completedDate);
     const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / 86_400_000) + 1;
     const week = Math.min(53, Math.max(1, Math.ceil(dayOfYear / 7)));
-    totals[week] = (totals[week] ?? 0) + 1;
+    totals[week] = (totals[week] ?? 0) + getEntryWeight(entry);
   }
   return totals;
 }
@@ -138,7 +166,11 @@ export async function getMostActiveMonth(year: number): Promise<number | null> {
 }
 
 /** The day of the week (0 = Sunday … 6 = Saturday) with the most
- * completions within `year`, or `null` if the year has no entries. */
+ * completions within `year`, or `null` if the year has no entries.
+ * Deliberately counts records, not `getEntryWeight` — this is about
+ * which day you tend to log entries, not how much volume you got
+ * through, so a single six-issue comic shouldn't outweigh six
+ * separate days of reading. */
 export async function getMostActiveWeekday(year: number): Promise<number | null> {
   const entries = await entriesForYear(year);
   if (entries.length === 0) return null;
