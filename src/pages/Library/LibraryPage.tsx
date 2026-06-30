@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
@@ -8,12 +8,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
 import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -21,7 +15,7 @@ import { FilterChip, type FilterChipOption } from '@/components/library/FilterCh
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { deleteEntry, type EntrySortOrder } from '@/services/database/entryService';
+import { type EntrySortOrder } from '@/services/database/entryService';
 import { editEntryPath } from '@/routes/paths';
 
 const MONTH_NAMES = [
@@ -42,6 +36,18 @@ const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
   { label: 'Lowest rating', value: 'ratingAsc' },
 ];
 
+/** Initial Library filters, passed via `navigate(ROUTES.library, {
+ * state })` — used by Dashboard (summary cards, monthly bar taps) and
+ * Statistics (most-active-month) to deep-link into a pre-filtered
+ * Library, per UI & UX Specification sections 4 and 8 ("Tapping a bar
+ * opens the Library filtered to that month" / "Cards are tappable and
+ * filter the Library"). */
+export interface LibraryFilterRequest {
+  year?: number;
+  month?: number;
+  mediaType?: string;
+}
+
 /**
  * Library — the permanent, searchable archive of every entry (PRD
  * section 5; UI & UX Specification section 5). Search and filters
@@ -51,15 +57,20 @@ const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
  */
 export default function LibraryPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const incoming = location.state as LibraryFilterRequest | null;
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
 
   const [searchText, setSearchText] = useState('');
-  const [year, setYear] = useState<string | undefined>(undefined);
-  const [month, setMonth] = useState<string | undefined>(undefined);
-  const [mediaTypeId, setMediaTypeId] = useState<string | undefined>(undefined);
+  const [year, setYear] = useState<string | undefined>(
+    incoming?.year ? String(incoming.year) : undefined,
+  );
+  const [month, setMonth] = useState<string | undefined>(
+    incoming?.month ? String(incoming.month) : undefined,
+  );
+  const [mediaTypeId, setMediaTypeId] = useState<string | undefined>(incoming?.mediaType);
   const [sort, setSort] = useState<EntrySortOrder>('completedDateDesc');
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
 
   const filter = useMemo(
     () => ({
@@ -150,35 +161,10 @@ export default function LibraryPage() {
               entry={entry}
               mediaType={mediaTypeById.get(entry.mediaType)}
               onOpen={() => navigate(editEntryPath(entry.id))}
-              onDelete={() => setPendingDelete({ id: entry.id, title: entry.title })}
             />
           ))}
         </Stack>
       )}
-
-      <Dialog open={Boolean(pendingDelete)} onClose={() => setPendingDelete(null)}>
-        <DialogTitle>Delete this entry?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This permanently removes “{pendingDelete?.title}” from your library. This can't be
-            undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPendingDelete(null)}>Cancel</Button>
-          <Button
-            color="error"
-            onClick={async () => {
-              if (pendingDelete) {
-                await deleteEntry(pendingDelete.id);
-              }
-              setPendingDelete(null);
-            }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

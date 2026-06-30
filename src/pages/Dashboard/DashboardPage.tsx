@@ -1,17 +1,132 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import dayjs from 'dayjs';
+import { useMediaTypes } from '@/hooks/useMediaTypes';
+import { useAvailableYears } from '@/hooks/useAvailableYears';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { YearSelector } from '@/components/common/YearSelector';
+import { SummaryCard } from '@/components/dashboard/SummaryCard';
+import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
+import { MediaBreakdownChart } from '@/components/charts/MediaBreakdownChart';
+import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
+import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
+import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { ROUTES, editEntryPath } from '@/routes/paths';
+import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 
 /**
- * Dashboard — the application's home screen.
- *
- * Will display yearly summary cards, a monthly activity chart, media
- * breakdown, rating distribution and recent activity (PRD section 5,
- * UI & UX Specification section 4). Implemented in Milestone 5.
+ * Dashboard — the application's home screen (PRD section 5; UI & UX
+ * Specification section 4). The year selector lives here rather than
+ * in the persistent app header, since only this screen (and
+ * Statistics, which has its own) needs it — keeping year selection
+ * local avoids introducing app-wide state for a single-screen concern.
  */
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const mediaTypes = useMediaTypes();
+  const availableYears = useAvailableYears();
+  const [year, setYear] = useState(() => dayjs().year());
+
+  const data = useDashboardData(year);
+
+  const goToLibrary = (filter: LibraryFilterRequest) => {
+    navigate(ROUTES.library, { state: filter });
+  };
+
+  if (mediaTypes === undefined || data === undefined || availableYears === undefined) {
+    return <LoadingIndicator />;
+  }
+
+  const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
+
   return (
-    <PagePlaceholder
-      title="Dashboard"
-      description="Your yearly overview, charts and recent activity will appear here."
-    />
+    <Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Typography variant="h6" component="h1" fontWeight={600}>
+          Overview
+        </Typography>
+        <YearSelector year={year} years={availableYears} onChange={setYear} />
+      </Stack>
+
+      {data.totalEntries === 0 ? (
+        <PagePlaceholder
+          title="No entries yet"
+          description="Add your first entry to start seeing your yearly overview here."
+        />
+      ) : (
+        <Stack spacing={4}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
+              gap: 1.5,
+            }}
+          >
+            {mediaTypes.map((mediaType) => {
+              const count = data.totalsByMediaType[mediaType.id] ?? 0;
+              const percentOfYear =
+                data.totalEntries === 0 ? 0 : Math.round((count / data.totalEntries) * 100);
+              return (
+                <SummaryCard
+                  key={mediaType.id}
+                  mediaType={mediaType}
+                  count={count}
+                  percentOfYear={percentOfYear}
+                  onClick={() => goToLibrary({ year, mediaType: mediaType.id })}
+                />
+              );
+            })}
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Monthly activity
+            </Typography>
+            <MonthlyActivityChart
+              monthlyBreakdown={data.monthlyBreakdown}
+              onSelectMonth={(month) => goToLibrary({ year, month })}
+            />
+          </Box>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Media breakdown
+              </Typography>
+              <MediaBreakdownChart
+                totalsByMediaType={data.totalsByMediaType}
+                mediaTypes={mediaTypes}
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Rating distribution
+              </Typography>
+              <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
+            </Box>
+          </Stack>
+
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Recent activity
+            </Typography>
+            <Stack spacing={1.5}>
+              {data.recentEntries.map((entry) => (
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  mediaType={mediaTypeById.get(entry.mediaType)}
+                  onOpen={() => navigate(editEntryPath(entry.id))}
+                />
+              ))}
+            </Stack>
+          </Box>
+        </Stack>
+      )}
+    </Box>
   );
 }

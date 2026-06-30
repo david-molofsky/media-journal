@@ -33,3 +33,10 @@ export async function upsertMediaType(input: MediaTypeInput): Promise<MediaType>
 export async function disableMediaType(id: string): Promise<void> {
   await db.mediaTypes.update(id, { enabled: false });
 }
+
+/** Toggles whether a media type is selectable for new entries
+ * (Settings, Milestone 7: "Manage Media Types"). Existing entries
+ * referencing a disabled type remain untouched and still viewable. */
+export async function setMediaTypeEnabled(id: string, enabled: boolean): Promise<void> {
+  await db.mediaTypes.update(id, { enabled });
+}
