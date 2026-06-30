@@ -1,0 +1,14 @@
+/*
+ * Most resets are handled by MUI's CssBaseline. This file only adds the
+ * few things CssBaseline doesn't cover.
+ */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
