@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { createAppTheme } from '@/theme';
 import { useColorMode } from '@/hooks/useColorMode';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -20,9 +20,9 @@ export default function App() {
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
       <ErrorBoundary>
-        <BrowserRouter>
+        <HashRouter>
           <AppRoutes />
-        </BrowserRouter>
+        </HashRouter>
       </ErrorBoundary>
     </ThemeProvider>
   );
