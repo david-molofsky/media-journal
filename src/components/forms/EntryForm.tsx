@@ -20,6 +20,7 @@ import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
+import { MetadataSearch } from './MetadataSearch';
 import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
@@ -180,6 +181,21 @@ export function EntryForm({
           <Typography variant="subtitle2" color="text.secondary">
             General Information
           </Typography>
+          {/* Optional metadata search — pre-fills title and type-specific
+              fields from Open Library (books) or TMDB (films/TV). The user
+              can ignore this and fill the form manually. */}
+          <MetadataSearch
+            mediaTypeId={mediaType.id}
+            onFill={(title, fields) => {
+              setValue('title', toTitleCase(title), { shouldValidate: true });
+              for (const [key, value] of Object.entries(fields)) {
+                setValue(
+                  `metadata.${key}` as 'metadata',
+                  toTitleCase(value) as unknown as EntryMetadata,
+                );
+              }
+            }}
+          />
           <TextField
             label="Title"
             required

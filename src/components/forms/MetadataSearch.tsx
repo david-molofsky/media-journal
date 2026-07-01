@@ -1,0 +1,184 @@
+import { useState, useRef, useCallback } from 'react';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import CircularProgress from '@mui/material/CircularProgress';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import SearchIcon from '@mui/icons-material/Search';
+import InputAdornment from '@mui/material/InputAdornment';
+import { searchBooks } from '@/services/metadata/openLibraryService';
+import {
+  searchFilms,
+  getFilmDetails,
+  searchTV,
+  getTVDetails,
+} from '@/services/metadata/tmdbService';
+import type { SearchResult } from '@/services/metadata/openLibraryService';
+
+interface MetadataSearchProps {
+  mediaTypeId: string;
+  /** Called with title + pre-filled metadata fields when the user
+   * selects a result. The receiving form calls setValue for each. */
+  onFill: (title: string, fields: Record<string, string>) => void;
+}
+
+type Source = 'openlibrary' | 'tmdb' | null;
+
+function getSource(mediaTypeId: string): Source {
+  if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return 'openlibrary';
+  if (mediaTypeId === 'film') return 'tmdb';
+  if (mediaTypeId === 'tv') return 'tmdb';
+  return null;
+}
+
+function getSearchFn(
+  mediaTypeId: string,
+): ((q: string) => Promise<SearchResult[]>) | null {
+  if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return searchBooks;
+  if (mediaTypeId === 'film') return searchFilms;
+  if (mediaTypeId === 'tv') return searchTV;
+  return null;
+}
+
+async function fetchDetails(
+  mediaTypeId: string,
+  result: SearchResult,
+): Promise<Record<string, string>> {
+  // Open Library results already contain all fields in one call.
+  if (Object.keys(result.fields).length > 0) return result.fields;
+  // TMDB results need a second call to get director/cast/creator.
+  if (mediaTypeId === 'film') return getFilmDetails(result.id);
+  if (mediaTypeId === 'tv') return getTVDetails(result.id);
+  return {};
+}
+
+/**
+ * Optional metadata search shown at the top of the entry form for
+ * supported media types (book, audiobook, film, tv). The user can
+ * type a title, pick a result, and have the form pre-filled — or
+ * ignore it entirely and fill the form manually.
+ *
+ * Books/Audiobooks use Open Library (no key, one API call).
+ * Films use TMDB (two calls: search then credits on selection).
+ * TV shows use TMDB (two calls: search then details on selection).
+ */
+export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
+  const source = getSource(mediaTypeId);
+  const searchFn = getSearchFn(mediaTypeId);
+
+  const [options, setOptions] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleInputChange = useCallback(
+    (_: React.SyntheticEvent, value: string) => {
+      setInputValue(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (!value.trim() || !searchFn) { setOptions([]); return; }
+
+      debounceRef.current = setTimeout(async () => {
+        setSearching(true);
+        try {
+          const results = await searchFn(value);
+          setOptions(results);
+        } catch {
+          setOptions([]);
+        } finally {
+          setSearching(false);
+        }
+      }, 350);
+    },
+    [searchFn],
+  );
+
+  const handleChange = async (_: React.SyntheticEvent, value: SearchResult | null) => {
+    if (!value) return;
+    setFetching(true);
+    try {
+      const fields = await fetchDetails(mediaTypeId, value);
+      onFill(value.title, fields);
+      // Clear the search so the field doesn't show the selected title twice.
+      setInputValue('');
+      setOptions([]);
+    } catch {
+      // If the details fetch fails, still fill what we have.
+      onFill(value.title, value.fields);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  if (!source) return null;
+
+  const attribution =
+    source === 'tmdb'
+      ? 'This product uses the TMDB API but is not endorsed or certified by TMDB.'
+      : 'Search powered by Open Library.';
+
+  return (
+    <Box>
+      <Autocomplete<SearchResult, false, false, false>
+        options={options}
+        inputValue={inputValue}
+        onInputChange={handleInputChange}
+        onChange={handleChange}
+        loading={searching || fetching}
+        loadingText={fetching ? 'Fetching details…' : 'Searching…'}
+        noOptionsText={
+          inputValue.trim()
+            ? searching ? 'Searching…' : 'No results found'
+            : 'Type to search'
+        }
+        getOptionLabel={(option) => option.title}
+        isOptionEqualToValue={(a, b) => a.id === b.id}
+        filterOptions={(x) => x} // server-side filtering only
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Search to pre-fill"
+            placeholder={
+              source === 'openlibrary'
+                ? 'Search Open Library…'
+                : source === 'tmdb' && mediaTypeId === 'film'
+                ? 'Search TMDB for a film…'
+                : 'Search TMDB for a TV show…'
+            }
+            slotProps={{
+              input: {
+                ...params.InputProps,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    {searching || fetching ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <SearchIcon fontSize="small" />
+                    )}
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        )}
+        renderOption={(props, option) => (
+          <Box component="li" {...props} key={option.id}>
+            <Box>
+              <Typography variant="body2" fontWeight={600}>
+                {option.title}
+              </Typography>
+              {option.subtitle && (
+                <Typography variant="caption" color="text.secondary">
+                  {option.subtitle}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+      />
+      <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
+        {attribution}
+      </Typography>
+    </Box>
+  );
+}
