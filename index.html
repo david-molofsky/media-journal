@@ -14,6 +14,27 @@
       content="Media Journal — a permanent, offline-first archive of everything you read, watch and listen to."
     />
     <title>Media Journal</title>
+    <!--
+      Companion to public/404.html (spa-github-pages redirect trick).
+      Runs before React mounts: if the URL contains the encoded path
+      injected by 404.html (signalled by the query string starting with
+      '/?/'), it decodes it and calls history.replaceState so React
+      Router sees the original clean URL with no visible redirect flash.
+    -->
+    <script>
+      (function (l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) {
+              return s.replace(/~and~/g, '&');
+            })
+            .join('?');
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })(window.location);
+    </script>
   </head>
   <body>
     <div id="root"></div>

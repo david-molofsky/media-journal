@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
+import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -13,21 +14,36 @@ import { createEntry } from '@/services/database/entryService';
 import { ROUTES } from '@/routes/paths';
 import type { MediaType } from '@/models';
 
-/**
- * Add Entry — media type selection (step 1) followed by the
- * appropriate dynamic form (step 2), per PRD section 5 and UI & UX
- * Specification section 6.
- */
 export default function AddEntryPage() {
   const mediaTypes = useMediaTypes();
+  const tvMode = useTvTrackingMode();
   const [selectedType, setSelectedType] = useState<MediaType | null>(null);
   const navigate = useNavigate();
+
+  /**
+   * Strip or include TV episode fields depending on the tracking mode.
+   * The TV media type in the DB always carries all three fields so the
+   * migration only needs to run once; the form just sees a filtered
+   * view of them. This means switching modes takes effect immediately
+   * without any re-migration.
+   */
+  const effectiveMediaType = useMemo((): MediaType | null => {
+    if (!selectedType || selectedType.id !== 'tv') return selectedType;
+    return {
+      ...selectedType,
+      fields: selectedType.fields.filter((field) =>
+        tvMode === 'episode'
+          ? true
+          : field.key !== 'episodeStart' && field.key !== 'episodeEnd',
+      ),
+    };
+  }, [selectedType, tvMode]);
 
   if (mediaTypes === undefined) {
     return <LoadingIndicator />;
   }
 
-  if (!selectedType) {
+  if (!selectedType || !effectiveMediaType) {
     return <MediaTypePicker mediaTypes={mediaTypes} onSelect={setSelectedType} />;
   }
 
@@ -41,12 +57,12 @@ export default function AddEntryPage() {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" component="h1" fontWeight={600}>
-          New {selectedType.displayName}
+          New {effectiveMediaType.displayName}
         </Typography>
       </Stack>
       <EntryForm
-        key={selectedType.id}
-        mediaType={selectedType}
+        key={`${effectiveMediaType.id}-${tvMode}`}
+        mediaType={effectiveMediaType}
         submitLabel="Save Entry"
         onSubmit={async (values) => {
           await createEntry(values);

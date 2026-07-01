@@ -1,23 +1,16 @@
 import { createTheme, type ThemeOptions } from '@mui/material/styles';
+import type { ColorMode } from '@/models';
 
 /**
- * Media Journal theme.
- *
- * Styled to evoke Material Design 3: rounded cards, soft shadows, a
- * vibrant primary colour and generous spacing. Only a light theme is
- * defined for Version 1; dark mode is a planned future enhancement
- * (see UI & UX Specification, section 14) and the structure below is
- * written so a `dark` palette can be added later without touching
- * component code.
+ * Shared structural options (shape, typography, component overrides)
+ * that don't vary between light and dark mode.
  */
-const baseThemeOptions: ThemeOptions = {
+const baseOptions: ThemeOptions = {
   shape: {
     borderRadius: 16,
   },
   typography: {
-    fontFamily: ['Roboto', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'].join(
-      ',',
-    ),
+    fontFamily: ['Roboto', '"Segoe UI"', 'system-ui', '-apple-system', 'sans-serif'].join(','),
     h1: { fontWeight: 600 },
     h2: { fontWeight: 600 },
     h3: { fontWeight: 600 },
@@ -25,19 +18,6 @@ const baseThemeOptions: ThemeOptions = {
     h5: { fontWeight: 600 },
     h6: { fontWeight: 600 },
     button: { textTransform: 'none', fontWeight: 600 },
-  },
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#1976D2',
-    },
-    secondary: {
-      main: '#7B1FA2',
-    },
-    background: {
-      default: '#FFFBFE',
-      paper: '#FFFFFF',
-    },
   },
   components: {
     MuiCard: {
@@ -50,32 +30,61 @@ const baseThemeOptions: ThemeOptions = {
     },
     MuiButton: {
       styleOverrides: {
-        root: {
-          borderRadius: 20,
-        },
+        root: { borderRadius: 20 },
       },
     },
     MuiChip: {
       styleOverrides: {
-        root: {
-          borderRadius: 8,
-        },
+        root: { borderRadius: 8 },
       },
     },
     MuiAppBar: {
       styleOverrides: {
-        root: {
-          boxShadow: 'none',
-        },
+        root: { boxShadow: 'none' },
       },
     },
     MuiButtonBase: {
       defaultProps: {
-        // Large touch targets / accessibility (UI & UX Spec section 13).
         disableRipple: false,
       },
     },
   },
 };
 
-export const theme = createTheme(baseThemeOptions);
+/**
+ * Creates the app theme for the given colour mode.
+ *
+ * Primary colour is green throughout, matching the app icon:
+ *   Light — #2E7D32 (deep green, high contrast on white)
+ *   Dark  — #66BB6A (lightened so it stays legible on dark surfaces
+ *            without being eye-watering)
+ *
+ * In dark mode MUI automatically adjusts surface/divider/overlay
+ * colours via its dark palette algorithm; we only need to specify the
+ * backgrounds we want to override from the defaults.
+ */
+export function createAppTheme(mode: ColorMode) {
+  return createTheme({
+    ...baseOptions,
+    palette: {
+      mode,
+      primary: {
+        main: mode === 'dark' ? '#66BB6A' : '#2E7D32',
+        dark: mode === 'dark' ? '#43A047' : '#1B5E20',
+        light: mode === 'dark' ? '#A5D6A7' : '#4CAF50',
+        contrastText: '#FFFFFF',
+      },
+      secondary: {
+        main: '#7B1FA2',
+      },
+      background:
+        mode === 'dark'
+          ? { default: '#121212', paper: '#1E1E1E' }
+          : { default: '#FFFBFE', paper: '#FFFFFF' },
+    },
+  });
+}
+
+/** Convenience export for callers that only ever need light mode
+ * (e.g. tests, Storybook). Production runtime uses createAppTheme. */
+export const theme = createAppTheme('light');

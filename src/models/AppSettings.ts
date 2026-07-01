@@ -16,6 +16,15 @@ export const SETTINGS_KEYS = {
   selectedTheme: 'selectedTheme',
   lastViewedYear: 'lastViewedYear',
   importExportVersion: 'importExportVersion',
+  tvTrackingMode: 'tvTrackingMode',
+  colorMode: 'colorMode',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
+
+/** Whether TV entries are logged as full seasons or individual episodes. */
+export type TvTrackingMode = 'season' | 'episode';
+
+/** UI colour scheme. Persisted in `appSettings` so the preference
+ * survives page reloads and PWA restarts. */
+export type ColorMode = 'light' | 'dark';

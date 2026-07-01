@@ -12,6 +12,7 @@ import { MetricCard } from '@/components/statistics/MetricCard';
 import { InsightCard } from '@/components/statistics/InsightCard';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { WeeklyActivityChart } from '@/components/charts/WeeklyActivityChart';
+import { CumulativeWeeklyChart } from '@/components/charts/CumulativeWeeklyChart';
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
@@ -111,11 +112,27 @@ export default function StatisticsPage() {
             Trends
           </Typography>
           <Stack spacing={2}>
-            <MonthlyActivityChart
-              monthlyBreakdown={data.monthlyBreakdown}
-              onSelectMonth={(month) => goToLibrary({ year, month })}
-            />
-            <WeeklyActivityChart weeklyTotals={data.weeklyTotals} />
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Monthly activity
+              </Typography>
+              <MonthlyActivityChart
+                monthlyBreakdown={data.monthlyBreakdown}
+                onSelectMonth={(month) => goToLibrary({ year, month })}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Weekly activity
+              </Typography>
+              <WeeklyActivityChart weeklyTotals={data.weeklyTotals} />
+            </Box>
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Total media consumed
+              </Typography>
+              <CumulativeWeeklyChart weeklyTotals={data.weeklyTotals} year={year} />
+            </Box>
           </Stack>
         </Box>
 

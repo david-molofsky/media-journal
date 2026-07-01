@@ -7,14 +7,11 @@ import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
+import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
+import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 
-/**
- * Settings — general preferences, import/export, media type
- * management and about info (PRD section 5; UI & UX Specification
- * section 9).
- */
 export default function SettingsPage() {
   return (
     <Box>
@@ -23,16 +20,14 @@ export default function SettingsPage() {
       </Typography>
 
       <Stack spacing={4} divider={<Divider />}>
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        {/* General — dark mode + TV tracking grouped together */}
+        <Stack spacing={3}>
+          <Typography variant="subtitle2" color="text.secondary">
             General
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Media Journal runs entirely offline with no account required. There's nothing to
-            configure here yet — theme customisation and other preferences are planned for a
-            future release.
-          </Typography>
-        </Box>
+          <DarkModeToggle />
+          <TvTrackingSection />
+        </Stack>
 
         <ImportExportSection />
 

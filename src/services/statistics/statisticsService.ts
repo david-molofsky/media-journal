@@ -1,5 +1,7 @@
+import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import type { MediaEntry } from '@/models';
+import type { TvTrackingMode } from '@/models';
 import { comicIssueCount } from '@/utils/comicIssues';
 
 /**
@@ -22,7 +24,18 @@ import { comicIssueCount } from '@/utils/comicIssues';
  */
 
 async function entriesForYear(year: number): Promise<MediaEntry[]> {
-  return db.mediaEntries.where('completedYear').equals(year).toArray();
+  return db.mediaEntries
+    .where('completedYear')
+    .equals(year)
+    .filter((entry) => !entry.status || entry.status === 'completed')
+    .toArray();
+}
+
+/** Reads the TV tracking mode from the database (not reactive — used
+ * only inside statistics service functions which are already async). */
+async function getTvTrackingMode(): Promise<TvTrackingMode> {
+  const record = await db.appSettings.get('tvTrackingMode');
+  return (record?.value as TvTrackingMode) ?? 'season';
 }
 
 /**
@@ -31,19 +44,33 @@ async function entriesForYear(year: number): Promise<MediaEntry[]> {
  * automatically calculates the number of comic issues represented by
  * the issue range") and section 5's dashboard spec ("Total comic
  * issues"), a comic entry counts as however many issues it covers,
- * not as one record — issues 6–11 contribute 6, not 1. Every other
- * media type counts as 1 per entry. This only applies to *counting*
- * statistics; ratings, streaks and entry lists (highest-rated, recent
- * activity) still treat each record as one item, since a six-issue
- * entry is still a single rating and a single thing to revisit.
+ * not as one record — issues 6–11 contribute 6, not 1. TV entries
+ * follow the same logic when the user has enabled episode tracking.
+ * Every other media type counts as 1 per entry. This only applies to
+ * *counting* statistics; ratings, streaks and entry lists
+ * (highest-rated, recent activity) still treat each record as one
+ * item, since a six-issue entry is still a single rating and a single
+ * thing to revisit.
  */
-function getEntryWeight(entry: MediaEntry): number {
-  if (entry.mediaType !== 'comic') return 1;
-  const { issueStart, issueEnd } = entry.metadata;
-  if (typeof issueStart !== 'number' || typeof issueEnd !== 'number' || issueEnd < issueStart) {
-    return 1;
+function getEntryWeight(entry: MediaEntry, tvMode: TvTrackingMode): number {
+  if (entry.mediaType === 'comic') {
+    const { issueStart, issueEnd } = entry.metadata;
+    if (typeof issueStart !== 'number' || typeof issueEnd !== 'number' || issueEnd < issueStart) {
+      return 1;
+    }
+    return comicIssueCount(issueStart, issueEnd);
   }
-  return comicIssueCount(issueStart, issueEnd);
+  if (entry.mediaType === 'tv' && tvMode === 'episode') {
+    const { episodeStart, episodeEnd } = entry.metadata;
+    if (
+      typeof episodeStart === 'number' &&
+      typeof episodeEnd === 'number' &&
+      episodeEnd >= episodeStart
+    ) {
+      return episodeEnd - episodeStart + 1;
+    }
+  }
+  return 1;
 }
 
 export interface YearSummary {
@@ -53,11 +80,11 @@ export interface YearSummary {
 }
 
 export async function getYearSummary(year: number): Promise<YearSummary> {
-  const entries = await entriesForYear(year);
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const totalsByMediaType: Record<string, number> = {};
   let totalEntries = 0;
   for (const entry of entries) {
-    const weight = getEntryWeight(entry);
+    const weight = getEntryWeight(entry, tvMode);
     totalsByMediaType[entry.mediaType] = (totalsByMediaType[entry.mediaType] ?? 0) + weight;
     totalEntries += weight;
   }
@@ -68,14 +95,14 @@ export async function getYearSummary(year: number): Promise<YearSummary> {
  * by `getEntryWeight` so a multi-issue comic entry contributes its
  * full issue count rather than one. */
 export async function getMonthlyBreakdown(year: number): Promise<Record<number, number>> {
-  const entries = await entriesForYear(year);
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const breakdown: Record<number, number> = {};
   for (let month = 1; month <= 12; month += 1) {
     breakdown[month] = 0;
   }
   for (const entry of entries) {
-    const month = new Date(entry.completedDate).getMonth() + 1;
-    breakdown[month] = (breakdown[month] ?? 0) + getEntryWeight(entry);
+    const month = new Date(entry.completedDate ?? '').getMonth() + 1;
+    breakdown[month] = (breakdown[month] ?? 0) + getEntryWeight(entry, tvMode);
   }
   return breakdown;
 }
@@ -135,14 +162,14 @@ export async function getAverageRatingByMediaType(
  * this powers (UI & UX Specification, section 8) without adding a
  * date library plugin. */
 export async function getWeeklyTotals(year: number): Promise<Record<number, number>> {
-  const entries = await entriesForYear(year);
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const startOfYear = new Date(Date.UTC(year, 0, 1));
   const totals: Record<number, number> = {};
   for (const entry of entries) {
-    const date = new Date(entry.completedDate);
+    const date = new Date(entry.completedDate ?? '');
     const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / 86_400_000) + 1;
     const week = Math.min(53, Math.max(1, Math.ceil(dayOfYear / 7)));
-    totals[week] = (totals[week] ?? 0) + getEntryWeight(entry);
+    totals[week] = (totals[week] ?? 0) + getEntryWeight(entry, tvMode);
   }
   return totals;
 }
@@ -176,15 +203,58 @@ export async function getMostActiveWeekday(year: number): Promise<number | null>
   if (entries.length === 0) return null;
   const totals: Record<number, number> = {};
   for (const entry of entries) {
-    const day = new Date(entry.completedDate).getDay();
+    const day = new Date(entry.completedDate ?? '').getDay();
     totals[day] = (totals[day] ?? 0) + 1;
   }
   return Number(
     Object.entries(totals).reduce((best, current) => (current[1] > best[1] ? current : best))[0],
   );
 }
+/** Most recently completed entries across all years, newest first. */
 export async function getRecentEntries(limit: number): Promise<MediaEntry[]> {
-  return db.mediaEntries.orderBy('completedDate').reverse().limit(limit).toArray();
+  return db.mediaEntries
+    .where('status')
+    .equals('completed')
+    .sortBy('completedDate')
+    .then((entries) => entries.reverse().slice(0, limit));
+}
+
+/**
+ * Number of consecutive calendar days (ending today or yesterday) on
+ * which at least one entry was completed. Returns 0 if there are no
+ * entries or the most recent entry is more than one day old. Looks
+ * across all years so a streak that started in December keeps running
+ * into January.
+ */
+export async function getCurrentStreak(): Promise<number> {
+  const entries = await db.mediaEntries
+    .where('status')
+    .equals('completed')
+    .sortBy('completedDate')
+    .then((rows) => rows.reverse());
+  if (entries.length === 0) return 0;
+
+  const today = dayjs().format('YYYY-MM-DD');
+  const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+  const distinctDays = Array.from(
+    new Set(entries.map((entry) => entry.completedDate)),
+  ).sort().reverse();
+
+  const mostRecent = distinctDays[0];
+  if (mostRecent !== today && mostRecent !== yesterday) return 0;
+
+  let streak = 1;
+  for (let index = 1; index < distinctDays.length; index += 1) {
+    const prev = distinctDays[index - 1];
+    const curr = distinctDays[index];
+    if (!prev || !curr) break;
+    if (dayjs(prev).diff(dayjs(curr), 'day') === 1) {
+      streak += 1;
+    } else {
+      break;
+    }
+  }
+  return streak;
 }
 
 /** Highest-rated entries within `year`, highest first. */

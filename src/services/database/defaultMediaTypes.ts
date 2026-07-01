@@ -42,7 +42,11 @@ export const defaultMediaTypes: MediaType[] = [
     icon: 'movie',
     colour: '#D32F2F',
     enabled: true,
-    fields: [{ key: 'director', label: 'Director', type: 'text', required: false }],
+    fields: [
+      { key: 'director', label: 'Director', type: 'text', required: false },
+      { key: 'screenwriter', label: 'Screenwriter', type: 'text', required: false },
+      { key: 'cast', label: 'Cast', type: 'text', required: false },
+    ],
   },
   {
     id: 'tv',
@@ -51,8 +55,12 @@ export const defaultMediaTypes: MediaType[] = [
     colour: '#388E3C',
     enabled: true,
     fields: [
-      { key: 'showTitle', label: 'Show Title', type: 'text', required: false },
       { key: 'seasonNumber', label: 'Season Number', type: 'number', required: false },
+      { key: 'episodeStart', label: 'Episode Start', type: 'number', required: false },
+      { key: 'episodeEnd', label: 'Episode End', type: 'number', required: false },
+      { key: 'creator', label: 'Creator', type: 'text', required: false },
+      { key: 'showrunner', label: 'Showrunner', type: 'text', required: false },
+      { key: 'cast', label: 'Cast', type: 'text', required: false },
     ],
   },
   {

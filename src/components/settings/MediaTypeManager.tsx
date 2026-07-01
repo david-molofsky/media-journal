@@ -4,28 +4,40 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useAllMediaTypes } from '@/hooks/useAllMediaTypes';
-import { setMediaTypeEnabled } from '@/services/database/mediaTypeService';
+import {
+  setMediaTypeEnabled,
+  deleteMediaType,
+  isDefaultMediaType,
+} from '@/services/database/mediaTypeService';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { AddMediaTypeDialog } from './AddMediaTypeDialog';
+import type { MediaType } from '@/models';
 
-/**
- * Manage Media Types (Settings, Milestone 7). Existing types — built
- * in or custom — can be enabled or disabled; new ones are added via a
- * dedicated form. There's no edit/delete for existing types in v1:
- * disabling a type already removes it from new-entry selection while
- * keeping past entries intact, which covers the common case without
- * the added complexity of rewriting entries that reference a changed
- * or removed type.
- */
 export function MediaTypeManager() {
   const mediaTypes = useAllMediaTypes();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<MediaType | null>(null);
+
+  const handleDelete = async () => {
+    if (pendingDelete) {
+      await deleteMediaType(pendingDelete.id);
+    }
+    setPendingDelete(null);
+  };
 
   return (
     <Box>
@@ -33,7 +45,7 @@ export function MediaTypeManager() {
         <Typography variant="subtitle2" color="text.secondary">
           Manage media types
         </Typography>
-        <Button size="small" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+        <Button size="small" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
           Add type
         </Button>
       </Stack>
@@ -41,17 +53,37 @@ export function MediaTypeManager() {
       <List disablePadding>
         {(mediaTypes ?? []).map((mediaType) => {
           const Icon = getMediaTypeIcon(mediaType.icon);
+          const isDefault = isDefaultMediaType(mediaType.id);
           return (
             <ListItem
               key={mediaType.id}
               disablePadding
               sx={{ borderBottom: 1, borderColor: 'divider', py: 1 }}
               secondaryAction={
-                <Switch
-                  checked={mediaType.enabled}
-                  onChange={(event) => setMediaTypeEnabled(mediaType.id, event.target.checked)}
-                  inputProps={{ 'aria-label': `Toggle ${mediaType.displayName}` }}
-                />
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  {isDefault ? (
+                    // Spacer so the Switch stays aligned with custom rows
+                    <Box sx={{ width: 36 }} />
+                  ) : (
+                    <Tooltip title="Delete type">
+                      <IconButton
+                        size="small"
+                        aria-label={`Delete ${mediaType.displayName}`}
+                        onClick={() => setPendingDelete(mediaType)}
+                        color="error"
+                      >
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <Switch
+                    checked={mediaType.enabled}
+                    onChange={(event) =>
+                      setMediaTypeEnabled(mediaType.id, event.target.checked)
+                    }
+                    inputProps={{ 'aria-label': `Toggle ${mediaType.displayName}` }}
+                  />
+                </Stack>
               }
             >
               <ListItemIcon sx={{ minWidth: 36 }}>
@@ -59,7 +91,11 @@ export function MediaTypeManager() {
               </ListItemIcon>
               <ListItemText
                 primary={mediaType.displayName}
-                secondary={`${mediaType.fields.length} field${mediaType.fields.length === 1 ? '' : 's'}`}
+                secondary={
+                  isDefault
+                    ? `Built-in · ${mediaType.fields.length} field${mediaType.fields.length === 1 ? '' : 's'}`
+                    : `Custom · ${mediaType.fields.length} field${mediaType.fields.length === 1 ? '' : 's'}`
+                }
               />
             </ListItem>
           );
@@ -67,11 +103,28 @@ export function MediaTypeManager() {
       </List>
 
       <AddMediaTypeDialog
-        open={dialogOpen}
+        open={addOpen}
         existingIds={(mediaTypes ?? []).map((type) => type.id)}
-        onClose={() => setDialogOpen(false)}
-        onCreated={() => setDialogOpen(false)}
+        onClose={() => setAddOpen(false)}
+        onCreated={() => setAddOpen(false)}
       />
+
+      <Dialog open={Boolean(pendingDelete)} onClose={() => setPendingDelete(null)}>
+        <DialogTitle>Delete "{pendingDelete?.displayName}"?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This permanently removes the media type. Existing library entries that use it will
+            remain but their type label won't resolve until you recreate the type with the same
+            id. This can't be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingDelete(null)}>Cancel</Button>
+          <Button color="error" onClick={handleDelete}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

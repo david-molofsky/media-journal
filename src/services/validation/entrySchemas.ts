@@ -9,8 +9,9 @@ export const mediaEntrySchema = z
   .object({
     title: z.string().trim().min(1, 'Title is required').max(250, 'Title is too long'),
     mediaType: z.string().min(1, 'Media type is required'),
+    status: z.enum(['completed', 'in_progress', 'wishlist']).default('completed'),
     startedDate: z.string().optional(),
-    completedDate: z.string().min(1, 'Completed date is required'),
+    completedDate: z.string().optional(),
     rating: z
       .number()
       .min(0)
@@ -21,14 +22,28 @@ export const mediaEntrySchema = z
       .optional(),
     notes: z.string().max(5000).optional(),
     repeatConsumption: z.boolean(),
+    tags: z.array(z.string()),
     metadata: z.record(
       z.string(),
       z.union([z.string(), z.number(), z.boolean(), z.undefined()]),
     ),
   })
-  .refine((entry) => !isCompletedBeforeStarted(entry.startedDate, entry.completedDate), {
-    message: 'Completed date cannot precede started date',
-    path: ['completedDate'],
+  .superRefine((data, ctx) => {
+    // completedDate is required only for completed entries.
+    if (data.status === 'completed' && !data.completedDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Completed date is required',
+        path: ['completedDate'],
+      });
+    }
+    if (isCompletedBeforeStarted(data.startedDate, data.completedDate ?? '')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Completed date cannot precede started date',
+        path: ['completedDate'],
+      });
+    }
   });
 
 export type ValidatedMediaEntry = z.infer<typeof mediaEntrySchema>;
@@ -51,11 +66,17 @@ const bookMetadataSchema = z.object({
 
 const filmMetadataSchema = z.object({
   director: z.string().optional(),
+  screenwriter: z.string().optional(),
+  cast: z.string().optional(),
 });
 
 const tvMetadataSchema = z.object({
-  showTitle: z.string().optional(),
   seasonNumber: z.number().min(1, 'Season number must be at least 1').optional(),
+  episodeStart: z.number().min(1, 'Episode must be at least 1').optional(),
+  episodeEnd: z.number().min(1, 'Episode must be at least 1').optional(),
+  creator: z.string().optional(),
+  showrunner: z.string().optional(),
+  cast: z.string().optional(),
 });
 
 const comicMetadataSchema = z

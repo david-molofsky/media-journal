@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import ReplayIcon from '@mui/icons-material/Replay';
 import type { MediaEntry, MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
@@ -13,78 +15,136 @@ interface EntryCardProps {
   entry: MediaEntry;
   mediaType: MediaType | undefined;
   onOpen: () => void;
+  selected?: boolean;
+  onMarkFinished?: () => void;
+  onStartTracking?: () => void;
+  onMoveToWishlist?: () => void;
 }
 
+const STATUS_CONFIG = {
+  in_progress: { label: '▶ In Progress', bgcolor: '#FFF8E1', color: '#F57F17', border: '#FFE082' },
+  wishlist: { label: '★ Wishlist', bgcolor: '#F3E5F5', color: '#7B1FA2', border: '#CE93D8' },
+} as const;
+
 /**
- * A single Library entry card, per UI & UX Specification section 5:
- * rating badge, title, media type icon, completion date, series (if
- * applicable) and a re-read/re-watch indicator — coloured by the
- * entry's media type accent colour.
+ * Derives the subtitle line shown beneath the title. Each media type
+ * surfaces the most useful field rather than showing the type name
+ * (which is already implicit from the icon colour):
+ *   Book / Audiobook  → Author name
+ *   Film              → Dir. {Director}
+ *   TV                → Season {N}
+ *   Comic             → Issues {start}–{end}
+ *   Custom            → falls back to the type's displayName
  *
- * Tapping the card opens Edit Entry, which is also where deletion now
- * lives (rather than a per-card delete button) to keep the Library
- * list a single, low-risk tap target. The spec also calls for
- * swipe-left-to-delete and swipe-right-to-quick-edit gestures; those
- * need a gesture library this project doesn't yet depend on, so for
- * now both delete and quick-edit are reached via Edit Entry — fully
- * covering the underlying requirement (browse, edit, delete) without
- * adding a new dependency for a polish-level interaction.
+ * The completion date always follows, separated by a mid-dot.
  */
-export function EntryCard({ entry, mediaType, onOpen }: EntryCardProps) {
-  // `Icon` is resolved from a stable, module-level lookup table
-  // (utils/mediaTypeIcon.tsx) keyed by `mediaType.icon`, so its identity
-  // doesn't actually change between renders for the same media type;
-  // the react-compiler lint rule can't see that statically.
+function buildSubtitle(entry: MediaEntry, mediaType: MediaType | undefined): string {
+  const { metadata, mediaType: typeId, completedDate } = entry;
+  const date = dayjs(completedDate).format('D MMM YYYY');
+
+  // Default: custom type — show display name. Known types overwrite below.
+  let detail: string = mediaType?.displayName ?? typeId;
+  if (typeId === 'book' || typeId === 'audiobook') {
+    detail = typeof metadata.author === 'string' && metadata.author ? metadata.author : '';
+  } else if (typeId === 'film') {
+    detail =
+      typeof metadata.director === 'string' && metadata.director
+        ? `Dir. ${metadata.director}`
+        : '';
+  } else if (typeId === 'tv') {
+    const { seasonNumber, episodeStart, episodeEnd } = metadata;
+    const hasEpisodes =
+      typeof episodeStart === 'number' && typeof episodeEnd === 'number';
+    if (hasEpisodes) {
+      const seasonPart = typeof seasonNumber === 'number' ? `S${seasonNumber} ` : '';
+      detail = `${seasonPart}Ep ${episodeStart}–${episodeEnd}`;
+    } else if (typeof seasonNumber === 'number') {
+      detail = `Season ${seasonNumber}`;
+    }
+  } else if (typeId === 'comic') {
+    const { issueStart, issueEnd } = metadata;
+    detail =
+      typeof issueStart === 'number' && typeof issueEnd === 'number'
+        ? `Issues ${issueStart}–${issueEnd}`
+        : '';
+  }
+
+  return [detail, date].filter(Boolean).join(' · ');
+}
+
+export function EntryCard({
+  entry,
+  mediaType,
+  onOpen,
+  selected,
+  onMarkFinished,
+  onStartTracking,
+  onMoveToWishlist,
+
+}: EntryCardProps) {
+  // `Icon` is resolved from a module-level lookup table (utils/mediaTypeIcon.tsx)
+  // keyed by a stable string — it doesn't change between renders for the same
+  // media type. The react-compiler lint rule can't see that statically, so we
+  // suppress it at the JSX usage site below.
   const Icon = getMediaTypeIcon(mediaType?.icon ?? '');
   const colour = mediaType?.colour ?? '#616161';
-  const series = typeof entry.metadata.series === 'string' ? entry.metadata.series : undefined;
+
+  const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
+  const hasActions = Boolean(onMarkFinished ?? onStartTracking ?? onMoveToWishlist);
 
   return (
-    <Card
-      variant="outlined"
-      sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden' }}
-    >
+    <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden', ...(selected !== undefined && { outline: selected ? `2px solid ${colour}` : '2px solid transparent' }) }}>
       <CardActionArea onClick={onOpen} sx={{ p: 2 }}>
         <Stack direction="row" spacing={2} alignItems="center">
-          <Box
-            sx={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              bgcolor: `${colour}1A`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {entry.rating !== undefined ? (
-              <Typography variant="subtitle2" fontWeight={700} color={colour}>
-                {entry.rating}
-              </Typography>
-            ) : (
-              // eslint-disable-next-line react-hooks/static-components
-              <Icon sx={{ color: colour, fontSize: 22 }} />
-            )}
+          {selected !== undefined && (
+            <Box sx={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${selected ? colour : '#ccc'}`, bgcolor: selected ? colour : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
+              {selected ? '✓' : ''}
+            </Box>
+          )}
+          <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: `${colour}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {/* eslint-disable-next-line react-hooks/static-components */}
+            <Icon sx={{ color: colour, fontSize: 22 }} />
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography variant="subtitle1" fontWeight={600} noWrap>
-                {entry.title}
-              </Typography>
+              <Typography variant="subtitle1" fontWeight={600} noWrap>{entry.title}</Typography>
               {entry.repeatConsumption && (
-                <Tooltip title="Re-read / Re-watch">
-                  <ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                </Tooltip>
+                <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} /></Tooltip>
               )}
             </Stack>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {mediaType?.displayName ?? entry.mediaType}
-              {series ? ` · ${series}` : ''} · {dayjs(entry.completedDate).format('D MMM YYYY')}
-            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry, mediaType)}</Typography>
           </Box>
+          {entry.rating !== undefined && (
+            <Box sx={{ flexShrink: 0, bgcolor: colour, color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 20, px: 1.25, py: 0.4, lineHeight: 1.4 }}>
+              {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
+            </Box>
+          )}
         </Stack>
       </CardActionArea>
+
+      {statusCfg && (
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25, mb: hasActions ? 1 : 0 }}>
+            {statusCfg.label}
+          </Box>
+          {hasActions && (
+            <>
+              <Divider sx={{ mb: 1 }} />
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {onMarkFinished && (
+                  <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); onMarkFinished(); }}>✓ Mark finished</Button>
+                )}
+                {onStartTracking && (
+                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onStartTracking(); }}>▶ Start tracking</Button>
+                )}
+                {onMoveToWishlist && (
+                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onMoveToWishlist(); }}>★ Move to wishlist</Button>
+                )}
+              </Stack>
+            </>
+          )}
+        </Box>
+      )}
     </Card>
   );
 }

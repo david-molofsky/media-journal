@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -7,6 +7,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
@@ -15,8 +17,10 @@ import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entry
 import { comicIssueCount } from '@/utils/comicIssues';
 import { todayIso } from '@/utils/dateUtils';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
-import type { EntryMetadata, MediaType, NewMediaEntryInput } from '@/models';
+import { TagInput } from './TagInput';
+import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
  * Form state matches `NewMediaEntryInput` exactly (rather than a
@@ -49,11 +53,13 @@ function buildDefaultValues(mediaType: MediaType, initialValues?: EntryFormValue
     initialValues ?? {
       title: '',
       mediaType: mediaType.id,
+      status: 'completed' as EntryStatus,
       startedDate: undefined,
       completedDate: todayIso(),
       rating: undefined,
       notes: '',
       repeatConsumption: false,
+      tags: [],
       metadata: emptyMetadata(mediaType),
     }
   );
@@ -81,15 +87,19 @@ export function EntryForm({
     register,
     handleSubmit,
     watch,
+    setValue,
     setError,
     formState: { errors },
   } = useForm<EntryFormValues>({
-    resolver: zodResolver(mediaEntrySchema),
+    resolver: zodResolver(mediaEntrySchema) as unknown as Resolver<EntryFormValues>,
     defaultValues,
   });
 
+  const status = watch('status') as EntryStatus | undefined;
   const issueStart = watch('metadata.issueStart' as 'metadata');
   const issueEnd = watch('metadata.issueEnd' as 'metadata');
+  const episodeStart = watch('metadata.episodeStart' as 'metadata');
+  const episodeEnd = watch('metadata.episodeEnd' as 'metadata');
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -115,9 +125,11 @@ export function EntryForm({
     try {
       await onSubmit({
         ...values,
+        status: (values.status ?? 'completed') as EntryStatus,
+        tags: values.tags ?? [],
         mediaType: mediaType.id,
         metadata: metadataResult.data as EntryMetadata,
-      });
+      } as NewMediaEntryInput);
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : 'Something went wrong. Please try again.',
@@ -137,6 +149,33 @@ export function EntryForm({
           sx={{ alignSelf: 'flex-start', fontWeight: 600 }}
         />
 
+        {/* Status toggle — Completed / In Progress / Wishlist */}
+        <Controller
+          name="status"
+          control={control}
+          render={({ field }) => (
+            <ToggleButtonGroup
+              value={field.value ?? 'completed'}
+              exclusive
+              onChange={(_, v) => {
+                if (!v) return;
+                field.onChange(v);
+                // Clear completedDate when switching away from completed
+                if (v !== 'completed') setValue('completedDate', undefined as unknown as string);
+                // Restore today when switching back to completed
+                if (v === 'completed') setValue('completedDate', todayIso());
+              }}
+              size="small"
+              fullWidth
+              aria-label="Entry status"
+            >
+              <ToggleButton value="completed">✓ Completed</ToggleButton>
+              <ToggleButton value="in_progress">▶ In Progress</ToggleButton>
+              <ToggleButton value="wishlist">★ Wishlist</ToggleButton>
+            </ToggleButtonGroup>
+          )}
+        />
+
         <Stack spacing={2}>
           <Typography variant="subtitle2" color="text.secondary">
             General Information
@@ -147,6 +186,9 @@ export function EntryForm({
             fullWidth
             autoFocus
             {...register('title')}
+            onBlur={(event) => {
+              setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
+            }}
             error={Boolean(errors.title)}
             helperText={errors.title?.message}
           />
@@ -177,7 +219,12 @@ export function EntryForm({
                         controllerField.onChange(raw);
                       }
                     }}
-                    onBlur={controllerField.onBlur}
+                    onBlur={() => {
+                      if (field.type === 'text' && typeof controllerField.value === 'string') {
+                        controllerField.onChange(toTitleCase(controllerField.value));
+                      }
+                      controllerField.onBlur();
+                    }}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
                   />
@@ -194,37 +241,57 @@ export function EntryForm({
                   {comicIssueCount(issueStart, issueEnd) === 1 ? '' : 's'}.
                 </Alert>
               )}
+            {mediaType.id === 'tv' &&
+              typeof episodeStart === 'number' &&
+              typeof episodeEnd === 'number' &&
+              episodeEnd >= episodeStart && (() => {
+                const count = (episodeEnd as number) - (episodeStart as number) + 1;
+                return (
+                  <Alert severity="info" variant="outlined">
+                    Episodes {episodeStart}–{episodeEnd} count as {count} episode
+                    {count === 1 ? '' : 's'}.
+                  </Alert>
+                );
+              })()}
           </Stack>
         )}
 
-        <Stack spacing={2}>
-          <Typography variant="subtitle2" color="text.secondary">
-            Dates
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Started"
-              type="date"
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-              {...register('startedDate')}
-              error={Boolean(errors.startedDate)}
-              helperText={errors.startedDate?.message}
-            />
-            <TextField
-              label="Completed"
-              type="date"
-              required
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-              {...register('completedDate')}
-              error={Boolean(errors.completedDate)}
-              helperText={errors.completedDate?.message}
-            />
+        {/* Dates — completedDate only shown for completed; startedDate
+            shown for completed and in_progress; hidden for wishlist */}
+        {status !== 'wishlist' && (
+          <Stack spacing={2}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Dates
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Started"
+                type="date"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+                {...register('startedDate')}
+                error={Boolean(errors.startedDate)}
+                helperText={errors.startedDate?.message}
+              />
+              {status !== 'in_progress' && (
+                <TextField
+                  label="Completed"
+                  type="date"
+                  required
+                  fullWidth
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  {...register('completedDate')}
+                  error={Boolean(errors.completedDate)}
+                  helperText={errors.completedDate?.message}
+                />
+              )}
+            </Stack>
           </Stack>
-        </Stack>
+        )}
 
-        <Divider />
+        {(!status || status === 'completed') && (
+          <>
+            <Divider />
 
         <Controller
           name="rating"
@@ -244,6 +311,8 @@ export function EntryForm({
             />
           )}
         />
+          </>
+        )}
 
         <Stack spacing={2}>
           <Typography variant="subtitle2" color="text.secondary">
@@ -259,6 +328,14 @@ export function EntryForm({
             helperText={errors.notes?.message}
           />
         </Stack>
+
+        <Controller
+          name="tags"
+          control={control}
+          render={({ field }) => (
+            <TagInput value={field.value ?? []} onChange={field.onChange} />
+          )}
+        />
 
         {submitError && <Alert severity="error">{submitError}</Alert>}
 

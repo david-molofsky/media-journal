@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -17,10 +17,13 @@ import Divider from '@mui/material/Divider';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMediaEntry } from '@/hooks/useMediaEntry';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
+import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { EntryForm } from '@/components/forms/EntryForm';
+import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
@@ -41,7 +44,24 @@ export default function EditEntryPage() {
   const navigate = useNavigate();
   const entry = useMediaEntry(id);
   const mediaTypes = useMediaTypes();
+  const tvMode = useTvTrackingMode();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  // Derive these unconditionally (before any early returns) so hooks
+  // are always called in the same order — Rules of Hooks.
+  const rawMediaType = mediaTypes?.find((type) => type.id === entry?.mediaType);
+  const effectiveMediaType = useMemo(() => {
+    if (!rawMediaType || rawMediaType.id !== 'tv') return rawMediaType;
+    return {
+      ...rawMediaType,
+      fields: rawMediaType.fields.filter((field) =>
+        tvMode === 'episode'
+          ? true
+          : field.key !== 'episodeStart' && field.key !== 'episodeEnd',
+      ),
+    };
+  }, [rawMediaType, tvMode]);
 
   const previousEntries = useLiveQuery(async () => {
     if (!entry) return [];
@@ -77,8 +97,7 @@ export default function EditEntryPage() {
     );
   }
 
-  const mediaType = mediaTypes.find((type) => type.id === entry.mediaType);
-  if (!mediaType) {
+  if (!effectiveMediaType) {
     return (
       <PagePlaceholder
         title="Media type unavailable"
@@ -104,20 +123,25 @@ export default function EditEntryPage() {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" component="h1" fontWeight={600}>
-          Edit {mediaType.displayName}
+          Edit {effectiveMediaType.displayName}
         </Typography>
+        <IconButton aria-label="Share entry" onClick={() => setShareOpen(true)}>
+          <ShareOutlinedIcon />
+        </IconButton>
       </Stack>
 
       <EntryForm
-        mediaType={mediaType}
+        mediaType={effectiveMediaType}
         initialValues={{
           title: entry.title,
           mediaType: entry.mediaType,
+          status: entry.status ?? 'completed',
           startedDate: entry.startedDate,
           completedDate: entry.completedDate,
           rating: entry.rating,
           notes: entry.notes,
           repeatConsumption: entry.repeatConsumption,
+          tags: entry.tags ?? [],
           metadata: entry.metadata,
         }}
         submitLabel="Save Changes"
@@ -186,6 +210,13 @@ export default function EditEntryPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ShareEntrySheet
+        open={shareOpen}
+        entry={entry}
+        mediaType={effectiveMediaType}
+        onClose={() => setShareOpen(false)}
+      />
     </Box>
   );
 }
