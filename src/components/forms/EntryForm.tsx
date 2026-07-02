@@ -21,6 +21,8 @@ import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
 import { MetadataSearch } from './MetadataSearch';
+import { AutocompleteField } from './AutocompleteField';
+import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
@@ -38,6 +40,11 @@ interface EntryFormProps {
   mediaType: MediaType;
   /** Pre-fills the form for Edit Entry. Omit for Add Entry. */
   initialValues?: EntryFormValues;
+  /** Status a brand-new entry should start on (ignored when
+   * `initialValues` is set, i.e. on Edit Entry). Lets Add Entry default
+   * to whichever Library tab — Completed / In Progress / Wishlist —
+   * the user came from. Defaults to `'completed'` if omitted. */
+  defaultStatus?: EntryStatus;
   submitLabel: string;
   onSubmit: (values: EntryFormValues) => Promise<void>;
   /** Extra actions shown beneath the form — Delete/Duplicate on Edit
@@ -49,14 +56,20 @@ function emptyMetadata(mediaType: MediaType): EntryMetadata {
   return Object.fromEntries(mediaType.fields.map((field) => [field.key, undefined]));
 }
 
-function buildDefaultValues(mediaType: MediaType, initialValues?: EntryFormValues): EntryFormValues {
+function buildDefaultValues(
+  mediaType: MediaType,
+  initialValues?: EntryFormValues,
+  defaultStatus: EntryStatus = 'completed',
+): EntryFormValues {
   return (
     initialValues ?? {
       title: '',
       mediaType: mediaType.id,
-      status: 'completed' as EntryStatus,
+      status: defaultStatus,
       startedDate: undefined,
-      completedDate: todayIso(),
+      // Matches the toggle's own onChange behaviour: completedDate only
+      // makes sense to pre-fill when starting out as Completed.
+      completedDate: defaultStatus === 'completed' ? todayIso() : undefined,
       rating: undefined,
       notes: '',
       repeatConsumption: false,
@@ -69,6 +82,7 @@ function buildDefaultValues(mediaType: MediaType, initialValues?: EntryFormValue
 export function EntryForm({
   mediaType,
   initialValues,
+  defaultStatus,
   submitLabel,
   onSubmit,
   secondaryActions,
@@ -78,7 +92,7 @@ export function EntryForm({
   const Icon = getMediaTypeIcon(mediaType.icon);
 
   const defaultValues = useMemo(
-    () => buildDefaultValues(mediaType, initialValues),
+    () => buildDefaultValues(mediaType, initialValues, defaultStatus),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mediaType.id],
   );
@@ -150,40 +164,16 @@ export function EntryForm({
           sx={{ alignSelf: 'flex-start', fontWeight: 600 }}
         />
 
-        {/* Status toggle — Completed / In Progress / Wishlist */}
-        <Controller
-          name="status"
-          control={control}
-          render={({ field }) => (
-            <ToggleButtonGroup
-              value={field.value ?? 'completed'}
-              exclusive
-              onChange={(_, v) => {
-                if (!v) return;
-                field.onChange(v);
-                // Clear completedDate when switching away from completed
-                if (v !== 'completed') setValue('completedDate', undefined as unknown as string);
-                // Restore today when switching back to completed
-                if (v === 'completed') setValue('completedDate', todayIso());
-              }}
-              size="small"
-              fullWidth
-              aria-label="Entry status"
-            >
-              <ToggleButton value="completed">✓ Completed</ToggleButton>
-              <ToggleButton value="in_progress">▶ In Progress</ToggleButton>
-              <ToggleButton value="wishlist">★ Wishlist</ToggleButton>
-            </ToggleButtonGroup>
-          )}
-        />
-
         <Stack spacing={2}>
           <Typography variant="subtitle2" color="text.secondary">
             General Information
           </Typography>
           {/* Optional metadata search — pre-fills title and type-specific
               fields from Open Library (books) or TMDB (films/TV). The user
-              can ignore this and fill the form manually. */}
+              can ignore this and fill the form manually. Autofocused when
+              available, since starting a search is the fastest path for
+              most entries; Title below falls back to autofocus when no
+              search source exists for this media type. */}
           <MetadataSearch
             mediaTypeId={mediaType.id}
             onFill={(title, fields) => {
@@ -200,13 +190,42 @@ export function EntryForm({
             label="Title"
             required
             fullWidth
-            autoFocus
+            autoFocus={!hasMetadataSearch(mediaType.id)}
             {...register('title')}
             onBlur={(event) => {
               setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
             }}
             error={Boolean(errors.title)}
             helperText={errors.title?.message}
+          />
+
+          {/* Status toggle — Completed / In Progress / Wishlist. Sits
+              right below Title so it's the next thing filled in after
+              naming the entry. */}
+          <Controller
+            name="status"
+            control={control}
+            render={({ field }) => (
+              <ToggleButtonGroup
+                value={field.value ?? 'completed'}
+                exclusive
+                onChange={(_, v) => {
+                  if (!v) return;
+                  field.onChange(v);
+                  // Clear completedDate when switching away from completed
+                  if (v !== 'completed') setValue('completedDate', undefined as unknown as string);
+                  // Restore today when switching back to completed
+                  if (v === 'completed') setValue('completedDate', todayIso());
+                }}
+                size="small"
+                fullWidth
+                aria-label="Entry status"
+              >
+                <ToggleButton value="completed">✓ Completed</ToggleButton>
+                <ToggleButton value="in_progress">▶ In Progress</ToggleButton>
+                <ToggleButton value="wishlist">★ Wishlist</ToggleButton>
+              </ToggleButtonGroup>
+            )}
           />
         </Stack>
 
@@ -220,31 +239,46 @@ export function EntryForm({
                 key={field.key}
                 name={`metadata.${field.key}` as 'metadata'}
                 control={control}
-                render={({ field: controllerField, fieldState }) => (
-                  <TextField
-                    label={field.label}
-                    required={field.required}
-                    type={field.type === 'number' ? 'number' : 'text'}
-                    fullWidth
-                    value={controllerField.value ?? ''}
-                    onChange={(event) => {
-                      const raw = event.target.value;
-                      if (field.type === 'number') {
-                        controllerField.onChange(raw === '' ? undefined : Number(raw));
-                      } else {
-                        controllerField.onChange(raw);
+                render={({ field: controllerField, fieldState }) =>
+                  field.type === 'autocomplete' ? (
+                    <AutocompleteField
+                      label={field.label}
+                      options={field.options ?? []}
+                      required={field.required}
+                      value={
+                        typeof controllerField.value === 'string' ? controllerField.value : undefined
                       }
-                    }}
-                    onBlur={() => {
-                      if (field.type === 'text' && typeof controllerField.value === 'string') {
-                        controllerField.onChange(toTitleCase(controllerField.value));
-                      }
-                      controllerField.onBlur();
-                    }}
-                    error={Boolean(fieldState.error)}
-                    helperText={fieldState.error?.message}
-                  />
-                )}
+                      onChange={(newValue) => controllerField.onChange(newValue)}
+                      onBlur={controllerField.onBlur}
+                      error={Boolean(fieldState.error)}
+                      helperText={fieldState.error?.message}
+                    />
+                  ) : (
+                    <TextField
+                      label={field.label}
+                      required={field.required}
+                      type={field.type === 'number' ? 'number' : 'text'}
+                      fullWidth
+                      value={controllerField.value ?? ''}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        if (field.type === 'number') {
+                          controllerField.onChange(raw === '' ? undefined : Number(raw));
+                        } else {
+                          controllerField.onChange(raw);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (field.type === 'text' && typeof controllerField.value === 'string') {
+                          controllerField.onChange(toTitleCase(controllerField.value));
+                        }
+                        controllerField.onBlur();
+                      }}
+                      error={Boolean(fieldState.error)}
+                      helperText={fieldState.error?.message}
+                    />
+                  )
+                }
               />
             ))}
             {mediaType.id === 'comic' &&

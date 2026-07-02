@@ -18,6 +18,7 @@ export const SETTINGS_KEYS = {
   importExportVersion: 'importExportVersion',
   tvTrackingMode: 'tvTrackingMode',
   colorMode: 'colorMode',
+  lastLibraryStatusTab: 'lastLibraryStatusTab',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

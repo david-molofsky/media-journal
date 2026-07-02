@@ -13,6 +13,7 @@ import {
   searchTV,
   getTVDetails,
 } from '@/services/metadata/tmdbService';
+import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 
 interface MetadataSearchProps {
@@ -25,10 +26,9 @@ interface MetadataSearchProps {
 type Source = 'openlibrary' | 'tmdb' | null;
 
 function getSource(mediaTypeId: string): Source {
+  if (!hasMetadataSearch(mediaTypeId)) return null;
   if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return 'openlibrary';
-  if (mediaTypeId === 'film') return 'tmdb';
-  if (mediaTypeId === 'tv') return 'tmdb';
-  return null;
+  return 'tmdb'; // film or tv — the only other types hasMetadataSearch allows
 }
 
 function getSearchFn(
@@ -138,6 +138,7 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
           <TextField
             {...params}
             label="Search to pre-fill"
+            autoFocus
             placeholder={
               source === 'openlibrary'
                 ? 'Search Open Library…'

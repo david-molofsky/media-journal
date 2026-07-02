@@ -7,6 +7,7 @@ import SportsEsportsOutlinedIcon from '@mui/icons-material/SportsEsportsOutlined
 import MicOutlinedIcon from '@mui/icons-material/MicOutlined';
 import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import TheaterComedyOutlinedIcon from '@mui/icons-material/TheaterComedyOutlined';
+import NewspaperOutlinedIcon from '@mui/icons-material/NewspaperOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
 
@@ -33,6 +34,7 @@ const iconsByKey: Record<string, SvgIconComponent> = {
   mic: MicOutlinedIcon,
   palette: PaletteOutlinedIcon,
   theater_comedy: TheaterComedyOutlinedIcon,
+  newspaper: NewspaperOutlinedIcon,
 };
 
 export function getMediaTypeIcon(iconKey: string): SvgIconComponent {
@@ -52,4 +54,5 @@ export const ICON_OPTIONS: { key: string; label: string }[] = [
   { key: 'mic', label: 'Podcast' },
   { key: 'palette', label: 'Art' },
   { key: 'theater_comedy', label: 'Theatre' },
+  { key: 'newspaper', label: 'Magazine' },
 ];

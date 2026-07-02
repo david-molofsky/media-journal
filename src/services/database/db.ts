@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { MediaEntry, MediaType, AppSettingRecord, InProgressEntry, EntryMetadata } from '@/models';
+import { defaultMediaTypes } from './defaultMediaTypes';
 
 /**
  * Media Journal's IndexedDB database, accessed via Dexie.
@@ -207,6 +208,83 @@ export class MediaJournalDatabase extends Dexie {
       mediaTypes: 'id, enabled',
       appSettings: 'key',
       inProgressEntries: null,
+    });
+
+    /**
+     * Version 8: adds five new default media types — Magazine Issues,
+     * Video Games, Podcasts, Art, and Theatre — to `defaultMediaTypes.ts`.
+     *
+     * Fresh installs get all ten via seed.ts (which only runs when the
+     * table is empty). Existing installs already have five rows in
+     * `mediaTypes`, so seed.ts is a no-op for them — this migration adds
+     * just the five new rows, keyed by id, and only if not already
+     * present. This is deliberately additive-only: it never touches the
+     * five pre-existing types, so any edits the user has already made to
+     * them in Settings (name, colour, icon, fields, enabled state) are
+     * left completely alone.
+     */
+    this.version(8).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const newDefaults = defaultMediaTypes.filter((mt) =>
+        ['magazine', 'game', 'podcast', 'art', 'theatre'].includes(mt.id),
+      );
+      const table = tx.table<MediaType>('mediaTypes');
+      for (const mediaType of newDefaults) {
+        const existing = await table.get(mediaType.id);
+        if (!existing) {
+          await table.add(mediaType);
+        }
+      }
+    });
+
+    /**
+     * Version 9: adds a `source` metadata field ("Netflix", "Audible",
+     * "Libby", etc.) to every media type — a free-solo autocomplete
+     * (see FieldInputType, AutocompleteField.tsx) with per-type
+     * suggestion lists, distinct from Tags per David's request.
+     *
+     * Fresh installs get it via seed.ts, since `defaultMediaTypes.ts`
+     * now includes it on every type. For existing installs, this
+     * migration appends a `source` field to every existing row in
+     * `mediaTypes` that doesn't already have one — matched by key, so
+     * it's a no-op for any row the user (unusually) already has a
+     * same-keyed field on. It never removes or reorders existing
+     * fields, so field-specific data already saved on entries is
+     * unaffected. Built-in types get the tailored suggestion list from
+     * `defaultMediaTypes.ts`; any user-created custom type gets a
+     * small generic list as a starting point.
+     */
+    this.version(9).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const genericSourceOptions = ['Physical', 'Streaming', 'Digital', 'Other'];
+      const table = tx.table<MediaType>('mediaTypes');
+      const allTypes = await table.toArray();
+
+      for (const mediaType of allTypes) {
+        const alreadyHasSource = mediaType.fields.some((f) => f.key === 'source');
+        if (alreadyHasSource) continue;
+
+        const defaultMatch = defaultMediaTypes.find((dmt) => dmt.id === mediaType.id);
+        const sourceField = defaultMatch?.fields.find((f) => f.key === 'source') ?? {
+          key: 'source',
+          label: 'Source',
+          type: 'autocomplete' as const,
+          required: false,
+          options: genericSourceOptions,
+        };
+
+        await table.put({ ...mediaType, fields: [...mediaType.fields, sourceField] });
+      }
     });
   }
 }

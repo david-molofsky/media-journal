@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -31,6 +31,7 @@ import { BulkActionBar } from '@/components/library/BulkActionBar';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { type EntrySortOrder, TYPE_SORT_ORDER, updateEntryStatus } from '@/services/database/entryService';
+import { setSetting } from '@/services/database/settingsService';
 import { editEntryPath } from '@/routes/paths';
 import type { EntryStatus, MediaEntry, MediaType } from '@/models';
 import { todayIso } from '@/utils/dateUtils';
@@ -118,6 +119,14 @@ export default function LibraryPage() {
   const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Remember whichever tab is active so the bottom-nav Add button can
+  // default a new entry to matching status (e.g. tapping Add while on
+  // Wishlist starts a new entry already set to Wishlist). Persisted
+  // rather than session-only, consistent with lastViewedYear.
+  useEffect(() => {
+    void setSetting('lastLibraryStatusTab', statusTab);
+  }, [statusTab]);
 
   // "Mark finished" dialog
   const [finishEntry, setFinishEntry] = useState<MediaEntry | null>(null);

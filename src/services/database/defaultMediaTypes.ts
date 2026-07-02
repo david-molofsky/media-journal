@@ -4,8 +4,10 @@ import type { MediaType } from '@/models';
  * Default media types, per PRD section 4 and UI & UX Specification
  * section 2 (accent colours). Seeded into the `mediaTypes` table the
  * first time the database is opened (see services/database/seed.ts).
+ * Existing installs receive any newly-added defaults via a Dexie
+ * migration instead (see db.ts, version 8).
  *
- * This is the only place these five media types are defined — forms,
+ * This is the only place these ten media types are defined — forms,
  * charts and badges all read from the `mediaTypes` table rather than
  * referencing this list directly, so the app continues to work
  * correctly if the user edits or adds media types in Settings
@@ -22,6 +24,13 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'author', label: 'Author', type: 'text', required: false },
       { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'volume', label: 'Volume', type: 'text', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Physical Copy', 'Kindle', 'Libby', 'Kobo', 'Apple Books'],
+      },
     ],
   },
   {
@@ -34,6 +43,13 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'author', label: 'Author', type: 'text', required: false },
       { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'volume', label: 'Volume', type: 'text', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Audible', 'Spotify', 'Libby', 'Physical CD'],
+      },
     ],
   },
   {
@@ -46,6 +62,13 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'director', label: 'Director', type: 'text', required: false },
       { key: 'screenwriter', label: 'Screenwriter', type: 'text', required: false },
       { key: 'cast', label: 'Cast', type: 'text', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Netflix', 'Disney+', 'Max', 'Hulu', 'Prime Video', 'Apple TV+', 'Theatrical', 'Physical Media'],
+      },
     ],
   },
   {
@@ -61,6 +84,13 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'creator', label: 'Creator', type: 'text', required: false },
       { key: 'showrunner', label: 'Showrunner', type: 'text', required: false },
       { key: 'cast', label: 'Cast', type: 'text', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Netflix', 'Disney+', 'Max', 'Hulu', 'Prime Video', 'Apple TV+', 'Theatrical', 'Physical Media'],
+      },
     ],
   },
   {
@@ -73,6 +103,98 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'issueStart', label: 'Issue Start', type: 'number', required: false },
       { key: 'issueEnd', label: 'Issue End', type: 'number', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Physical', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby'],
+      },
+    ],
+  },
+  {
+    id: 'magazine',
+    displayName: 'Magazine Issues',
+    icon: 'newspaper',
+    colour: '#3949AB',
+    enabled: true,
+    // Deliberately mirrors 'comic' field-for-field, per David's instruction
+    // that Magazine Issues should behave the same as Comic Issues.
+    fields: [
+      { key: 'series', label: 'Series', type: 'text', required: false },
+      { key: 'issueStart', label: 'Issue Start', type: 'number', required: false },
+      { key: 'issueEnd', label: 'Issue End', type: 'number', required: false },
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Physical', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby'],
+      },
+    ],
+  },
+  {
+    id: 'game',
+    displayName: 'Video Games',
+    icon: 'sports_esports',
+    colour: '#0097A7',
+    enabled: true,
+    fields: [
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Steam', 'PlayStation', 'Xbox', 'Nintendo Switch', 'Physical'],
+      },
+    ],
+  },
+  {
+    id: 'podcast',
+    displayName: 'Podcasts',
+    icon: 'mic',
+    colour: '#5D4037',
+    enabled: true,
+    fields: [
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Spotify', 'Apple Podcasts', 'YouTube', 'Overcast'],
+      },
+    ],
+  },
+  {
+    id: 'art',
+    displayName: 'Art',
+    icon: 'palette',
+    colour: '#C2185B',
+    enabled: true,
+    fields: [
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['In-Person', 'Museum', 'Online', 'Print'],
+      },
+    ],
+  },
+  {
+    id: 'theatre',
+    displayName: 'Theatre',
+    icon: 'theater_comedy',
+    colour: '#F9A825',
+    enabled: true,
+    fields: [
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['In-Person', 'Broadcast/Streamed'],
+      },
     ],
   },
 ];

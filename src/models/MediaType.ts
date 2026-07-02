@@ -10,7 +10,7 @@
  */
 
 /** Supported input types for a dynamically-rendered metadata field. */
-export type FieldInputType = 'text' | 'number' | 'date';
+export type FieldInputType = 'text' | 'number' | 'date' | 'autocomplete';
 
 /** Describes a single metadata field belonging to a media type. */
 export interface FieldDefinition {
@@ -20,6 +20,13 @@ export interface FieldDefinition {
   label: string;
   type: FieldInputType;
   required: boolean;
+  /**
+   * Suggested values for `type: 'autocomplete'` fields (e.g. streaming
+   * services for Film/TV, retailer/app names for Audiobooks). The field
+   * still accepts free text — these are suggestions, not a restricted
+   * set of allowed values. Ignored for other field types.
+   */
+  options?: string[];
 }
 
 /** A configured media type (e.g. Book, Film, TV Season, Comic Issue). */

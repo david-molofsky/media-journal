@@ -62,12 +62,14 @@ const bookMetadataSchema = z.object({
   author: z.string().optional(),
   series: z.string().optional(),
   volume: z.string().optional(),
+  source: z.string().optional(),
 });
 
 const filmMetadataSchema = z.object({
   director: z.string().optional(),
   screenwriter: z.string().optional(),
   cast: z.string().optional(),
+  source: z.string().optional(),
 });
 
 const tvMetadataSchema = z.object({
@@ -77,6 +79,7 @@ const tvMetadataSchema = z.object({
   creator: z.string().optional(),
   showrunner: z.string().optional(),
   cast: z.string().optional(),
+  source: z.string().optional(),
 });
 
 const comicMetadataSchema = z
@@ -84,6 +87,7 @@ const comicMetadataSchema = z
     series: z.string().optional(),
     issueStart: z.number().min(1, 'Issue start must be at least 1').optional(),
     issueEnd: z.number().optional(),
+    source: z.string().optional(),
   })
   .refine(
     (data) =>

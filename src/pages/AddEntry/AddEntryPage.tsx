@@ -7,6 +7,7 @@ import Stack from '@mui/material/Stack';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
+import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -17,6 +18,7 @@ import type { MediaType } from '@/models';
 export default function AddEntryPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
+  const defaultStatus = useDefaultEntryStatus();
   const [selectedType, setSelectedType] = useState<MediaType | null>(null);
   const navigate = useNavigate();
 
@@ -61,8 +63,9 @@ export default function AddEntryPage() {
         </Typography>
       </Stack>
       <EntryForm
-        key={`${effectiveMediaType.id}-${tvMode}`}
+        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}`}
         mediaType={effectiveMediaType}
+        defaultStatus={defaultStatus}
         submitLabel="Save Entry"
         onSubmit={async (values) => {
           await createEntry(values);
