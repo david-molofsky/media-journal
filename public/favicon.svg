@@ -1,24 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2E8B31"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1024" height="1024">
+  <defs>
+    <filter id="journal-shadow" x="-10%" y="-5%" width="122%" height="122%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#1a5c1e" flood-opacity="0.38"/>
+    </filter>
+  </defs>
 
-  <path d="M16 12c-1.5 0-2.5 1-2.5 2.5v33c0 2.6 2.1 4.5 4.5 5l4 .9 2-3-2-3V13.5c0-.8.7-1.5 1.5-1.5z" fill="#E3E5E3"/>
-  <line x1="15" y1="20" x2="15" y2="22" stroke="#B8BBB8" stroke-width="1" stroke-linecap="round"/>
-  <line x1="15" y1="29" x2="15" y2="31" stroke="#B8BBB8" stroke-width="1" stroke-linecap="round"/>
-  <line x1="15" y1="38" x2="15" y2="40" stroke="#B8BBB8" stroke-width="1" stroke-linecap="round"/>
+  <!-- Background -->
+  <rect x="0" y="0" width="1000" height="1000" rx="220" ry="220" fill="#2E8B30"/>
 
-  <rect x="16" y="9.5" width="34" height="45" rx="4" fill="#FAFAFA"/>
+  <g filter="url(#journal-shadow)">
 
-  <path d="M19 50.5h5v8l-2.5-2-2.5 2z" fill="#1B6E1F"/>
+    <!-- Page edge layers (depth) -->
+    <rect x="312" y="122" width="494" height="643" rx="20" fill="#E2E2E2"/>
+    <rect x="307" y="117" width="494" height="643" rx="20" fill="#EAEAEA"/>
 
-  <rect x="44" y="9.5" width="4.5" height="45" fill="#1B6E1F"/>
-  <line x1="45.4" y1="11" x2="45.4" y2="53" stroke="#15591A" stroke-width="0.6"/>
-  <line x1="47.6" y1="11" x2="47.6" y2="53" stroke="#15591A" stroke-width="0.6"/>
+    <!-- Main cover -->
+    <rect x="286" y="109" width="494" height="643" rx="20" fill="#F6F6F6"/>
 
-  <path
-    d="M26 19 23.3 24.5 17.6 22 19.1 28 13.2 29.7 18.1 33.4 14.7 38.5 20.9 38.1 21.6 44.2 26 40 30.4 44.2 31.1 38.1 37.3 38.5 33.9 33.4 38.8 29.7 32.9 28 34.4 22 28.7 24.5 Z"
-    fill="none" stroke="#1B6E1F" stroke-width="1.6" stroke-linejoin="round"
-  />
-  <line x1="20.5" y1="29.5" x2="31.5" y2="29.5" stroke="#1B6E1F" stroke-width="1.6" stroke-linecap="round"/>
-  <line x1="20.5" y1="33" x2="31.5" y2="33" stroke="#1B6E1F" stroke-width="1.6" stroke-linecap="round"/>
-  <line x1="20.5" y1="36.5" x2="27" y2="36.5" stroke="#1B6E1F" stroke-width="1.6" stroke-linecap="round"/>
+    <!-- Spine -->
+    <rect x="227" y="109" width="64" height="643" rx="12" fill="#E0E0E0"/>
+    <rect x="232" y="113" width="5" height="635" rx="2" fill="rgba(255,255,255,0.5)"/>
+    <ellipse cx="259" cy="752" rx="32" ry="9" fill="#D3D3D3"/>
+
+    <!-- Book bottom edge -->
+    <rect x="286" y="748" width="494" height="9" rx="3" fill="#DCDCDC"/>
+
+    <!-- Elastic band -->
+    <rect x="683" y="109" width="44" height="643" rx="6" fill="#1B6B1E"/>
+    <rect x="692" y="109" width="5" height="643" rx="2" fill="#144D17"/>
+    <rect x="702" y="109" width="5" height="643" rx="2" fill="#144D17"/>
+    <rect x="712" y="109" width="5" height="643" rx="2" fill="#144D17"/>
+    <rect x="685" y="109" width="3" height="643" rx="1" fill="rgba(255,255,255,0.18)"/>
+
+    <!-- Bookmark ribbon -->
+    <path d="M 365,752 L 365,848 L 383,830 L 401,848 L 401,752 Z" fill="#1B6B1E"/>
+
+    <!-- ═══ Starburst — big, filling the cover face ═══ -->
+    <path d="
+      M 477.0,260.0
+      L 444.9,326.7
+      L 377.4,296.3
+      L 395.6,368.0
+      L 324.4,388.1
+      L 384.4,431.3
+      L 342.8,492.5
+      L 416.6,487.0
+      L 424.0,560.7
+      L 477.0,509.0
+      L 530.0,560.7
+      L 537.4,487.0
+      L 611.2,492.5
+      L 569.6,431.3
+      L 629.6,388.1
+      L 558.4,368.0
+      L 576.6,296.3
+      L 509.1,326.7
+      Z
+    " fill="none" stroke="#1B6B1E" stroke-width="16" stroke-linejoin="round"/>
+
+    <!-- Three text-lines inside burst — clearly inset from burst edge -->
+    <line x1="400" y1="393" x2="554" y2="393" stroke="#1B6B1E" stroke-width="16" stroke-linecap="round"/>
+    <line x1="400" y1="425" x2="554" y2="425" stroke="#1B6B1E" stroke-width="16" stroke-linecap="round"/>
+    <line x1="416" y1="457" x2="538" y2="457" stroke="#1B6B1E" stroke-width="16" stroke-linecap="round"/>
+
+  </g>
 </svg>

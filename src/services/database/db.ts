@@ -98,7 +98,7 @@ export class MediaJournalDatabase extends Dexie {
      */
     this.version(4).stores({
       mediaEntries:
-        'id, completedDate, mediaType, title, rating, completedYear, *tags, [completedYear+mediaType], [completedDate+rating]',
+        'id, completedDate, mediaType, title, rating, completedYear, [completedYear+mediaType], [completedDate+rating]',
       mediaTypes: 'id, enabled',
       appSettings: 'key',
     }).upgrade(async (tx) => {
@@ -135,7 +135,7 @@ export class MediaJournalDatabase extends Dexie {
      */
     this.version(5).stores({
       mediaEntries:
-        'id, completedDate, mediaType, title, rating, completedYear, createdAt, *tags, [completedYear+mediaType], [completedDate+rating]',
+        'id, completedDate, mediaType, title, rating, completedYear, createdAt, [completedYear+mediaType], [completedDate+rating]',
       mediaTypes: 'id, enabled',
       appSettings: 'key',
       inProgressEntries: 'id, mediaType, createdAt',
@@ -150,7 +150,7 @@ export class MediaJournalDatabase extends Dexie {
      */
     this.version(6).stores({
       mediaEntries:
-        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, *tags, [completedYear+mediaType], [completedDate+rating]',
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
       mediaTypes: 'id, enabled',
       appSettings: 'key',
       inProgressEntries: null,
@@ -185,6 +185,28 @@ export class MediaJournalDatabase extends Dexie {
       } catch {
         // inProgressEntries may not exist on installs that skipped v5.
       }
+    });
+
+    /**
+     * Version 7: removes the `*tags` multiEntry index.
+     *
+     * The index was introduced in v4 but `multiEntry: true` on fields
+     * that contain empty arrays triggers a DataError in iOS Safari ≤ 15,
+     * preventing the database from opening at all on those devices.
+     * Tag filtering is done in-memory in entryService.ts so the index
+     * was never needed for correctness — only for theoretical query
+     * performance that doesn't matter at journal-scale entry counts.
+     *
+     * Removing it from v4/v5/v6 schema strings above means fresh
+     * installs never create it. This v7 upgrade drops it for any
+     * existing desktop user who already has the index from v4.
+     */
+    this.version(7).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
     });
   }
 }
