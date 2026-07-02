@@ -26,6 +26,11 @@ const STATUS_CONFIG = {
   wishlist: { label: '★ Wishlist', bgcolor: '#F3E5F5', color: '#7B1FA2', border: '#CE93D8' },
 } as const;
 
+// Same pastel-bg/dark-text/border formula as STATUS_CONFIG above, so the
+// Source badge sits visually consistent next to the status badge it
+// appears alongside.
+const SOURCE_BADGE = { bgcolor: '#E3F2FD', color: '#1565C0', border: '#90CAF9' } as const;
+
 /**
  * Derives the subtitle line shown beneath the title. Each media type
  * surfaces the most useful field rather than showing the type name
@@ -91,6 +96,14 @@ export function EntryCard({
 
   const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
   const hasActions = Boolean(onMarkFinished ?? onStartTracking ?? onMoveToWishlist);
+  // Shown next to the status badge only — Completed cards are already
+  // dominated by rating/date, and Source is most useful when deciding
+  // what to watch/read next from Wishlist or continuing something
+  // already In Progress.
+  const source =
+    statusCfg && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
+      ? entry.metadata.source
+      : null;
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden', ...(selected !== undefined && { outline: selected ? `2px solid ${colour}` : '2px solid transparent' }) }}>
@@ -124,9 +137,16 @@ export function EntryCard({
 
       {statusCfg && (
         <Box sx={{ px: 2, pb: 1.5 }}>
-          <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25, mb: hasActions ? 1 : 0 }}>
-            {statusCfg.label}
-          </Box>
+          <Stack direction="row" spacing={1} sx={{ mb: hasActions ? 1 : 0 }}>
+            <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+              {statusCfg.label}
+            </Box>
+            {source && (
+              <Box sx={{ display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                {source}
+              </Box>
+            )}
+          </Stack>
           {hasActions && (
             <>
               <Divider sx={{ mb: 1 }} />

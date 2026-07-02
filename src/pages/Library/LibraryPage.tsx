@@ -24,6 +24,7 @@ import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
 import { useAvailableTags } from '@/hooks/useAvailableTags';
+import { useAvailableSources } from '@/hooks/useAvailableSources';
 import { FilterChip, type FilterChipOption } from '@/components/library/FilterChip';
 import { EntryCard } from '@/components/library/EntryCard';
 import { SeriesView } from '@/components/library/SeriesView';
@@ -64,6 +65,7 @@ export interface LibraryFilterRequest {
   month?: number;
   mediaType?: string;
   tag?: string;
+  source?: string;
   searchText?: string;
   status?: EntryStatus;
 }
@@ -108,6 +110,7 @@ export default function LibraryPage() {
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
   const availableTags = useAvailableTags();
+  const availableSources = useAvailableSources();
 
   const [statusTab, setStatusTab] = useState<EntryStatus>(incoming?.status ?? 'completed');
   const [searchText, setSearchText] = useState(incoming?.searchText ?? '');
@@ -115,6 +118,7 @@ export default function LibraryPage() {
   const [month, setMonth] = useState<string | undefined>(incoming?.month ? String(incoming.month) : undefined);
   const [mediaTypeId, setMediaTypeId] = useState<string | undefined>(incoming?.mediaType);
   const [tag, setTag] = useState<string | undefined>(incoming?.tag);
+  const [source, setSource] = useState<string | undefined>(incoming?.source);
   const [sort, setSort] = useState<EntrySortOrder>('completedDateDesc');
   const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -141,8 +145,9 @@ export default function LibraryPage() {
     mediaType: mediaTypeId,
     searchText,
     tag,
+    source,
     status: statusTab,
-  }), [year, month, mediaTypeId, searchText, tag, statusTab]);
+  }), [year, month, mediaTypeId, searchText, tag, source, statusTab]);
 
   const entries = useMediaEntries(filter, sort);
 
@@ -154,7 +159,8 @@ export default function LibraryPage() {
   const yearOptions = useMemo(() => (availableYears ?? []).map((y) => ({ label: String(y), value: String(y) })), [availableYears]);
   const mediaTypeOptions = useMemo(() => (mediaTypes ?? []).map((t) => ({ label: t.displayName, value: t.id })), [mediaTypes]);
   const tagOptions = useMemo(() => availableTags.map((t) => ({ label: t, value: t })), [availableTags]);
-  const hasActiveFilters = Boolean(year || month || mediaTypeId || tag || searchText);
+  const sourceOptions = useMemo(() => availableSources.map((s) => ({ label: s, value: s })), [availableSources]);
+  const hasActiveFilters = Boolean(year || month || mediaTypeId || tag || source || searchText);
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
@@ -244,6 +250,7 @@ export default function LibraryPage() {
           <FilterChip label="Year" value={year} options={yearOptions} onChange={setYear} />
           <FilterChip label="Month" value={month} options={MONTH_OPTIONS} onChange={setMonth} />
           <FilterChip label="Type" value={mediaTypeId} options={mediaTypeOptions} onChange={setMediaTypeId} />
+          {sourceOptions.length > 0 && <FilterChip label="Source" value={source} options={sourceOptions} onChange={setSource} />}
           {tagOptions.length > 0 && <FilterChip label="Tag" value={tag} options={tagOptions} onChange={setTag} />}
         </Stack>
 

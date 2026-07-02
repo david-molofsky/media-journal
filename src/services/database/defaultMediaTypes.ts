@@ -67,7 +67,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Netflix', 'Disney+', 'Max', 'Hulu', 'Prime Video', 'Apple TV+', 'Theatrical', 'Physical Media'],
+        options: ['Netflix', 'Disney+', 'Prime Video', 'Theatrical', 'Max', 'Hulu', 'Apple TV+', 'Physical Media'],
       },
     ],
   },
@@ -89,7 +89,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Netflix', 'Disney+', 'Max', 'Hulu', 'Prime Video', 'Apple TV+', 'Theatrical', 'Physical Media'],
+        options: ['Netflix', 'Disney+', 'Prime Video', 'Theatrical', 'Max', 'Hulu', 'Apple TV+', 'Physical Media'],
       },
     ],
   },
@@ -169,7 +169,7 @@ export const defaultMediaTypes: MediaType[] = [
     id: 'art',
     displayName: 'Art',
     icon: 'palette',
-    colour: '#C2185B',
+    colour: '#F9A825',
     enabled: true,
     fields: [
       {
@@ -185,7 +185,7 @@ export const defaultMediaTypes: MediaType[] = [
     id: 'theatre',
     displayName: 'Theatre',
     icon: 'theater_comedy',
-    colour: '#F9A825',
+    colour: '#C2185B',
     enabled: true,
     fields: [
       {

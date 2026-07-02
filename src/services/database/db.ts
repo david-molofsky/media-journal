@@ -286,6 +286,86 @@ export class MediaJournalDatabase extends Dexie {
         await table.put({ ...mediaType, fields: [...mediaType.fields, sourceField] });
       }
     });
+
+    /**
+     * Version 10: swaps the default accent colours for Art and Theatre
+     * — Art becomes amber/yellow (#F9A825), Theatre becomes deep
+     * pink/magenta (#C2185B); the reverse of what they launched with in
+     * version 8. `defaultMediaTypes.ts` already reflects the new pair
+     * for fresh installs.
+     *
+     * For existing installs, this only updates the colour if it still
+     * exactly matches the *original* v8 default for that type — so if
+     * David (or anyone) already customised Art's or Theatre's colour in
+     * Settings, that customisation is left untouched rather than being
+     * overwritten by this swap.
+     */
+    this.version(10).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+      const swaps: Record<string, { from: string; to: string }> = {
+        art: { from: '#C2185B', to: '#F9A825' },
+        theatre: { from: '#F9A825', to: '#C2185B' },
+      };
+
+      for (const [id, { from, to }] of Object.entries(swaps)) {
+        const existing = await table.get(id);
+        if (existing && existing.colour === from) {
+          await table.update(id, { colour: to });
+        }
+      }
+    });
+
+    /**
+     * Version 11: reorders the Source suggestion list for Film and TV —
+     * Prime Video moves to 3rd, Theatrical to 4th, with the remaining
+     * options keeping their prior relative order. This only reorders
+     * the suggestions shown in the dropdown; it never touches any
+     * Source value already saved on an entry.
+     *
+     * Guarded: only reorders if the field's current option set is
+     * exactly the original eight values (regardless of order) — so if
+     * this ever runs against a row that's diverged (e.g. a future
+     * options-editing feature was used), it's left alone rather than
+     * silently overwritten.
+     */
+    this.version(11).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+      const expectedSet = new Set([
+        'Netflix', 'Disney+', 'Max', 'Hulu', 'Prime Video', 'Apple TV+', 'Theatrical', 'Physical Media',
+      ]);
+      const newOrder = ['Netflix', 'Disney+', 'Prime Video', 'Theatrical', 'Max', 'Hulu', 'Apple TV+', 'Physical Media'];
+
+      for (const id of ['film', 'tv']) {
+        const existing = await table.get(id);
+        if (!existing) continue;
+
+        const sourceField = existing.fields.find((f) => f.key === 'source');
+        if (!sourceField?.options) continue;
+
+        const currentSet = new Set(sourceField.options);
+        const matchesExpected =
+          currentSet.size === expectedSet.size &&
+          [...expectedSet].every((v) => currentSet.has(v));
+        if (!matchesExpected) continue;
+
+        const updatedFields = existing.fields.map((f) =>
+          f.key === 'source' ? { ...f, options: newOrder } : f,
+        );
+        await table.update(id, { fields: updatedFields });
+      }
+    });
   }
 }
 

@@ -131,6 +131,9 @@ export interface EntryListFilter {
   mediaType?: string;
   searchText?: string;
   tag?: string;
+  /** Filters to entries whose `metadata.source` matches exactly (e.g.
+   * "Netflix", "Audible"). Cross-media-type, like Tag. */
+  source?: string;
   /** Defaults to 'completed' when not provided so existing callers
    * (Dashboard, Statistics) see only finished entries. */
   status?: EntryStatus;
@@ -196,6 +199,9 @@ export async function listEntries(
   }
   if (filter.tag !== undefined) {
     entries = entries.filter((e) => (e.tags ?? []).includes(filter.tag!));
+  }
+  if (filter.source !== undefined) {
+    entries = entries.filter((e) => e.metadata.source === filter.source);
   }
 
   return sortEntries(entries, sort);
