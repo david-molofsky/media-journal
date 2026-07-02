@@ -144,16 +144,18 @@ export default function StatisticsPage() {
             <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
             {Object.keys(data.averageRatingByMediaType).length > 0 && (
               <Stack spacing={0.75}>
-                {Object.entries(data.averageRatingByMediaType).map(([mediaType, average]) => (
-                  <Stack key={mediaType} direction="row" justifyContent="space-between">
-                    <Typography variant="body2">
-                      {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {average.toFixed(1)}
-                    </Typography>
-                  </Stack>
-                ))}
+                {Object.entries(data.averageRatingByMediaType)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([mediaType, average]) => (
+                    <Stack key={mediaType} direction="row" justifyContent="space-between">
+                      <Typography variant="body2">
+                        {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {average.toFixed(1)}
+                      </Typography>
+                    </Stack>
+                  ))}
               </Stack>
             )}
             {data.highestRated.length > 0 && (
