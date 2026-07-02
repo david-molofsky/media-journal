@@ -366,6 +366,54 @@ export class MediaJournalDatabase extends Dexie {
         await table.update(id, { fields: updatedFields });
       }
     });
+
+    /**
+     * Version 12: renames the "Prime Video" Source suggestion to
+     * "Amazon Prime Video" for Film and TV. Updates both places the old
+     * name could exist:
+     *  - the suggestion list on the `source` field (Film/TV types)
+     *  - any entry that already has `metadata.source === 'Prime Video'`
+     *    saved from before this rename
+     *
+     * Renaming only the suggestion list and leaving old entries as
+     * "Prime Video" would silently split what's really one service into
+     * two different values in the Source filter — this keeps them
+     * merged as a single value going forward.
+     */
+    this.version(12).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const mediaTypesTable = tx.table<MediaType>('mediaTypes');
+      const mediaEntriesTable = tx.table<MediaEntry>('mediaEntries');
+
+      for (const id of ['film', 'tv']) {
+        const existing = await mediaTypesTable.get(id);
+        if (!existing) continue;
+
+        const sourceField = existing.fields.find((f) => f.key === 'source');
+        if (!sourceField?.options?.includes('Prime Video')) continue;
+
+        const updatedFields = existing.fields.map((f) =>
+          f.key === 'source'
+            ? { ...f, options: f.options?.map((o) => (o === 'Prime Video' ? 'Amazon Prime Video' : o)) }
+            : f,
+        );
+        await mediaTypesTable.update(id, { fields: updatedFields });
+      }
+
+      const entriesToRename = await mediaEntriesTable
+        .filter((e) => e.metadata.source === 'Prime Video')
+        .toArray();
+      for (const entry of entriesToRename) {
+        await mediaEntriesTable.update(entry.id, {
+          metadata: { ...entry.metadata, source: 'Amazon Prime Video' },
+        });
+      }
+    });
   }
 }
 

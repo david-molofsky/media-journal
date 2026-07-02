@@ -114,7 +114,7 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
 
   const attribution =
     source === 'tmdb'
-      ? 'This product uses the TMDB API but is not endorsed or certified by TMDB.'
+      ? 'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data provided by JustWatch.'
       : 'Search powered by Open Library.';
 
   return (

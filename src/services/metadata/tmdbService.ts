@@ -35,6 +35,66 @@ interface TmdbCrewMember { job: string; department: string; name: string; }
 interface TmdbCastMember { order: number; name: string; }
 interface TmdbPerson { name: string; }
 
+// ── Watch providers (JustWatch, via TMDB's partnership) ─────────────────────
+//
+// TMDB attribution requirement: "Powered by our partnership with
+// JustWatch" — see https://developer.themoviedb.org/reference/movie-watch-providers.
+// The caption shown under the search box in MetadataSearch.tsx credits
+// JustWatch whenever this data could have been used (Film/TV), rather
+// than only when a match happens to be found, since a call may still
+// have been made even if nothing matched.
+
+/** Region used for provider lookups. Fixed rather than derived from
+ * device locale for now — matches David's usage, and a wrong guess
+ * (e.g. defaulting to US for a non-US user) would silently mis-fill
+ * Source with unavailable services. Revisit if this app grows beyond
+ * personal use. */
+const WATCH_PROVIDER_REGION = 'GB';
+
+interface TmdbWatchProvider {
+  provider_name: string;
+}
+
+interface TmdbWatchProviderRegion {
+  flatrate?: TmdbWatchProvider[];
+  rent?: TmdbWatchProvider[];
+  buy?: TmdbWatchProvider[];
+}
+
+interface TmdbWatchProviders {
+  results?: Record<string, TmdbWatchProviderRegion>;
+}
+
+/** Maps TMDB/JustWatch's own provider naming onto this app's Source
+ * suggestion list wording, so an auto-filled value lands on an
+ * existing suggestion rather than creating a near-duplicate (e.g.
+ * "Disney Plus" vs "Disney+"). Providers with no mapping are passed
+ * through as free text rather than dropped — Source is a free-solo
+ * field, so an unmapped value is still useful, just not suggestion-list-exact. */
+const PROVIDER_NAME_MAP: Record<string, string> = {
+  'Disney Plus': 'Disney+',
+  'Amazon Prime Video': 'Amazon Prime Video',
+  'Apple TV Plus': 'Apple TV+',
+  Netflix: 'Netflix',
+  Max: 'Max',
+  Hulu: 'Hulu',
+};
+
+/** Picks a single best-guess Source value from a title's watch
+ * providers in `WATCH_PROVIDER_REGION`: subscription (flatrate) first,
+ * then rental, then purchase. Returns `undefined` if the title has no
+ * availability data for that region — Source is then left blank for
+ * manual entry, same as before this feature existed. */
+function extractSource(watchProviders: TmdbWatchProviders | undefined): string | undefined {
+  const regionData = watchProviders?.results?.[WATCH_PROVIDER_REGION];
+  if (!regionData) return undefined;
+
+  const best = regionData.flatrate?.[0] ?? regionData.rent?.[0] ?? regionData.buy?.[0];
+  if (!best) return undefined;
+
+  return PROVIDER_NAME_MAP[best.provider_name] ?? best.provider_name;
+}
+
 // ── Films ────────────────────────────────────────────────────────────────────
 
 interface TmdbMovieSearchResult {
@@ -50,6 +110,7 @@ interface TmdbMovieDetails {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
   };
+  'watch/providers'?: TmdbWatchProviders;
 }
 
 /**
@@ -78,7 +139,7 @@ export async function searchFilms(query: string): Promise<SearchResult[]> {
  */
 export async function getFilmDetails(tmdbId: string): Promise<Record<string, string>> {
   const data = await tmdbGet<TmdbMovieDetails>(
-    `/movie/${tmdbId}?append_to_response=credits&language=en-US`,
+    `/movie/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
 
   const crew = data.credits?.crew ?? [];
@@ -95,11 +156,13 @@ export async function getFilmDetails(tmdbId: string): Promise<Record<string, str
     .slice(0, 5)
     .map((c) => c.name)
     .join(', ');
+  const source = extractSource(data['watch/providers']);
 
   const fields: Record<string, string> = {};
   if (director) fields['director'] = director;
   if (screenwriter) fields['screenwriter'] = screenwriter;
   if (castNames) fields['cast'] = castNames;
+  if (source) fields['source'] = source;
 
   return fields;
 }
@@ -120,6 +183,7 @@ interface TmdbTVDetails {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
   };
+  'watch/providers'?: TmdbWatchProviders;
 }
 
 /**
@@ -145,7 +209,7 @@ export async function searchTV(query: string): Promise<SearchResult[]> {
  */
 export async function getTVDetails(tmdbId: string): Promise<Record<string, string>> {
   const data = await tmdbGet<TmdbTVDetails>(
-    `/tv/${tmdbId}?append_to_response=credits&language=en-US`,
+    `/tv/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
 
   const crew = data.credits?.crew ?? [];
@@ -161,11 +225,13 @@ export async function getTVDetails(tmdbId: string): Promise<Record<string, strin
     .slice(0, 5)
     .map((c) => c.name)
     .join(', ');
+  const source = extractSource(data['watch/providers']);
 
   const fields: Record<string, string> = {};
   if (creator) fields['creator'] = creator;
   if (showrunner) fields['showrunner'] = showrunner;
   if (castNames) fields['cast'] = castNames;
+  if (source) fields['source'] = source;
 
   return fields;
 }
