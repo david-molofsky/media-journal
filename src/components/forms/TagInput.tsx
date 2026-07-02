@@ -10,30 +10,21 @@ interface TagInputProps {
 
 /**
  * Freeform multi-tag input. Tags are:
- *   • Auto-lowercased and trimmed on commit, so "Sci-Fi" and "sci-fi"
- *     are always stored as the same tag and autocomplete suggestions
- *     don't produce near-duplicates.
- *   • Added by pressing Enter or Tab, or by selecting from the
- *     autocomplete dropdown (which shows all tags already used
- *     elsewhere in the library).
+ *   • Auto-lowercased and trimmed on commit.
+ *   • Added by pressing Enter or Tab, selecting from the dropdown,
+ *     or simply moving focus away from the field (onBlur commit).
  *   • Removed by clicking the × on the chip.
- *
- * Title-case is intentionally NOT applied here — tags are
- * organisational labels where user-defined casing would be fighting
- * the lowercase normalisation anyway.
  */
 export function TagInput({ value, onChange }: TagInputProps) {
   const suggestions = useAvailableTags();
 
   const normalise = (raw: string) => raw.trim().toLowerCase();
 
-  const handleChange = (_: unknown, newValue: (string | string[])[]) => {
-    // Autocomplete with freeSolo can yield strings or the whole array;
-    // normalise each item and deduplicate.
-    const flat = newValue.flatMap((item) =>
-      typeof item === 'string' ? [item] : item,
+  const handleChange = (_: unknown, newValue: unknown[]) => {
+    const strings = newValue.flatMap((item) =>
+      typeof item === 'string' ? [item] : [],
     );
-    const normalised = Array.from(new Set(flat.map(normalise).filter(Boolean)));
+    const normalised = Array.from(new Set(strings.map(normalise).filter(Boolean)));
     onChange(normalised);
   };
 
@@ -44,6 +35,23 @@ export function TagInput({ value, onChange }: TagInputProps) {
       options={suggestions.filter((tag) => !value.includes(tag))}
       value={value}
       onChange={handleChange}
+      // Stop Enter from bubbling to the parent <form> element.
+      // Without this, pressing Enter to commit a tag simultaneously
+      // triggers form submission before RHF can register the new tag.
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.stopPropagation();
+        }
+      }}
+      // Commit any text still in the input when focus leaves the field.
+      // Handles the case where the user types a tag then clicks Save
+      // without pressing Enter first.
+      onBlur={(e) => {
+        const pending = (e.target as HTMLInputElement).value.trim().toLowerCase();
+        if (pending && !value.includes(pending)) {
+          onChange([...value, pending]);
+        }
+      }}
       renderTags={(tagValues, getTagProps) =>
         tagValues.map((tag, index) => (
           <Chip
