@@ -176,6 +176,77 @@ export default function StatisticsPage() {
           </Stack>
         </Box>
 
+        {(Object.keys(data.topSourcesByCount).length > 0 ||
+          Object.keys(data.wishlistSourceTotals).length > 0) && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Sources
+            </Typography>
+            <Stack spacing={2}>
+              {Object.keys(data.topSourcesByCount).length > 0 && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Most-watched sources
+                  </Typography>
+                  <Stack spacing={0.75}>
+                    {Object.entries(data.topSourcesByCount)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([sourceName, count]) => (
+                        <Stack key={sourceName} direction="row" justifyContent="space-between">
+                          <Typography variant="body2">{sourceName}</Typography>
+                          <Typography variant="body2" fontWeight={600}>{count}</Typography>
+                        </Stack>
+                      ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {Object.keys(data.averageRatingBySource).length > 0 && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Average rating by source
+                  </Typography>
+                  <Stack spacing={0.75}>
+                    {Object.entries(data.averageRatingBySource)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([sourceName, average]) => (
+                        <Stack key={sourceName} direction="row" justifyContent="space-between">
+                          <Typography variant="body2">{sourceName}</Typography>
+                          <Typography variant="body2" fontWeight={600}>{average.toFixed(1)}</Typography>
+                        </Stack>
+                      ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {Object.keys(data.wishlistSourceTotals).length > 0 && (() => {
+                const sorted = Object.entries(data.wishlistSourceTotals).sort(([, a], [, b]) => b - a);
+                const top = sorted[0];
+                return (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Wishlist by source (all time)
+                    </Typography>
+                    <Stack spacing={0.75}>
+                      {sorted.map(([sourceName, count]) => (
+                        <Stack key={sourceName} direction="row" justifyContent="space-between">
+                          <Typography variant="body2">{sourceName}</Typography>
+                          <Typography variant="body2" fontWeight={600}>{count}</Typography>
+                        </Stack>
+                      ))}
+                    </Stack>
+                    {top && (
+                      <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ display: 'block', mt: 1 }}>
+                        ★ Most saved on {top[0]}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })()}
+            </Stack>
+          </Box>
+        )}
+
         {data.insights.length > 0 && (
           <Box>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>

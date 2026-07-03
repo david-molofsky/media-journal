@@ -184,12 +184,22 @@ export default function LibraryPage() {
     ? { title: 'Wishlist is empty', description: "Use ★ Wishlist when adding an entry to save things for later." }
     : { title: hasActiveFilters ? 'No matching entries' : 'Start building your Media Journal', description: hasActiveFilters ? 'Try adjusting or clearing your filters.' : "Finished entries will appear here." };
 
+  const currentFilterState: LibraryFilterRequest = {
+    year: year ? Number(year) : undefined,
+    month: month ? Number(month) : undefined,
+    mediaType: mediaTypeId,
+    tag,
+    source,
+    searchText,
+    status: statusTab,
+  };
+
   const renderCard = (entry: MediaEntry) => (
     <EntryCard
       key={entry.id}
       entry={entry}
       mediaType={mediaTypeById.get(entry.mediaType)}
-      onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(editEntryPath(entry.id))}
+      onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(editEntryPath(entry.id), { state: currentFilterState })}
       selected={selectionMode ? selectedIds.has(entry.id) : undefined}
       onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishEntry(entry); } : undefined}
       onStartTracking={entry.status === 'wishlist' ? () => updateEntryStatus(entry.id, 'in_progress') : undefined}

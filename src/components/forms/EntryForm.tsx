@@ -257,13 +257,27 @@ export function EntryForm({
                     <TextField
                       label={field.label}
                       required={field.required}
-                      type={field.type === 'number' ? 'number' : 'text'}
+                      // Deliberately NOT type="number" — native number
+                      // inputs have a well-documented mobile Safari bug
+                      // where a leading digit can't be backspaced out
+                      // once more digits follow it (David hit this on
+                      // Season Number). Using a plain text input with a
+                      // numeric keyboard hint sidesteps the native
+                      // number-input parsing entirely; digit-filtering
+                      // below does the actual validation instead.
+                      type="text"
+                      slotProps={
+                        field.type === 'number'
+                          ? { htmlInput: { inputMode: 'numeric', pattern: '[0-9]*' } }
+                          : undefined
+                      }
                       fullWidth
                       value={controllerField.value ?? ''}
                       onChange={(event) => {
                         const raw = event.target.value;
                         if (field.type === 'number') {
-                          controllerField.onChange(raw === '' ? undefined : Number(raw));
+                          const digitsOnly = raw.replace(/[^0-9]/g, '');
+                          controllerField.onChange(digitsOnly === '' ? undefined : Number(digitsOnly));
                         } else {
                           controllerField.onChange(raw);
                         }

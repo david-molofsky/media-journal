@@ -12,6 +12,9 @@ import {
   getMostActiveMonth,
   getRepeatConsumption,
   getInsights,
+  getTopSourcesByCount,
+  getWishlistSourceTotals,
+  getAverageRatingBySource,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
 
@@ -29,6 +32,9 @@ export interface StatisticsData {
   mostActiveMonth: number | null;
   repeatConsumption: number;
   insights: string[];
+  topSourcesByCount: Record<string, number>;
+  wishlistSourceTotals: Record<string, number>;
+  averageRatingBySource: Record<string, number>;
 }
 
 /** Combines every statistics service call the Statistics screen needs
@@ -48,6 +54,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       mostActiveMonth,
       repeatConsumption,
       insights,
+      topSourcesByCount,
+      wishlistSourceTotals,
+      averageRatingBySource,
     ] = await Promise.all([
       getYearSummary(year),
       getMonthlyBreakdown(year),
@@ -61,6 +70,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       getMostActiveMonth(year),
       getRepeatConsumption(year),
       getInsights(year),
+      getTopSourcesByCount(year),
+      getWishlistSourceTotals(),
+      getAverageRatingBySource(year),
     ]);
     return {
       totalEntries: summary.totalEntries,
@@ -76,6 +88,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       mostActiveMonth,
       repeatConsumption,
       insights,
+      topSourcesByCount,
+      wishlistSourceTotals,
+      averageRatingBySource,
     };
   }, [year]);
 }

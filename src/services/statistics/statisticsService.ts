@@ -113,6 +113,67 @@ export async function getMediaTypeTotals(year: number): Promise<Record<string, n
   return summary.totalsByMediaType;
 }
 
+/** Extracts `metadata.source` from an entry, or `undefined` if unset —
+ * shared by all three Source-based statistics below so "no source set"
+ * is handled identically everywhere. */
+function sourceOf(entry: MediaEntry): string | undefined {
+  const { source } = entry.metadata;
+  return typeof source === 'string' && source.trim() ? source : undefined;
+}
+
+/** Completed-entry counts grouped by Source within `year`, weighted by
+ * `getEntryWeight` for consistency with other volume stats (e.g. a
+ * multi-issue comic on a given Source counts its full issue span).
+ * Entries with no Source set are excluded entirely, not bucketed under
+ * an "Unknown" label — Source is optional, so most historical entries
+ * won't have one, and lumping them together wouldn't be meaningful. */
+export async function getTopSourcesByCount(year: number): Promise<Record<string, number>> {
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    const source = sourceOf(entry);
+    if (!source) continue;
+    totals[source] = (totals[source] ?? 0) + getEntryWeight(entry, tvMode);
+  }
+  return totals;
+}
+
+/** Wishlist entry counts grouped by Source, across all years — unlike
+ * the rest of this service, this isn't year-scoped: wishlist entries
+ * have no completion date to scope by, and "what's piled up waiting"
+ * is inherently an all-time question. Plain counts, not weighted by
+ * `getEntryWeight` — a wishlisted comic run hasn't been read yet, so
+ * there's no meaningful "issue count consumed" to weight by. */
+export async function getWishlistSourceTotals(): Promise<Record<string, number>> {
+  const entries = await db.mediaEntries.where('status').equals('wishlist').toArray();
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    const source = sourceOf(entry);
+    if (!source) continue;
+    totals[source] = (totals[source] ?? 0) + 1;
+  }
+  return totals;
+}
+
+/** Average rating per Source within `year`, ignoring unrated entries
+ * and entries with no Source set. Mirrors
+ * `getAverageRatingByMediaType` exactly, grouped by Source instead. */
+export async function getAverageRatingBySource(year: number): Promise<Record<string, number>> {
+  const entries = (await entriesForYear(year)).filter((entry) => entry.rating !== undefined);
+  const sums: Record<string, { total: number; count: number }> = {};
+  for (const entry of entries) {
+    const source = sourceOf(entry);
+    if (!source) continue;
+    const bucket = sums[source] ?? { total: 0, count: 0 };
+    bucket.total += entry.rating ?? 0;
+    bucket.count += 1;
+    sums[source] = bucket;
+  }
+  return Object.fromEntries(
+    Object.entries(sums).map(([source, { total, count }]) => [source, total / count]),
+  );
+}
+
 /** Histogram of ratings (0–10 in 0.5 steps) within `year`, ignoring
  * unrated entries. */
 export async function getRatingDistribution(

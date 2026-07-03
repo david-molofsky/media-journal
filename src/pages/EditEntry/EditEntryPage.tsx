@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -33,6 +33,7 @@ import {
   listEntries,
 } from '@/services/database/entryService';
 import { ROUTES, editEntryPath } from '@/routes/paths';
+import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 
 /**
  * Edit Entry — visually identical to Add Entry, pre-populated, with
@@ -42,6 +43,14 @@ import { ROUTES, editEntryPath } from '@/routes/paths';
 export default function EditEntryPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The Library filters/tab that were active when the user tapped into
+  // this entry — handed back to Library on every exit path below so
+  // Save/Back/Delete all return to the same filtered scenario, not a
+  // reset Library. Duplicate deliberately does NOT use this — it takes
+  // you to the new copy for editing, not back to Library, so there's
+  // nothing to restore.
+  const incomingFilters = location.state as LibraryFilterRequest | null;
   const entry = useMediaEntry(id);
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
@@ -108,7 +117,7 @@ export default function EditEntryPage() {
 
   const handleDelete = async () => {
     await deleteEntry(entry.id);
-    navigate(ROUTES.library);
+    navigate(ROUTES.library, { state: incomingFilters });
   };
 
   const handleDuplicate = async () => {
@@ -119,7 +128,7 @@ export default function EditEntryPage() {
   return (
     <Box sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton aria-label="Back to library" onClick={() => navigate(ROUTES.library)}>
+        <IconButton aria-label="Back to library" onClick={() => navigate(ROUTES.library, { state: incomingFilters })}>
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" component="h1" fontWeight={600}>
@@ -147,7 +156,7 @@ export default function EditEntryPage() {
         submitLabel="Save Changes"
         onSubmit={async (values) => {
           await updateEntry(entry.id, values);
-          navigate(ROUTES.library);
+          navigate(ROUTES.library, { state: incomingFilters });
         }}
         secondaryActions={
           <Stack spacing={2}>
