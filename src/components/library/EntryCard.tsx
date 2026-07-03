@@ -36,7 +36,7 @@ const SOURCE_BADGE = { bgcolor: '#E3F2FD', color: '#1565C0', border: '#90CAF9' }
  * surfaces the most useful field rather than showing the type name
  * (which is already implicit from the icon colour):
  *   Book / Audiobook  → Author name
- *   Film              → Dir. {Director}
+ *   Film              → (none — date only; Director removed per David's request)
  *   TV                → Season {N}
  *   Comic             → Issues {start}–{end}
  *   Custom            → falls back to the type's displayName
@@ -52,10 +52,7 @@ function buildSubtitle(entry: MediaEntry, mediaType: MediaType | undefined): str
   if (typeId === 'book' || typeId === 'audiobook') {
     detail = typeof metadata.author === 'string' && metadata.author ? metadata.author : '';
   } else if (typeId === 'film') {
-    detail =
-      typeof metadata.director === 'string' && metadata.director
-        ? `Dir. ${metadata.director}`
-        : '';
+    detail = '';
   } else if (typeId === 'tv') {
     const { seasonNumber, episodeStart, episodeEnd } = metadata;
     const hasEpisodes =
