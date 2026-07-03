@@ -4,11 +4,13 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import dayjs from 'dayjs';
 import type { MediaEntry, MediaType } from '@/models';
+import { buildShareMessage, getConsumptionVerb } from '@/services/share/shareMessageService';
 
 interface ShareEntrySheetProps {
   open: boolean;
@@ -17,10 +19,68 @@ interface ShareEntrySheetProps {
   onClose: () => void;
 }
 
+/** Main status line drawn under the subline, above the rating/badge. */
+function getStatusLineText(entry: MediaEntry): string {
+  if (entry.status === 'completed') {
+    return `Completed ${dayjs(entry.completedDate).format('D MMMM YYYY')}`;
+  }
+  if (entry.status === 'in_progress') {
+    return entry.startedDate
+      ? `Started ${dayjs(entry.startedDate).format('D MMMM YYYY')}`
+      : 'In progress';
+  }
+  return 'On my wishlist';
+}
+
+/** Footer branding date — shorter format, different source date per status. */
+function getFooterDateText(entry: MediaEntry): string {
+  if (entry.status === 'completed' && entry.completedDate) {
+    return dayjs(entry.completedDate).format('D MMM YYYY');
+  }
+  if (entry.status === 'in_progress' && entry.startedDate) {
+    return `Started ${dayjs(entry.startedDate).format('D MMM YYYY')}`;
+  }
+  return `Added ${dayjs(entry.createdAt).format('D MMM YYYY')}`;
+}
+
+/** Pill badge text — only shown for non-completed statuses. */
+function getBadgeText(entry: MediaEntry): string | null {
+  if (entry.status === 'wishlist') return 'Wishlist';
+  if (entry.status === 'in_progress') {
+    return `Currently ${getConsumptionVerb(entry.mediaType)}`;
+  }
+  return null;
+}
+
+/** Draws a small rounded pill with uppercase text at (x, y). Returns its height. */
+function drawBadge(ctx: CanvasRenderingContext2D, colour: string, text: string, x: number, y: number): number {
+  const pillH = 44;
+  ctx.font = '700 22px system-ui, -apple-system, sans-serif';
+  const label = text.toUpperCase();
+  const pillW = ctx.measureText(label).width + 32;
+
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.roundRect(x, y, pillW, pillH, pillH / 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'left';
+  ctx.fillText(label, x + 16, y + 29);
+
+  return pillH;
+}
+
 /**
  * Generates a 1200×630 (OG-image-sized) card on a hidden canvas,
  * then either downloads it as a PNG or passes it to the Web Share API.
  * Drawn entirely with the Canvas 2D API — no extra dependencies.
+ *
+ * Layout adapts to entry.status: completed entries show the original
+ * "Completed {date}" + rating treatment; in_progress/wishlist entries
+ * show a status line and a pill badge instead of a rating (unless one
+ * happens to be set — rating is drawn whenever present, regardless of
+ * status).
  */
 function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): HTMLCanvasElement {
   const W = 1200;
@@ -90,17 +150,25 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
     ctx.fillText(subline, contentX, titleY + 56);
   }
 
-  // Completed date
-  const dateText = dayjs(entry.completedDate).format('D MMMM YYYY');
+  // Status line (Completed {date} / Started {date} / In progress / On my wishlist)
+  const statusLineY = subline ? titleY + 112 : titleY + 56;
   ctx.font = '400 30px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#888';
-  ctx.fillText(`Completed ${dateText}`, contentX, subline ? titleY + 112 : titleY + 56);
+  ctx.textAlign = 'left';
+  ctx.fillText(getStatusLineText(entry), contentX, statusLineY);
 
-  // Rating
+  // Badge (Currently {verb} / Wishlist) — only for non-completed statuses
+  const badgeText = getBadgeText(entry);
+  if (badgeText) {
+    drawBadge(ctx, colour, badgeText, contentX, statusLineY + 24);
+  }
+
+  // Rating — drawn whenever present, regardless of status
   if (entry.rating !== undefined) {
     const ratingY = cardY + cardH - 100;
     ctx.font = '700 96px system-ui, -apple-system, sans-serif';
     ctx.fillStyle = colour;
+    ctx.textAlign = 'left';
     ctx.fillText(
       entry.rating % 1 === 0 ? entry.rating.toFixed(1) : String(entry.rating),
       contentX,
@@ -123,7 +191,11 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
   ctx.font = '500 24px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#ccc';
   ctx.textAlign = 'right';
-  ctx.fillText('Media Journal', cardX + cardW - 30, cardY + cardH - 28);
+  ctx.fillText(
+    `Media Journal · ${getFooterDateText(entry)}`,
+    cardX + cardW - 30,
+    cardY + cardH - 28,
+  );
 
   return canvas;
 }
@@ -139,6 +211,9 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
         ? `Dir. ${meta.director}`
         : '';
 
+  const message = buildShareMessage(entry);
+  const badgeText = getBadgeText(entry);
+
   const handleDownload = () => {
     const canvas = buildShareCanvas(entry, mediaType);
     const link = document.createElement('a');
@@ -153,7 +228,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
       if (!blob) return;
       const file = new File([blob], 'entry.png', { type: 'image/png' });
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: entry.title });
+        await navigator.share({ files: [file], title: entry.title, text: message });
       } else {
         // Fallback: just download
         handleDownload();
@@ -186,6 +261,31 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
               {subline}
             </Typography>
           )}
+          <Typography
+            variant="body2"
+            sx={{
+              opacity: 0.9,
+              mt: 0.5,
+              pt: 1,
+              borderTop: '1px solid rgba(255,255,255,0.2)',
+            }}
+          >
+            {getStatusLineText(entry)}
+          </Typography>
+          {badgeText && (
+            <Chip
+              label={badgeText.toUpperCase()}
+              size="small"
+              sx={{
+                mt: 1,
+                bgcolor: 'rgba(255,255,255,0.18)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: 0.5,
+              }}
+            />
+          )}
           {entry.rating !== undefined && (
             <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
               {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
@@ -203,7 +303,29 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
             </Typography>
           )}
           <Typography variant="caption" sx={{ display: 'block', mt: 2, opacity: 0.5 }}>
-            Media Journal · {dayjs(entry.completedDate).format('D MMM YYYY')}
+            Media Journal · {getFooterDateText(entry)}
+          </Typography>
+        </Box>
+
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', mb: 0.75 }}
+        >
+          Message
+        </Typography>
+        <Box
+          sx={{
+            bgcolor: 'action.hover',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            px: 1.5,
+            py: 1,
+            mb: 1,
+          }}
+        >
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+            {message}
           </Typography>
         </Box>
       </DialogContent>
