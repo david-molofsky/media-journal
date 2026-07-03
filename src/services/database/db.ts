@@ -414,6 +414,81 @@ export class MediaJournalDatabase extends Dexie {
         });
       }
     });
+
+    /**
+     * Version 13: adds "Digital" to the Source suggestion list for
+     * Film, TV, and Comic Issues (per David's request — a generic
+     * catch-all distinct from the existing platform-specific options).
+     * Magazine Issues is deliberately left untouched here even though
+     * it normally mirrors Comic, since only Comics was requested.
+     *
+     * Guarded: only appends if "Digital" isn't already present in that
+     * type's source options — a no-op if the user already added it
+     * themselves via a future options-editing feature.
+     */
+    this.version(13).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+
+      for (const id of ['film', 'tv', 'comic']) {
+        const existing = await table.get(id);
+        if (!existing) continue;
+
+        const sourceField = existing.fields.find((f) => f.key === 'source');
+        if (!sourceField?.options || sourceField.options.includes('Digital')) continue;
+
+        const updatedFields = existing.fields.map((f) =>
+          f.key === 'source' ? { ...f, options: [...(f.options ?? []), 'Digital'] } : f,
+        );
+        await table.update(id, { fields: updatedFields });
+      }
+    });
+
+    /**
+     * Version 14: adds "Humble Bundle" to the Comic Issues Source
+     * suggestion list, inserted immediately after "Physical" (per
+     * David's request). Only Comic Issues is touched — Magazine
+     * Issues, though it normally mirrors Comic, is deliberately left
+     * alone since only Comics was requested.
+     *
+     * Guarded: only inserts if "Humble Bundle" isn't already present
+     * and "Physical" is found in the options — a no-op otherwise, so a
+     * row that's diverged (e.g. user already customised it) is left
+     * untouched.
+     */
+    this.version(14).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+      const existing = await table.get('comic');
+      if (!existing) return;
+
+      const sourceField = existing.fields.find((f) => f.key === 'source');
+      const options = sourceField?.options;
+      if (!options || options.includes('Humble Bundle')) return;
+
+      const physicalIndex = options.indexOf('Physical');
+      if (physicalIndex === -1) return;
+
+      const newOptions = [
+        ...options.slice(0, physicalIndex + 1),
+        'Humble Bundle',
+        ...options.slice(physicalIndex + 1),
+      ];
+      const updatedFields = existing.fields.map((f) =>
+        f.key === 'source' ? { ...f, options: newOptions } : f,
+      );
+      await table.update('comic', { fields: updatedFields });
+    });
   }
 }
 

@@ -96,12 +96,18 @@ export function EntryCard({
 
   const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
   const hasActions = Boolean(onMarkFinished ?? onStartTracking ?? onMoveToWishlist);
-  // Shown next to the status badge only — Completed cards are already
-  // dominated by rating/date, and Source is most useful when deciding
-  // what to watch/read next from Wishlist or continuing something
-  // already In Progress.
+  // Shown next to the status badge only — Wishlist/In Progress cards
+  // surface Source here since it's most useful when deciding what to
+  // watch/read next or continuing something already started.
   const source =
     statusCfg && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
+      ? entry.metadata.source
+      : null;
+  // Completed cards show Source inline next to the date instead —
+  // there's no separate badge row for Completed, so it rides along
+  // the subtitle line rather than adding a new row to every card.
+  const completedSource =
+    entry.status === 'completed' && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
       ? entry.metadata.source
       : null;
 
@@ -125,7 +131,14 @@ export function EntryCard({
                 <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} /></Tooltip>
               )}
             </Stack>
-            <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry, mediaType)}</Typography>
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry, mediaType)}</Typography>
+              {completedSource && (
+                <Box sx={{ flexShrink: 0, display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                  {completedSource}
+                </Box>
+              )}
+            </Stack>
           </Box>
           {entry.rating !== undefined && (
             <Box sx={{ flexShrink: 0, bgcolor: colour, color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 20, px: 1.25, py: 0.4, lineHeight: 1.4 }}>
