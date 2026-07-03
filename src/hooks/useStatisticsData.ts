@@ -32,9 +32,9 @@ export interface StatisticsData {
   mostActiveMonth: number | null;
   repeatConsumption: number;
   insights: string[];
-  topSourcesByCount: Record<string, number>;
-  wishlistSourceTotals: Record<string, number>;
-  averageRatingBySource: Record<string, number>;
+  topSourcesByCount: Record<string, Record<string, number>>;
+  wishlistSourceTotals: Record<string, Record<string, number>>;
+  averageRatingBySource: Record<string, Record<string, number>>;
 }
 
 /** Combines every statistics service call the Statistics screen needs

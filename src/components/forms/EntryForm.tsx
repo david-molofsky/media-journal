@@ -50,6 +50,10 @@ interface EntryFormProps {
   /** Extra actions shown beneath the form — Delete/Duplicate on Edit
    * Entry (UI & UX Specification, section 7). */
   secondaryActions?: ReactNode;
+  /** When true, the submit button renders in a footer bar pinned to
+   * the bottom of the viewport instead of inline at the end of the
+   * form. Used on Edit Entry; Add Entry leaves this off. */
+  stickySubmit?: boolean;
 }
 
 function emptyMetadata(mediaType: MediaType): EntryMetadata {
@@ -86,6 +90,7 @@ export function EntryForm({
   submitLabel,
   onSubmit,
   secondaryActions,
+  stickySubmit = false,
 }: EntryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -403,11 +408,35 @@ export function EntryForm({
 
         {submitError && <Alert severity="error">{submitError}</Alert>}
 
-        <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button type="submit" variant="contained" size="large" disabled={submitting}>
-            {submitLabel}
-          </Button>
-        </Stack>
+        {stickySubmit ? (
+          <Box
+            sx={{
+              position: 'sticky',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              mx: -2,
+              px: 2,
+              py: 1.5,
+              pb: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+              bgcolor: 'background.paper',
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              boxShadow: '0 -4px 16px rgba(0,0,0,0.4)',
+              zIndex: 1,
+            }}
+          >
+            <Button type="submit" variant="contained" size="large" disabled={submitting} fullWidth>
+              {submitLabel}
+            </Button>
+          </Box>
+        ) : (
+          <Stack direction="row" spacing={2} justifyContent="flex-end">
+            <Button type="submit" variant="contained" size="large" disabled={submitting}>
+              {submitLabel}
+            </Button>
+          </Stack>
+        )}
 
         {secondaryActions}
       </Stack>

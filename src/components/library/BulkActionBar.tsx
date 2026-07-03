@@ -9,13 +9,17 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 import Slider from '@mui/material/Slider';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import SourceOutlinedIcon from '@mui/icons-material/SourceOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import IconButton from '@mui/material/IconButton';
-import { deleteEntries, bulkAddTag, bulkSetRating } from '@/services/database/entryService';
+import { deleteEntries, bulkAddTags, bulkSetRating, bulkSetSource } from '@/services/database/entryService';
+import { TagInput } from '@/components/forms/TagInput';
+import { useAvailableSources } from '@/hooks/useAvailableSources';
 
 interface BulkActionBarProps {
   selectedIds: string[];
@@ -24,25 +28,37 @@ interface BulkActionBarProps {
 
 /**
  * Sticky action bar that appears at the bottom of the Library when one
- * or more entries are selected. Provides Tag, Rate and Delete actions
- * that apply to all selected entries simultaneously.
+ * or more entries are selected. Provides Tag, Source, Rate and Delete
+ * actions that apply to all selected entries simultaneously.
  */
 export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const [tagOpen, setTagOpen] = useState(false);
-  const [tagValue, setTagValue] = useState('');
+  const [tagValues, setTagValues] = useState<string[]>([]);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceValue, setSourceValue] = useState('');
   const [rateOpen, setRateOpen] = useState(false);
   const [rateValue, setRateValue] = useState<number>(7);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const availableSources = useAvailableSources();
 
   const count = selectedIds.length;
 
   const handleTag = async () => {
-    const trimmed = tagValue.trim().toLowerCase();
-    if (trimmed) {
-      await bulkAddTag(selectedIds, trimmed);
+    if (tagValues.length > 0) {
+      await bulkAddTags(selectedIds, tagValues);
     }
     setTagOpen(false);
-    setTagValue('');
+    setTagValues([]);
+    onClear();
+  };
+
+  const handleSource = async () => {
+    const trimmed = sourceValue.trim();
+    if (trimmed) {
+      await bulkSetSource(selectedIds, trimmed);
+    }
+    setSourceOpen(false);
+    setSourceValue('');
     onClear();
   };
 
@@ -93,6 +109,14 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
           </Button>
           <Button
             size="small"
+            startIcon={<SourceOutlinedIcon />}
+            onClick={() => setSourceOpen(true)}
+            sx={{ color: 'inherit' }}
+          >
+            Source
+          </Button>
+          <Button
+            size="small"
             startIcon={<StarOutlineIcon />}
             onClick={() => setRateOpen(true)}
             sx={{ color: 'inherit' }}
@@ -110,24 +134,43 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
         </Stack>
       </Box>
 
-      {/* Tag dialog */}
+      {/* Tag dialog — adds every entered tag to each selected entry's
+          existing tags; nothing is removed or replaced. */}
       <Dialog open={tagOpen} onClose={() => setTagOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Add tag to {count} {count === 1 ? 'entry' : 'entries'}</DialogTitle>
+        <DialogTitle>Add tags to {count} {count === 1 ? 'entry' : 'entries'}</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Tag"
-            value={tagValue}
-            onChange={(e) => setTagValue(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void handleTag(); }}
-            helperText="Will be lowercased automatically"
-            sx={{ mt: 1 }}
-          />
+          <Box sx={{ mt: 1 }}>
+            <TagInput value={tagValues} onChange={setTagValues} />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTagOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleTag} disabled={!tagValue.trim()}>Add tag</Button>
+          <Button variant="contained" onClick={handleTag} disabled={tagValues.length === 0}>Add tags</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Source dialog — sets (overwrites) the same source on every
+          selected entry, regardless of media type. Free-solo, with
+          suggestions drawn from every source already saved anywhere in
+          the library (same list that powers the Source filter chip). */}
+      <Dialog open={sourceOpen} onClose={() => setSourceOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Set source for {count} {count === 1 ? 'entry' : 'entries'}</DialogTitle>
+        <DialogContent>
+          <Autocomplete
+            freeSolo
+            autoFocus
+            options={availableSources}
+            value={sourceValue}
+            onInputChange={(_, newValue) => setSourceValue(newValue)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.stopPropagation(); }}
+            renderInput={(params) => (
+              <TextField {...params} label="Source" placeholder="e.g. Netflix, Humble Bundle…" sx={{ mt: 1 }} />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSourceOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSource} disabled={!sourceValue.trim()}>Set source</Button>
         </DialogActions>
       </Dialog>
 

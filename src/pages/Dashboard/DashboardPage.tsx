@@ -10,7 +10,6 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { YearSelector } from '@/components/common/YearSelector';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { GoalsSection } from '@/components/dashboard/GoalsSection';
-import { StreakWidget } from '@/components/dashboard/StreakWidget';
 import { InProgressSection } from '@/components/dashboard/InProgressSection';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { MediaBreakdownChart } from '@/components/charts/MediaBreakdownChart';
@@ -48,11 +47,6 @@ export default function DashboardPage() {
       </Stack>
 
       <Stack spacing={4}>
-        <StreakWidget
-          currentStreak={data.currentStreak}
-          longestStreak={data.longestStreak}
-        />
-
         <InProgressSection mediaTypes={mediaTypes} />
 
         {data.totalEntries === 0 ? (

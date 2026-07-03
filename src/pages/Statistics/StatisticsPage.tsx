@@ -18,12 +18,37 @@ import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ROUTES, editEntryPath } from '@/routes/paths';
+import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
+import type { MediaType } from '@/models';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+/** Orders a grouped-by-media-type Source record (e.g.
+ * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
+ * etc. — each with its sources sorted by value descending. Group order
+ * follows `TYPE_SORT_ORDER` (same ordering used elsewhere, e.g. the
+ * Library's "By type" sort), falling back to alphabetical by display
+ * name for types not in that list. */
+function sortedSourceGroups(
+  record: Record<string, Record<string, number>>,
+  mediaTypeById: Map<string, MediaType>,
+): { mediaTypeId: string; displayName: string; sources: [string, number][] }[] {
+  return Object.entries(record)
+    .map(([mediaTypeId, sources]) => ({
+      mediaTypeId,
+      displayName: mediaTypeById.get(mediaTypeId)?.displayName ?? mediaTypeId,
+      sources: Object.entries(sources).sort(([, a], [, b]) => b - a),
+    }))
+    .sort((a, b) => {
+      const orderA = TYPE_SORT_ORDER[a.mediaTypeId] ?? 99;
+      const orderB = TYPE_SORT_ORDER[b.mediaTypeId] ?? 99;
+      return orderA !== orderB ? orderA - orderB : a.displayName.localeCompare(b.displayName);
+    });
+}
 
 /**
  * Statistics — detailed analytics, trends, streaks and insights (PRD
@@ -188,15 +213,22 @@ export default function StatisticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Most-watched sources
                   </Typography>
-                  <Stack spacing={0.75}>
-                    {Object.entries(data.topSourcesByCount)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([sourceName, count]) => (
-                        <Stack key={sourceName} direction="row" justifyContent="space-between">
-                          <Typography variant="body2">{sourceName}</Typography>
-                          <Typography variant="body2" fontWeight={600}>{count}</Typography>
+                  <Stack spacing={1.5}>
+                    {sortedSourceGroups(data.topSourcesByCount, mediaTypeById).map((group) => (
+                      <Box key={group.mediaTypeId}>
+                        <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
+                          {group.displayName}
+                        </Typography>
+                        <Stack spacing={0.75}>
+                          {group.sources.map(([sourceName, count]) => (
+                            <Stack key={sourceName} direction="row" justifyContent="space-between">
+                              <Typography variant="body2">{sourceName}</Typography>
+                              <Typography variant="body2" fontWeight={600}>{count}</Typography>
+                            </Stack>
+                          ))}
                         </Stack>
-                      ))}
+                      </Box>
+                    ))}
                   </Stack>
                 </Box>
               )}
@@ -206,33 +238,53 @@ export default function StatisticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Average rating by source
                   </Typography>
-                  <Stack spacing={0.75}>
-                    {Object.entries(data.averageRatingBySource)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([sourceName, average]) => (
-                        <Stack key={sourceName} direction="row" justifyContent="space-between">
-                          <Typography variant="body2">{sourceName}</Typography>
-                          <Typography variant="body2" fontWeight={600}>{average.toFixed(1)}</Typography>
+                  <Stack spacing={1.5}>
+                    {sortedSourceGroups(data.averageRatingBySource, mediaTypeById).map((group) => (
+                      <Box key={group.mediaTypeId}>
+                        <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
+                          {group.displayName}
+                        </Typography>
+                        <Stack spacing={0.75}>
+                          {group.sources.map(([sourceName, average]) => (
+                            <Stack key={sourceName} direction="row" justifyContent="space-between">
+                              <Typography variant="body2">{sourceName}</Typography>
+                              <Typography variant="body2" fontWeight={600}>{average.toFixed(1)}</Typography>
+                            </Stack>
+                          ))}
                         </Stack>
-                      ))}
+                      </Box>
+                    ))}
                   </Stack>
                 </Box>
               )}
 
               {Object.keys(data.wishlistSourceTotals).length > 0 && (() => {
-                const sorted = Object.entries(data.wishlistSourceTotals).sort(([, a], [, b]) => b - a);
-                const top = sorted[0];
+                const groups = sortedSourceGroups(data.wishlistSourceTotals, mediaTypeById);
+                // "Most saved on" is still a single all-time headline —
+                // computed across every group's sources, not per group.
+                const top = groups
+                  .flatMap((g) => g.sources)
+                  .sort(([, a], [, b]) => b - a)[0];
                 return (
                   <Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Wishlist by source (all time)
                     </Typography>
-                    <Stack spacing={0.75}>
-                      {sorted.map(([sourceName, count]) => (
-                        <Stack key={sourceName} direction="row" justifyContent="space-between">
-                          <Typography variant="body2">{sourceName}</Typography>
-                          <Typography variant="body2" fontWeight={600}>{count}</Typography>
-                        </Stack>
+                    <Stack spacing={1.5}>
+                      {groups.map((group) => (
+                        <Box key={group.mediaTypeId}>
+                          <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
+                            {group.displayName}
+                          </Typography>
+                          <Stack spacing={0.75}>
+                            {group.sources.map(([sourceName, count]) => (
+                              <Stack key={sourceName} direction="row" justifyContent="space-between">
+                                <Typography variant="body2">{sourceName}</Typography>
+                                <Typography variant="body2" fontWeight={600}>{count}</Typography>
+                              </Stack>
+                            ))}
+                          </Stack>
+                        </Box>
                       ))}
                     </Stack>
                     {top && (

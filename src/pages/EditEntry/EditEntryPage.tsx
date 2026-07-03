@@ -154,6 +154,7 @@ export default function EditEntryPage() {
           metadata: entry.metadata,
         }}
         submitLabel="Save Changes"
+        stickySubmit
         onSubmit={async (values) => {
           await updateEntry(entry.id, values);
           navigate(ROUTES.library, { state: incomingFilters });

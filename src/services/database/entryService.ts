@@ -105,15 +105,27 @@ export async function duplicateEntry(id: string): Promise<MediaEntry> {
   return createEntry(rest);
 }
 
-export async function bulkAddTag(ids: string[], tag: string): Promise<void> {
+export async function bulkAddTags(ids: string[], tags: string[]): Promise<void> {
   const entries = await db.mediaEntries.bulkGet(ids);
   const updates = entries
     .filter((e): e is MediaEntry => e !== undefined)
     .map((e) => ({
       ...e,
-      tags: Array.from(new Set([...(e.tags ?? []), tag])),
+      tags: Array.from(new Set([...(e.tags ?? []), ...tags])),
       updatedAt: nowIso(),
     }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Sets `metadata.source` to the same value on every selected entry,
+ * regardless of media type — every type's metadata schema includes an
+ * optional `source` field, so this is safe across a mixed-type
+ * selection (e.g. Film + Comic selected together). */
+export async function bulkSetSource(ids: string[], source: string): Promise<void> {
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({ ...e, metadata: { ...e.metadata, source }, updatedAt: nowIso() }));
   await db.mediaEntries.bulkPut(updates);
 }
 
