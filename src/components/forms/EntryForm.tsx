@@ -20,6 +20,7 @@ import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
+import { GenreInput } from './GenreInput';
 import { MetadataSearch } from './MetadataSearch';
 import { AutocompleteField } from './AutocompleteField';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
@@ -78,6 +79,7 @@ function buildDefaultValues(
       notes: '',
       repeatConsumption: false,
       tags: [],
+      genres: [],
       metadata: emptyMetadata(mediaType),
     }
   );
@@ -108,6 +110,7 @@ export function EntryForm({
     handleSubmit,
     watch,
     setValue,
+    getValues,
     setError,
     formState: { errors },
   } = useForm<EntryFormValues>({
@@ -181,13 +184,18 @@ export function EntryForm({
               search source exists for this media type. */}
           <MetadataSearch
             mediaTypeId={mediaType.id}
-            onFill={(title, fields) => {
+            onFill={(title, fields, genres) => {
               setValue('title', toTitleCase(title), { shouldValidate: true });
               for (const [key, value] of Object.entries(fields)) {
                 setValue(
                   `metadata.${key}` as 'metadata',
                   toTitleCase(value) as unknown as EntryMetadata,
                 );
+              }
+              if (genres && genres.length > 0) {
+                const existing = getValues('genres') ?? [];
+                const merged = Array.from(new Set([...existing, ...genres]));
+                setValue('genres', merged, { shouldValidate: true });
               }
             }}
           />
@@ -403,6 +411,14 @@ export function EntryForm({
           control={control}
           render={({ field }) => (
             <TagInput value={field.value ?? []} onChange={field.onChange} />
+          )}
+        />
+
+        <Controller
+          name="genres"
+          control={control}
+          render={({ field }) => (
+            <GenreInput value={field.value ?? []} onChange={field.onChange} />
           )}
         />
 

@@ -19,8 +19,10 @@ import type { SearchResult } from '@/services/metadata/openLibraryService';
 interface MetadataSearchProps {
   mediaTypeId: string;
   /** Called with title + pre-filled metadata fields when the user
-   * selects a result. The receiving form calls setValue for each. */
-  onFill: (title: string, fields: Record<string, string>) => void;
+   * selects a result. The receiving form calls setValue for each.
+   * `genres`, when present, should be merged into the form's existing
+   * genres rather than overwriting them. */
+  onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
 }
 
 type Source = 'openlibrary' | 'tmdb' | null;
@@ -43,13 +45,14 @@ function getSearchFn(
 async function fetchDetails(
   mediaTypeId: string,
   result: SearchResult,
-): Promise<Record<string, string>> {
-  // Open Library results already contain all fields in one call.
-  if (Object.keys(result.fields).length > 0) return result.fields;
-  // TMDB results need a second call to get director/cast/creator.
+): Promise<{ fields: Record<string, string>; genres?: string[] }> {
+  // Open Library results already contain all fields (and any genre
+  // guesses) in one call.
+  if (Object.keys(result.fields).length > 0) return { fields: result.fields, genres: result.genres };
+  // TMDB results need a second call to get director/cast/creator/genres.
   if (mediaTypeId === 'film') return getFilmDetails(result.id);
   if (mediaTypeId === 'tv') return getTVDetails(result.id);
-  return {};
+  return { fields: {} };
 }
 
 /**
@@ -97,14 +100,14 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
     if (!value) return;
     setFetching(true);
     try {
-      const fields = await fetchDetails(mediaTypeId, value);
-      onFill(value.title, fields);
+      const { fields, genres } = await fetchDetails(mediaTypeId, value);
+      onFill(value.title, fields, genres);
       // Clear the search so the field doesn't show the selected title twice.
       setInputValue('');
       setOptions([]);
     } catch {
       // If the details fetch fails, still fill what we have.
-      onFill(value.title, value.fields);
+      onFill(value.title, value.fields, value.genres);
     } finally {
       setFetching(false);
     }

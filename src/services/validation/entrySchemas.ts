@@ -23,6 +23,7 @@ export const mediaEntrySchema = z
     notes: z.string().max(5000).optional(),
     repeatConsumption: z.boolean(),
     tags: z.array(z.string()),
+    genres: z.array(z.string()),
     metadata: z.record(
       z.string(),
       z.union([z.string(), z.number(), z.boolean(), z.undefined()]),

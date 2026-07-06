@@ -95,6 +95,35 @@ function extractSource(watchProviders: TmdbWatchProviders | undefined): string |
   return PROVIDER_NAME_MAP[best.provider_name] ?? best.provider_name;
 }
 
+// ── Genres ───────────────────────────────────────────────────────────────────
+//
+// TMDB's genre names don't always match this app's Genre suggestion
+// list wording — some TV genres in particular combine two concepts
+// into one ("Sci-Fi & Fantasy", "Action & Adventure") that this app
+// treats as two separate genres. Names not listed here pass through
+// unchanged, since Genres is a free-solo field same as Source/Tags —
+// an unmapped value is still useful, just not suggestion-list-exact.
+// Note: TMDB has no dedicated "Superhero" genre — those titles are
+// filed under Action/Adventure/Sci-Fi & Fantasy instead, so this
+// mapping can never produce "Superhero" on its own.
+const GENRE_NAME_MAP: Record<string, string[]> = {
+  'Science Fiction': ['Sci-Fi'],
+  'Sci-Fi & Fantasy': ['Sci-Fi', 'Fantasy'],
+  'Action & Adventure': ['Action', 'Adventure'],
+  'War & Politics': ['War'],
+};
+
+interface TmdbGenre { name: string; }
+
+/** Maps TMDB's genre list onto this app's Genre vocabulary. Returns
+ * `undefined` (rather than an empty array) when there's nothing to
+ * fill, consistent with how `extractSource` signals "nothing found". */
+function extractGenres(genres: TmdbGenre[] | undefined): string[] | undefined {
+  if (!genres || genres.length === 0) return undefined;
+  const mapped = genres.flatMap((g) => GENRE_NAME_MAP[g.name] ?? [g.name]);
+  return Array.from(new Set(mapped));
+}
+
 // ── Films ────────────────────────────────────────────────────────────────────
 
 interface TmdbMovieSearchResult {
@@ -106,6 +135,7 @@ interface TmdbMovieSearchResult {
 interface TmdbMovieDetails {
   id: number;
   title: string;
+  genres?: TmdbGenre[];
   credits: {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
@@ -137,7 +167,9 @@ export async function searchFilms(query: string): Promise<SearchResult[]> {
  * Fetches director, screenwriter and cast for a film. Called once the
  * user selects a search result — not during the search itself.
  */
-export async function getFilmDetails(tmdbId: string): Promise<Record<string, string>> {
+export async function getFilmDetails(
+  tmdbId: string,
+): Promise<{ fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbMovieDetails>(
     `/movie/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
@@ -164,7 +196,7 @@ export async function getFilmDetails(tmdbId: string): Promise<Record<string, str
   if (castNames) fields['cast'] = castNames;
   if (source) fields['source'] = source;
 
-  return fields;
+  return { fields, genres: extractGenres(data.genres) };
 }
 
 // ── TV ───────────────────────────────────────────────────────────────────────
@@ -178,6 +210,7 @@ interface TmdbTVSearchResult {
 interface TmdbTVDetails {
   id: number;
   name: string;
+  genres?: TmdbGenre[];
   created_by: TmdbPerson[];
   credits: {
     crew: TmdbCrewMember[];
@@ -207,7 +240,9 @@ export async function searchTV(query: string): Promise<SearchResult[]> {
 /**
  * Fetches creator, showrunner and cast for a TV show.
  */
-export async function getTVDetails(tmdbId: string): Promise<Record<string, string>> {
+export async function getTVDetails(
+  tmdbId: string,
+): Promise<{ fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbTVDetails>(
     `/tv/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
@@ -233,5 +268,5 @@ export async function getTVDetails(tmdbId: string): Promise<Record<string, strin
   if (castNames) fields['cast'] = castNames;
   if (source) fields['source'] = source;
 
-  return fields;
+  return { fields, genres: extractGenres(data.genres) };
 }

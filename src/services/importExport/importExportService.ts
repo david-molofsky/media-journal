@@ -44,6 +44,10 @@ const importedEntrySchema = z.object({
   notes: z.string().max(5000).optional(),
   repeatConsumption: z.boolean(),
   tags: z.array(z.string()).default([]),
+  // Older exports predate the Genre field — default to empty rather
+  // than rejecting the whole entry, so existing Google Drive backups
+  // still import cleanly.
+  genres: z.array(z.string()).default([]),
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.undefined()])),
   completedYear: z.number().optional(),
   createdAt: z.string(),

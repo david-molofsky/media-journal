@@ -151,6 +151,7 @@ export default function EditEntryPage() {
           notes: entry.notes,
           repeatConsumption: entry.repeatConsumption,
           tags: entry.tags ?? [],
+          genres: entry.genres ?? [],
           metadata: entry.metadata,
         }}
         submitLabel="Save Changes"

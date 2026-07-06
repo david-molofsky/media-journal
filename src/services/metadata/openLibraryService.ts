@@ -11,9 +11,27 @@ export interface SearchResult {
   subtitle: string;
   /** Fields to pre-fill in the entry form on selection. */
   fields: Record<string, string>;
+  /** Best-effort genre guesses, from Open Library's community-tagged
+   * `subject` field. Only present when `ENABLE_OPENLIBRARY_GENRES` is
+   * true. Unlike TMDB's genres, these are noisy (mixed in with
+   * non-genre tags) — David is trying this out and may switch it off. */
+  genres?: string[];
 }
 
 const BASE = 'https://openlibrary.org';
+
+/** Toggle for Open Library's best-effort genre auto-fill. Open
+ * Library's `subject` field is community-tagged rather than a clean
+ * genre taxonomy (real genres mixed in with things like
+ * "Nyt:hardcover-fiction=2023-01-15"), so this is a single flag to
+ * flip off if it turns out to be more noise than it's worth — no need
+ * to rip the feature out, just flip this to `false`. */
+const ENABLE_OPENLIBRARY_GENRES = true;
+
+/** How many raw `subject` entries to take as genre guesses. Kept small
+ * since later entries in Open Library's subject list tend to get more
+ * obscure/tag-like rather than more genre-like. */
+const OPENLIBRARY_GENRE_LIMIT = 5;
 
 /**
  * Searches Open Library by title and returns up to 6 results.
@@ -26,7 +44,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     title: query,
     limit: '6',
-    fields: 'key,title,author_name,series,first_publish_year,editions',
+    fields: `key,title,author_name,series,first_publish_year,editions${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
 
   const res = await fetch(`${BASE}/search.json?${params.toString()}`);
@@ -39,6 +57,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
       author_name?: string[];
       series?: string[];
       first_publish_year?: number;
+      subject?: string[];
     }>;
   };
 
@@ -54,11 +73,16 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     if (author) fields['author'] = author;
     if (series) fields['series'] = series;
 
+    const genres = ENABLE_OPENLIBRARY_GENRES && doc.subject?.length
+      ? doc.subject.slice(0, OPENLIBRARY_GENRE_LIMIT)
+      : undefined;
+
     return {
       id: doc.key,
       title: doc.title,
       subtitle: subtitleParts.join(' · '),
       fields,
+      genres,
     };
   });
 }

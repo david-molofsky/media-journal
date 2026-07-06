@@ -29,6 +29,10 @@ export interface MediaEntry {
   repeatConsumption: boolean;
   metadata: EntryMetadata;
   tags: string[];
+  /** Freeform genre labels (e.g. "Fantasy", "Sci-Fi"), same shape and
+   * conventions as `tags` but kept as a distinct field so Genre can be
+   * its own filter/suggestion list rather than mixed in with Tags. */
+  genres: string[];
   /**
    * Calendar year of `completedDate`, stored redundantly for indexing.
    * Absent for in_progress and wishlist entries. Always kept in sync

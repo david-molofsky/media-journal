@@ -47,6 +47,7 @@ export async function updateEntry(
     notes: patch.notes ?? existing.notes,
     repeatConsumption: patch.repeatConsumption ?? existing.repeatConsumption,
     tags: patch.tags ?? existing.tags ?? [],
+    genres: patch.genres ?? existing.genres ?? [],
     metadata: patch.metadata ?? existing.metadata,
   };
 
@@ -117,6 +118,20 @@ export async function bulkAddTags(ids: string[], tags: string[]): Promise<void> 
   await db.mediaEntries.bulkPut(updates);
 }
 
+/** Adds genres to every selected entry, merging with whatever each
+ * entry already has. Mirrors `bulkAddTags`. */
+export async function bulkAddGenres(ids: string[], genres: string[]): Promise<void> {
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      genres: Array.from(new Set([...(e.genres ?? []), ...genres])),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
 /** Sets `metadata.source` to the same value on every selected entry,
  * regardless of media type — every type's metadata schema includes an
  * optional `source` field, so this is safe across a mixed-type
@@ -143,6 +158,9 @@ export interface EntryListFilter {
   mediaType?: string;
   searchText?: string;
   tag?: string;
+  /** Filters to entries whose `genres` array includes this value.
+   * Cross-media-type, same shape as Tag. */
+  genre?: string;
   /** Filters to entries whose `metadata.source` matches exactly (e.g.
    * "Netflix", "Audible"). Cross-media-type, like Tag. */
   source?: string;
@@ -211,6 +229,9 @@ export async function listEntries(
   }
   if (filter.tag !== undefined) {
     entries = entries.filter((e) => (e.tags ?? []).includes(filter.tag!));
+  }
+  if (filter.genre !== undefined) {
+    entries = entries.filter((e) => (e.genres ?? []).includes(filter.genre!));
   }
   if (filter.source !== undefined) {
     entries = entries.filter((e) => e.metadata.source === filter.source);

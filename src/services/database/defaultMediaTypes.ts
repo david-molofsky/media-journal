@@ -73,7 +73,7 @@ export const defaultMediaTypes: MediaType[] = [
   },
   {
     id: 'tv',
-    displayName: 'Television Season',
+    displayName: 'TV Season',
     icon: 'tv',
     colour: '#388E3C',
     enabled: true,
@@ -108,7 +108,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Physical', 'Humble Bundle', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby', 'Digital'],
+        options: ['Physical', 'Humble Bundle', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby', 'Digital', 'Global Comix', 'Comichaus', 'Webtoons'],
       },
     ],
   },

@@ -489,6 +489,59 @@ export class MediaJournalDatabase extends Dexie {
       );
       await table.update('comic', { fields: updatedFields });
     });
+
+    /**
+     * Version 15:
+     *  - Renames the TV media type's displayName from "Television
+     *    Season" to "TV Season" (label only — id stays 'tv', no data
+     *    affected).
+     *  - Adds "Global Comix", "Comichaus" and "Webtoons" to the Comic
+     *    Issues Source suggestion list. Magazine Issues is deliberately
+     *    left untouched, as with the Digital/Humble Bundle additions.
+     *  - Backfills `genres: []` on every existing entry so the new
+     *    Genre field/filter has a consistent array to work with.
+     *
+     * All three steps are guarded so a row that's already been
+     * customised (or already migrated) is left untouched.
+     */
+    this.version(15).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const mediaTypeTable = tx.table<MediaType>('mediaTypes');
+
+      const tvType = await mediaTypeTable.get('tv');
+      if (tvType && tvType.displayName === 'Television Season') {
+        await mediaTypeTable.update('tv', { displayName: 'TV Season' });
+      }
+
+      const comicType = await mediaTypeTable.get('comic');
+      if (comicType) {
+        const sourceField = comicType.fields.find((f) => f.key === 'source');
+        const options = sourceField?.options;
+        if (options) {
+          const additions = ['Global Comix', 'Comichaus', 'Webtoons'].filter(
+            (o) => !options.includes(o),
+          );
+          if (additions.length > 0) {
+            const updatedFields = comicType.fields.map((f) =>
+              f.key === 'source' ? { ...f, options: [...options, ...additions] } : f,
+            );
+            await mediaTypeTable.update('comic', { fields: updatedFields });
+          }
+        }
+      }
+
+      const entryTable = tx.table<MediaEntry>('mediaEntries');
+      await entryTable.toCollection().modify((entry) => {
+        if (entry.genres === undefined) {
+          entry.genres = [];
+        }
+      });
+    });
   }
 }
 

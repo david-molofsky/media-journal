@@ -56,6 +56,9 @@ export async function finishInProgressEntry(
     notes: inProgress.notes,
     repeatConsumption: false,
     tags: inProgress.tags,
+    // InProgressEntry predates the Genre field and doesn't track it;
+    // default to empty, same as a fresh entry would.
+    genres: [],
     metadata: inProgress.metadata,
   };
 
