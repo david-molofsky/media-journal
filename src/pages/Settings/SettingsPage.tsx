@@ -31,13 +31,13 @@ export default function SettingsPage() {
           <TvTrackingSection />
         </Stack>
 
-        <TmdbAutofillSection />
-
         <ImportExportSection />
 
         <GoogleDriveSection />
 
         <MediaTypeManager />
+
+        <TmdbAutofillSection />
 
         <Box>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
