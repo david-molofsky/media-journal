@@ -32,49 +32,15 @@ const STATUS_CONFIG = {
 const SOURCE_BADGE = { bgcolor: '#E3F2FD', color: '#1565C0', border: '#90CAF9' } as const;
 
 /**
- * Derives the subtitle line shown beneath the title. Each media type
- * surfaces the most useful field rather than showing the type name
- * (which is already implicit from the icon colour):
- *   Book / Audiobook  → Author name
- *   Film              → Dir. {Director}
- *   TV                → Season {N}
- *   Comic             → Issues {start}–{end}
- *   Custom            → falls back to the type's displayName
- *
- * The completion date always follows, separated by a mid-dot.
+ * Derives the subtitle line shown beneath the title: just the
+ * completion date. Previously also surfaced a per-type detail (Author,
+ * "Dir. {name}", Season N, Issues X–Y) — removed per David's request to
+ * keep cards down to date and Source only. Source itself isn't part of
+ * this string; it renders as its own badge (see `completedSource` /
+ * `source` below), same as before this change.
  */
-function buildSubtitle(entry: MediaEntry, mediaType: MediaType | undefined): string {
-  const { metadata, mediaType: typeId, completedDate } = entry;
-  const date = dayjs(completedDate).format('D MMM YYYY');
-
-  // Default: custom type — show display name. Known types overwrite below.
-  let detail: string = mediaType?.displayName ?? typeId;
-  if (typeId === 'book' || typeId === 'audiobook') {
-    detail = typeof metadata.author === 'string' && metadata.author ? metadata.author : '';
-  } else if (typeId === 'film') {
-    detail =
-      typeof metadata.director === 'string' && metadata.director
-        ? `Dir. ${metadata.director}`
-        : '';
-  } else if (typeId === 'tv') {
-    const { seasonNumber, episodeStart, episodeEnd } = metadata;
-    const hasEpisodes =
-      typeof episodeStart === 'number' && typeof episodeEnd === 'number';
-    if (hasEpisodes) {
-      const seasonPart = typeof seasonNumber === 'number' ? `S${seasonNumber} ` : '';
-      detail = `${seasonPart}Ep ${episodeStart}–${episodeEnd}`;
-    } else if (typeof seasonNumber === 'number') {
-      detail = `Season ${seasonNumber}`;
-    }
-  } else if (typeId === 'comic') {
-    const { issueStart, issueEnd } = metadata;
-    detail =
-      typeof issueStart === 'number' && typeof issueEnd === 'number'
-        ? `Issues ${issueStart}–${issueEnd}`
-        : '';
-  }
-
-  return [detail, date].filter(Boolean).join(' · ');
+function buildSubtitle(entry: MediaEntry): string {
+  return dayjs(entry.completedDate).format('D MMM YYYY');
 }
 
 export function EntryCard({
@@ -132,7 +98,7 @@ export function EntryCard({
               )}
             </Stack>
             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-              <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry, mediaType)}</Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
               {completedSource && (
                 <Box sx={{ flexShrink: 0, display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
                   {completedSource}

@@ -9,6 +9,7 @@
  */
 
 import type { SearchResult } from './openLibraryService';
+import { getSetting } from '@/services/database/settingsService';
 export type { SearchResult };
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -124,6 +125,18 @@ function extractGenres(genres: TmdbGenre[] | undefined): string[] | undefined {
   return Array.from(new Set(mapped));
 }
 
+// ── Series (TMDB "collection") ──────────────────────────────────────────────
+//
+// TMDB's `belongs_to_collection` is film-only (TV has no equivalent
+// concept), and its `name` usually ends in the literal word
+// "Collection" (e.g. "Dune Collection"). Stripping that suffix gives a
+// cleaner value for this app's Series field than reproducing TMDB's
+// own naming convention verbatim.
+function extractSeriesFromCollection(collectionName: string | undefined): string | undefined {
+  if (!collectionName) return undefined;
+  return collectionName.replace(/\s+collection$/i, '').trim() || undefined;
+}
+
 // ── Films ────────────────────────────────────────────────────────────────────
 
 interface TmdbMovieSearchResult {
@@ -132,10 +145,18 @@ interface TmdbMovieSearchResult {
   release_date?: string;
 }
 
+interface TmdbCollection { name: string; }
+interface TmdbProductionCompany { name: string; }
+
 interface TmdbMovieDetails {
   id: number;
   title: string;
   genres?: TmdbGenre[];
+  overview?: string;
+  runtime?: number;
+  poster_path?: string;
+  belongs_to_collection?: TmdbCollection;
+  production_companies?: TmdbProductionCompany[];
   credits: {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
@@ -196,6 +217,37 @@ export async function getFilmDetails(
   if (castNames) fields['cast'] = castNames;
   if (source) fields['source'] = source;
 
+  // Auto-fill toggles (Settings > Metadata auto-fill). Each is read
+  // independently so turning one off never affects the others — and all
+  // default to `true` except poster, which is opt-in.
+  const [
+    autofillOverview,
+    autofillRuntime,
+    autofillProductionCompany,
+    autofillSeries,
+    autofillPoster,
+  ] = await Promise.all([
+    getSetting('autofillOverview', true),
+    getSetting('autofillRuntime', true),
+    getSetting('autofillProductionCompany', true),
+    getSetting('autofillSeries', true),
+    getSetting('autofillPoster', false),
+  ]);
+
+  if (autofillOverview && data.overview) fields['overview'] = data.overview;
+  if (autofillRuntime && data.runtime) fields['runtime'] = String(data.runtime);
+  if (autofillProductionCompany && data.production_companies?.[0]?.name) {
+    fields['productionCompany'] = data.production_companies[0].name;
+  }
+  if (autofillSeries) {
+    const series = extractSeriesFromCollection(data.belongs_to_collection?.name);
+    if (series) fields['series'] = series;
+  }
+  // Poster stores TMDB's image *path* only (e.g. "/abc123.jpg"), not the
+  // image itself — kept light for storage and any future sync payload.
+  // Callers combine it with TMDB's image base URL when rendering.
+  if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
+
   return { fields, genres: extractGenres(data.genres) };
 }
 
@@ -207,10 +259,19 @@ interface TmdbTVSearchResult {
   first_air_date?: string;
 }
 
+interface TmdbNetwork { name: string; }
+
 interface TmdbTVDetails {
   id: number;
   name: string;
   genres?: TmdbGenre[];
+  overview?: string;
+  /** TMDB returns an array (episode runtimes can vary); the first entry
+   * is used as the representative runtime. */
+  episode_run_time?: number[];
+  poster_path?: string;
+  status?: string;
+  networks?: TmdbNetwork[];
   created_by: TmdbPerson[];
   credits: {
     crew: TmdbCrewMember[];
@@ -267,6 +328,24 @@ export async function getTVDetails(
   if (showrunner) fields['showrunner'] = showrunner;
   if (castNames) fields['cast'] = castNames;
   if (source) fields['source'] = source;
+
+  // Auto-fill toggles — same settings as getFilmDetails, minus Series:
+  // TMDB has no "collection" concept for TV, so it's never auto-filled
+  // here (it stays a manually-editable field on the TV type).
+  const [autofillOverview, autofillRuntime, autofillProductionCompany, autofillTvStatus, autofillPoster] =
+    await Promise.all([
+      getSetting('autofillOverview', true),
+      getSetting('autofillRuntime', true),
+      getSetting('autofillProductionCompany', true),
+      getSetting('autofillTvStatus', true),
+      getSetting('autofillPoster', false),
+    ]);
+
+  if (autofillOverview && data.overview) fields['overview'] = data.overview;
+  if (autofillRuntime && data.episode_run_time?.[0]) fields['runtime'] = String(data.episode_run_time[0]);
+  if (autofillProductionCompany && data.networks?.[0]?.name) fields['network'] = data.networks[0].name;
+  if (autofillTvStatus && data.status) fields['tvStatus'] = data.status;
+  if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
 
   return { fields, genres: extractGenres(data.genres) };
 }

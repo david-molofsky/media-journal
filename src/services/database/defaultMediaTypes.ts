@@ -69,6 +69,17 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Netflix', 'Disney+', 'Amazon Prime Video', 'Theatrical', 'Max', 'Hulu', 'Apple TV+', 'Physical Media', 'Digital'],
       },
+      // Added for TMDB auto-fill (Settings > Metadata auto-fill). Appended
+      // after the original fields so Media Details keeps its existing
+      // fields on top with these newer ones underneath. `overview` and
+      // `posterPath` are deliberately NOT declared here — they get
+      // bespoke UI treatment in EntryForm (poster thumbnail near the
+      // top, Overview as its own block at the bottom) rather than
+      // rendering through the generic field loop, but both are still
+      // valid metadata keys per filmMetadataSchema in entrySchemas.ts.
+      { key: 'runtime', label: 'Runtime (minutes)', type: 'number', required: false },
+      { key: 'productionCompany', label: 'Production company', type: 'text', required: false },
+      { key: 'series', label: 'Series', type: 'text', required: false },
     ],
   },
   {
@@ -91,6 +102,15 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Netflix', 'Disney+', 'Amazon Prime Video', 'Theatrical', 'Max', 'Hulu', 'Apple TV+', 'Physical Media', 'Digital'],
       },
+      // Added for TMDB auto-fill — see the matching comment on 'film'
+      // above. Note: TMDB has no "collection" concept for TV shows (only
+      // films belong to a collection), so `series` is here as a manually
+      // editable field for consistency, but auto-fill never populates it
+      // for TV entries — only Film gets that from TMDB.
+      { key: 'network', label: 'Network', type: 'text', required: false },
+      { key: 'runtime', label: 'Runtime (minutes)', type: 'number', required: false },
+      { key: 'tvStatus', label: 'Status', type: 'text', required: false },
+      { key: 'series', label: 'Series', type: 'text', required: false },
     ],
   },
   {

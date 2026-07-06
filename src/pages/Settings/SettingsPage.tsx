@@ -9,6 +9,7 @@ import ListItemText from '@mui/material/ListItemText';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
 import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
+import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
@@ -29,6 +30,8 @@ export default function SettingsPage() {
           <DarkModeToggle />
           <TvTrackingSection />
         </Stack>
+
+        <TmdbAutofillSection />
 
         <ImportExportSection />
 

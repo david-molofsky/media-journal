@@ -123,6 +123,12 @@ export function EntryForm({
   const issueEnd = watch('metadata.issueEnd' as 'metadata');
   const episodeStart = watch('metadata.episodeStart' as 'metadata');
   const episodeEnd = watch('metadata.episodeEnd' as 'metadata');
+  // Poster only ever renders here, in Edit Entry — never in the Library
+  // card or grid (Settings > Metadata auto-fill explains why). Also only
+  // relevant for Film/TV, the only types TMDB auto-fill touches.
+  const posterPath = watch('metadata.posterPath' as 'metadata');
+  const showPoster =
+    (mediaType.id === 'film' || mediaType.id === 'tv') && typeof posterPath === 'string' && posterPath;
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -199,6 +205,14 @@ export function EntryForm({
               }
             }}
           />
+          {showPoster && (
+            <Box
+              component="img"
+              src={`https://image.tmdb.org/t/p/w154${posterPath}`}
+              alt=""
+              sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
+            />
+          )}
           <TextField
             label="Title"
             required
@@ -330,6 +344,30 @@ export function EntryForm({
                   </Alert>
                 );
               })()}
+            {/* Overview sits at the bottom of Media Details, after
+                Director/Cast/Source and the new Runtime/Production
+                company/Series/Status fields — deliberately not in
+                mediaType.fields so it gets a multiline layout instead of
+                the generic single-line TextField loop above. */}
+            {(mediaType.id === 'film' || mediaType.id === 'tv') && (
+              <Controller
+                name={'metadata.overview' as 'metadata'}
+                control={control}
+                render={({ field: controllerField, fieldState }) => (
+                  <TextField
+                    label="Overview"
+                    multiline
+                    minRows={3}
+                    fullWidth
+                    value={typeof controllerField.value === 'string' ? controllerField.value : ''}
+                    onChange={(event) => controllerField.onChange(event.target.value)}
+                    onBlur={controllerField.onBlur}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                  />
+                )}
+              />
+            )}
           </Stack>
         )}
 

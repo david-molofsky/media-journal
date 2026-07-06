@@ -542,6 +542,53 @@ export class MediaJournalDatabase extends Dexie {
         }
       });
     });
+
+    /**
+     * Version 16: adds the new TMDB auto-fill metadata fields to Film and
+     * TV — `runtime`, `productionCompany`/`network`, `series`, and (TV
+     * only) `tvStatus`. Population itself is opt-in per field via
+     * Settings > Metadata auto-fill (see AppSettings.ts); this migration
+     * only adds the field *definitions* so Media Details renders them
+     * and entrySchemas.ts's per-type schema doesn't strip values once
+     * TMDB starts supplying them. `overview` and `posterPath` are also
+     * new metadata keys as of this version but aren't added to
+     * `fields[]` here — they get bespoke UI in EntryForm rather than the
+     * generic field loop, so there's no field-definition row for them.
+     *
+     * No existing entry data is touched — every new key is optional and
+     * simply absent from `metadata` until the user re-runs auto-fill or
+     * enters a value manually.
+     */
+    this.version(16).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+
+      const film = await table.get('film');
+      if (film) {
+        const existingKeys = new Set(film.fields.map((f) => f.key));
+        const toAdd: MediaType['fields'] = [];
+        if (!existingKeys.has('runtime')) toAdd.push({ key: 'runtime', label: 'Runtime (minutes)', type: 'number', required: false });
+        if (!existingKeys.has('productionCompany')) toAdd.push({ key: 'productionCompany', label: 'Production company', type: 'text', required: false });
+        if (!existingKeys.has('series')) toAdd.push({ key: 'series', label: 'Series', type: 'text', required: false });
+        if (toAdd.length > 0) await table.put({ ...film, fields: [...film.fields, ...toAdd] });
+      }
+
+      const tv = await table.get('tv');
+      if (tv) {
+        const existingKeys = new Set(tv.fields.map((f) => f.key));
+        const toAdd: MediaType['fields'] = [];
+        if (!existingKeys.has('network')) toAdd.push({ key: 'network', label: 'Network', type: 'text', required: false });
+        if (!existingKeys.has('runtime')) toAdd.push({ key: 'runtime', label: 'Runtime (minutes)', type: 'number', required: false });
+        if (!existingKeys.has('tvStatus')) toAdd.push({ key: 'tvStatus', label: 'Status', type: 'text', required: false });
+        if (!existingKeys.has('series')) toAdd.push({ key: 'series', label: 'Series', type: 'text', required: false });
+        if (toAdd.length > 0) await table.put({ ...tv, fields: [...tv.fields, ...toAdd] });
+      }
+    });
   }
 }
 

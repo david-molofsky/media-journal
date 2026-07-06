@@ -71,6 +71,15 @@ const filmMetadataSchema = z.object({
   screenwriter: z.string().optional(),
   cast: z.string().optional(),
   source: z.string().optional(),
+  // TMDB auto-fill fields (Settings > Metadata auto-fill). `overview` and
+  // `posterPath` aren't in defaultMediaTypes.ts's `fields[]` (they get
+  // bespoke UI in EntryForm), but must still be listed here — per-type
+  // schemas silently strip any metadata key they don't know about.
+  runtime: z.number().min(0).optional(),
+  productionCompany: z.string().optional(),
+  series: z.string().optional(),
+  overview: z.string().max(2000).optional(),
+  posterPath: z.string().optional(),
 });
 
 const tvMetadataSchema = z.object({
@@ -81,6 +90,13 @@ const tvMetadataSchema = z.object({
   showrunner: z.string().optional(),
   cast: z.string().optional(),
   source: z.string().optional(),
+  // TMDB auto-fill fields — see matching comment on filmMetadataSchema.
+  network: z.string().optional(),
+  runtime: z.number().min(0).optional(),
+  tvStatus: z.string().optional(),
+  series: z.string().optional(),
+  overview: z.string().max(2000).optional(),
+  posterPath: z.string().optional(),
 });
 
 const comicMetadataSchema = z

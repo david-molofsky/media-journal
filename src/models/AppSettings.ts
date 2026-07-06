@@ -19,6 +19,19 @@ export const SETTINGS_KEYS = {
   tvTrackingMode: 'tvTrackingMode',
   colorMode: 'colorMode',
   lastLibraryStatusTab: 'lastLibraryStatusTab',
+  /** TMDB (Film/TV) auto-fill toggles — read by tmdbService before it
+   * populates each field, written from Settings > Metadata auto-fill.
+   * Default to `true` (via getSetting's fallback) for every field
+   * except `autofillPoster`, which defaults to `false` — poster is the
+   * one field that changes what an entry visually looks like, so it's
+   * opt-in rather than opt-out. All live at the Settings level (not
+   * per-import) so the choice persists across every future auto-fill. */
+  autofillOverview: 'autofillOverview',
+  autofillRuntime: 'autofillRuntime',
+  autofillProductionCompany: 'autofillProductionCompany',
+  autofillTvStatus: 'autofillTvStatus',
+  autofillSeries: 'autofillSeries',
+  autofillPoster: 'autofillPoster',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
