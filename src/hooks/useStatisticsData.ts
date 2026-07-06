@@ -15,6 +15,9 @@ import {
   getTopSourcesByCount,
   getWishlistSourceTotals,
   getAverageRatingBySource,
+  getTopGenresByCount,
+  getAverageRatingByGenre,
+  getWishlistGenreTotals,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
 
@@ -35,6 +38,9 @@ export interface StatisticsData {
   topSourcesByCount: Record<string, Record<string, number>>;
   wishlistSourceTotals: Record<string, Record<string, number>>;
   averageRatingBySource: Record<string, Record<string, number>>;
+  topGenresByCount: Record<string, number>;
+  averageRatingByGenre: Record<string, number>;
+  wishlistGenreTotals: Record<string, number>;
 }
 
 /** Combines every statistics service call the Statistics screen needs
@@ -57,6 +63,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       topSourcesByCount,
       wishlistSourceTotals,
       averageRatingBySource,
+      topGenresByCount,
+      averageRatingByGenre,
+      wishlistGenreTotals,
     ] = await Promise.all([
       getYearSummary(year),
       getMonthlyBreakdown(year),
@@ -73,6 +82,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       getTopSourcesByCount(year),
       getWishlistSourceTotals(),
       getAverageRatingBySource(year),
+      getTopGenresByCount(year),
+      getAverageRatingByGenre(year),
+      getWishlistGenreTotals(),
     ]);
     return {
       totalEntries: summary.totalEntries,
@@ -91,6 +103,9 @@ export function useStatisticsData(year: number): StatisticsData | undefined {
       topSourcesByCount,
       wishlistSourceTotals,
       averageRatingBySource,
+      topGenresByCount,
+      averageRatingByGenre,
+      wishlistGenreTotals,
     };
   }, [year]);
 }

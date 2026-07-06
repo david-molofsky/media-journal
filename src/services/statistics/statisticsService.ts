@@ -193,6 +193,60 @@ export async function getAverageRatingBySource(year: number): Promise<Record<str
   return result;
 }
 
+/** Completed-entry counts by Genre within `year`, weighted by
+ * `getEntryWeight`. Flat (not grouped by media type) unlike the Source
+ * statistics above — a "Fantasy" book and a "Fantasy" film are the
+ * same genre, so grouping by type would just split one genre's totals
+ * across several sections for no benefit. An entry can have multiple
+ * genres; each one it has gets the entry's full weight, same as how
+ * Tags work — this is a "how much did I consume tagged X" count, not
+ * a mutually-exclusive breakdown. */
+export async function getTopGenresByCount(year: number): Promise<Record<string, number>> {
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    const weight = getEntryWeight(entry, tvMode);
+    for (const genre of entry.genres ?? []) {
+      totals[genre] = (totals[genre] ?? 0) + weight;
+    }
+  }
+  return totals;
+}
+
+/** Average rating per Genre within `year`, ignoring unrated entries.
+ * Flat, for the same reason as `getTopGenresByCount`. An entry with
+ * multiple genres contributes its rating to each genre's average. */
+export async function getAverageRatingByGenre(year: number): Promise<Record<string, number>> {
+  const entries = (await entriesForYear(year)).filter((entry) => entry.rating !== undefined);
+  const sums: Record<string, { total: number; count: number }> = {};
+  for (const entry of entries) {
+    for (const genre of entry.genres ?? []) {
+      const bucket = sums[genre] ?? { total: 0, count: 0 };
+      bucket.total += entry.rating ?? 0;
+      bucket.count += 1;
+      sums[genre] = bucket;
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(sums).map(([genre, { total, count }]) => [genre, total / count]),
+  );
+}
+
+/** Wishlist entry counts by Genre, across all years — mirrors
+ * `getWishlistSourceTotals` (all-time, plain counts, not weighted),
+ * but flat rather than grouped by media type, for the same reason as
+ * `getTopGenresByCount`. */
+export async function getWishlistGenreTotals(): Promise<Record<string, number>> {
+  const entries = await db.mediaEntries.where('status').equals('wishlist').toArray();
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    for (const genre of entry.genres ?? []) {
+      totals[genre] = (totals[genre] ?? 0) + 1;
+    }
+  }
+  return totals;
+}
+
 /** Histogram of ratings (0–10 in 0.5 steps) within `year`, ignoring
  * unrated entries. */
 export async function getRatingDistribution(

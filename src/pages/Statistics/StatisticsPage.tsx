@@ -14,6 +14,8 @@ import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { WeeklyActivityChart } from '@/components/charts/WeeklyActivityChart';
 import { CumulativeWeeklyChart } from '@/components/charts/CumulativeWeeklyChart';
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
+import { GenreBarChart } from '@/components/charts/GenreBarChart';
+import { TopList, type TopListItem } from '@/components/statistics/TopList';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -50,6 +52,24 @@ function sortedSourceGroups(
     });
 }
 
+/** Merges `topSourcesByCount` and `averageRatingBySource` into a single
+ * per-group `TopListItem[]`, sorted by count descending — one row per
+ * source (name, count, rating) instead of two separate lists. */
+function mergedSourceGroups(
+  counts: Record<string, Record<string, number>>,
+  ratings: Record<string, Record<string, number>>,
+  mediaTypeById: Map<string, MediaType>,
+): { mediaTypeId: string; displayName: string; items: TopListItem[] }[] {
+  return sortedSourceGroups(counts, mediaTypeById).map((group) => ({
+    mediaTypeId: group.mediaTypeId,
+    displayName: group.displayName,
+    items: group.sources.map(([name, count]) => ({
+      name,
+      count,
+      rating: ratings[group.mediaTypeId]?.[name],
+    })),
+  }));
+}
 /**
  * Statistics — detailed analytics, trends, streaks and insights (PRD
  * section 5; UI & UX Specification section 8).
@@ -201,6 +221,41 @@ export default function StatisticsPage() {
           </Stack>
         </Box>
 
+        {(Object.keys(data.topGenresByCount).length > 0 ||
+          Object.keys(data.wishlistGenreTotals).length > 0) && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Genres
+            </Typography>
+            <Stack spacing={2}>
+              {Object.keys(data.topGenresByCount).length > 0 && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Top genres this year
+                  </Typography>
+                  <GenreBarChart
+                    topGenresByCount={data.topGenresByCount}
+                    averageRatingByGenre={data.averageRatingByGenre}
+                  />
+                </Box>
+              )}
+
+              {Object.keys(data.wishlistGenreTotals).length > 0 && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Wishlist by genre (all time)
+                  </Typography>
+                  <TopList
+                    items={Object.entries(data.wishlistGenreTotals)
+                      .map(([name, count]) => ({ name, count }))
+                      .sort((a, b) => b.count - a.count)}
+                  />
+                </Box>
+              )}
+            </Stack>
+          </Box>
+        )}
+
         {(Object.keys(data.topSourcesByCount).length > 0 ||
           Object.keys(data.wishlistSourceTotals).length > 0) && (
           <Box>
@@ -211,47 +266,15 @@ export default function StatisticsPage() {
               {Object.keys(data.topSourcesByCount).length > 0 && (
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Most-watched sources
+                    This year, by source
                   </Typography>
                   <Stack spacing={1.5}>
-                    {sortedSourceGroups(data.topSourcesByCount, mediaTypeById).map((group) => (
+                    {mergedSourceGroups(data.topSourcesByCount, data.averageRatingBySource, mediaTypeById).map((group) => (
                       <Box key={group.mediaTypeId}>
                         <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
                           {group.displayName}
                         </Typography>
-                        <Stack spacing={0.75}>
-                          {group.sources.map(([sourceName, count]) => (
-                            <Stack key={sourceName} direction="row" justifyContent="space-between">
-                              <Typography variant="body2">{sourceName}</Typography>
-                              <Typography variant="body2" fontWeight={600}>{count}</Typography>
-                            </Stack>
-                          ))}
-                        </Stack>
-                      </Box>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-
-              {Object.keys(data.averageRatingBySource).length > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Average rating by source
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {sortedSourceGroups(data.averageRatingBySource, mediaTypeById).map((group) => (
-                      <Box key={group.mediaTypeId}>
-                        <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
-                          {group.displayName}
-                        </Typography>
-                        <Stack spacing={0.75}>
-                          {group.sources.map(([sourceName, average]) => (
-                            <Stack key={sourceName} direction="row" justifyContent="space-between">
-                              <Typography variant="body2">{sourceName}</Typography>
-                              <Typography variant="body2" fontWeight={600}>{average.toFixed(1)}</Typography>
-                            </Stack>
-                          ))}
-                        </Stack>
+                        <TopList items={group.items} />
                       </Box>
                     ))}
                   </Stack>
@@ -276,14 +299,9 @@ export default function StatisticsPage() {
                           <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
                             {group.displayName}
                           </Typography>
-                          <Stack spacing={0.75}>
-                            {group.sources.map(([sourceName, count]) => (
-                              <Stack key={sourceName} direction="row" justifyContent="space-between">
-                                <Typography variant="body2">{sourceName}</Typography>
-                                <Typography variant="body2" fontWeight={600}>{count}</Typography>
-                              </Stack>
-                            ))}
-                          </Stack>
+                          <TopList
+                            items={group.sources.map(([name, count]) => ({ name, count }))}
+                          />
                         </Box>
                       ))}
                     </Stack>
