@@ -15,11 +15,14 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import SourceOutlinedIcon from '@mui/icons-material/SourceOutlined';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import IconButton from '@mui/material/IconButton';
 import { deleteEntries, bulkAddTags, bulkSetRating, bulkSetSource } from '@/services/database/entryService';
 import { TagInput } from '@/components/forms/TagInput';
 import { useAvailableSources } from '@/hooks/useAvailableSources';
+import { useBackfillFlow } from '@/hooks/useBackfillFlow';
+import { BackfillDialog } from './BackfillDialog';
 
 interface BulkActionBarProps {
   selectedIds: string[];
@@ -39,6 +42,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const [rateOpen, setRateOpen] = useState(false);
   const [rateValue, setRateValue] = useState<number>(7);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const backfill = useBackfillFlow();
   const availableSources = useAvailableSources();
 
   const count = selectedIds.length;
@@ -125,6 +129,14 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
           </Button>
           <Button
             size="small"
+            startIcon={<DownloadOutlinedIcon />}
+            onClick={() => void backfill.start(selectedIds)}
+            sx={{ color: 'inherit' }}
+          >
+            Back-fill
+          </Button>
+          <Button
+            size="small"
             startIcon={<DeleteOutlineIcon />}
             onClick={() => setDeleteOpen(true)}
             sx={{ color: 'inherit' }}
@@ -196,6 +208,26 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
           <Button variant="contained" onClick={handleRate}>Apply rating</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Back-fill dialog — Film/TV only. State and async work live in
+          useBackfillFlow (started above from the button's onClick);
+          this dialog only renders it. onClose after 'done' also clears
+          the selection, same as every other bulk action here. */}
+      <BackfillDialog
+        open={backfill.phase !== 'idle'}
+        phase={backfill.phase}
+        matches={backfill.matches}
+        progress={backfill.progress}
+        summary={backfill.summary}
+        onPickCandidate={backfill.pickCandidate}
+        onSkip={backfill.skipEntry}
+        onApply={() => void backfill.applyAll()}
+        onClose={() => {
+          const finishing = backfill.phase === 'done';
+          backfill.reset();
+          if (finishing) onClear();
+        }}
+      />
 
       {/* Delete dialog */}
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
