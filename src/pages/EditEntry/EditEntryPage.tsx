@@ -17,6 +17,7 @@ import Divider from '@mui/material/Divider';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMediaEntry } from '@/hooks/useMediaEntry';
@@ -56,6 +57,11 @@ export default function EditEntryPage() {
   const tvMode = useTvTrackingMode();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // Book <-> Audiobook only, per David's request — they share identical
+  // fields and the exact same Zod schema (see entrySchemas.ts, where
+  // `audiobook: bookMetadataSchema`), so converting never needs to
+  // remap or drop anything: it's purely a `mediaType` change.
+  const [convertOpen, setConvertOpen] = useState(false);
 
   // Derive these unconditionally (before any early returns) so hooks
   // are always called in the same order — Rules of Hooks.
@@ -125,6 +131,15 @@ export default function EditEntryPage() {
     navigate(editEntryPath(copy.id));
   };
 
+  const convertTarget = entry.mediaType === 'book' ? 'audiobook' : entry.mediaType === 'audiobook' ? 'book' : undefined;
+  const convertTargetLabel = mediaTypes.find((t) => t.id === convertTarget)?.displayName ?? convertTarget;
+
+  const handleConvert = async () => {
+    if (!convertTarget) return;
+    await updateEntry(entry.id, { mediaType: convertTarget });
+    setConvertOpen(false);
+  };
+
   return (
     <Box sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
@@ -171,6 +186,15 @@ export default function EditEntryPage() {
               >
                 Duplicate Entry
               </Button>
+              {convertTarget && (
+                <Button
+                  startIcon={<SwapHorizIcon />}
+                  onClick={() => setConvertOpen(true)}
+                  color="inherit"
+                >
+                  Convert to {convertTargetLabel}
+                </Button>
+              )}
               <Button
                 startIcon={<DeleteOutlineIcon />}
                 onClick={() => setDeleteOpen(true)}
@@ -206,6 +230,21 @@ export default function EditEntryPage() {
           </Stack>
         }
       />
+
+      <Dialog open={convertOpen} onClose={() => setConvertOpen(false)}>
+        <DialogTitle>Convert to {convertTargetLabel}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This changes the entry's icon, colour, and grouping in Library and Statistics. Every
+            field — Author, Series, Volume, Source, tags, genres, dates, rating — carries over
+            unchanged.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConvertOpen(false)}>Cancel</Button>
+          <Button onClick={handleConvert}>Convert</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
         <DialogTitle>Delete this entry?</DialogTitle>

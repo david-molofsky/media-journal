@@ -55,6 +55,16 @@ const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
 
 const DATE_SORTS: EntrySortOrder[] = ['completedDateDesc', 'completedDateAsc', 'createdAtDesc', 'createdAtAsc'];
 
+/** Wishlist entries have no completion date yet, so "Newest completion
+ * date" (the default everywhere else) doesn't make sense there —
+ * Wishlist defaults to "Newest added" instead. Applied whenever the
+ * Library lands on or switches to a tab (see the Tabs onChange handler
+ * below and the initial `sort` state), not as a one-time default that
+ * then behaves like any other tab. */
+function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
+  return status === 'wishlist' ? 'createdAtDesc' : 'completedDateDesc';
+}
+
 const STATUS_TABS: { value: EntryStatus; label: string }[] = [
   { value: 'completed', label: 'Completed' },
   { value: 'in_progress', label: 'In Progress' },
@@ -123,7 +133,7 @@ export default function LibraryPage() {
   const [tag, setTag] = useState<string | undefined>(incoming?.tag);
   const [genre, setGenre] = useState<string | undefined>(incoming?.genre);
   const [source, setSource] = useState<string | undefined>(incoming?.source);
-  const [sort, setSort] = useState<EntrySortOrder>('completedDateDesc');
+  const [sort, setSort] = useState<EntrySortOrder>(defaultSortForStatus(incoming?.status ?? 'completed'));
   const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -218,7 +228,7 @@ export default function LibraryPage() {
     <Box>
       <Tabs
         value={statusTab}
-        onChange={(_, v) => { setStatusTab(v as EntryStatus); setSelectedIds(new Set()); setSelectionMode(false); }}
+        onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); }}
         sx={{ mb: 2, mx: -2, px: 2, borderBottom: 1, borderColor: 'divider' }}
         variant="fullWidth"
       >
