@@ -16,7 +16,10 @@ import { MediaBreakdownChart } from '@/components/charts/MediaBreakdownChart';
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
+import { WelcomeScreen } from '@/components/dashboard/WelcomeScreen';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { SETTINGS_KEYS } from '@/models';
 import { ROUTES, editEntryPath } from '@/routes/paths';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 
@@ -26,6 +29,7 @@ export default function DashboardPage() {
   const availableYears = useAvailableYears();
   const [year, setYear] = useState(() => dayjs().year());
   const data = useDashboardData(year);
+  const [hasSeenWelcome, setHasSeenWelcome] = useBooleanSetting(SETTINGS_KEYS.hasSeenWelcome, false);
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
     navigate(ROUTES.library, { state: filter });
@@ -50,10 +54,23 @@ export default function DashboardPage() {
         <InProgressSection mediaTypes={mediaTypes} />
 
         {data.totalEntries === 0 ? (
-          <PagePlaceholder
-            title="No entries yet"
-            description="Add your first entry to start seeing your yearly overview here."
-          />
+          hasSeenWelcome ? (
+            <PagePlaceholder
+              title="No entries yet"
+              description="Add your first entry to start seeing your yearly overview here."
+            />
+          ) : (
+            <WelcomeScreen
+              onAddEntry={() => {
+                setHasSeenWelcome(true);
+                navigate(ROUTES.addEntry);
+              }}
+              onOpenSettings={() => {
+                setHasSeenWelcome(true);
+                navigate(ROUTES.settings);
+              }}
+            />
+          )
         ) : (
           <>
             <Box

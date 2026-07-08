@@ -40,6 +40,30 @@ export const SETTINGS_KEYS = {
    * exports — those are a separate, unrelated action. */
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
+  /** ComicVine (Comic Issues) auto-fill toggles — read by
+   * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
+   * (ComicVine)). Same convention as the TMDB toggles above: all
+   * default to `true` except `autofillComicCoverImage`, which is
+   * opt-in for the same reason `autofillPoster` is. */
+  autofillComicPublisher: 'autofillComicPublisher',
+  autofillComicIssueTitle: 'autofillComicIssueTitle',
+  autofillComicCoverDate: 'autofillComicCoverDate',
+  autofillComicWriter: 'autofillComicWriter',
+  autofillComicPenciller: 'autofillComicPenciller',
+  autofillComicInker: 'autofillComicInker',
+  autofillComicColorist: 'autofillComicColorist',
+  autofillComicLetterer: 'autofillComicLetterer',
+  autofillComicCoverArtist: 'autofillComicCoverArtist',
+  autofillComicEditor: 'autofillComicEditor',
+  autofillComicCoverImage: 'autofillComicCoverImage',
+  /** Set true the first time the onboarding welcome screen is shown
+   * (Dashboard, empty-library state on a fresh device) — see
+   * WelcomeScreen.tsx. Device-local, like everything pre-sync, so a
+   * new device always gets the welcome screen once. Deliberately
+   * separate from "library is empty", which can also happen later if
+   * every entry gets deleted — that case falls back to the plain
+   * PagePlaceholder rather than re-showing onboarding. */
+  hasSeenWelcome: 'hasSeenWelcome',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
