@@ -182,6 +182,16 @@ export default function LibraryPage() {
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
   const groups = viewMode === 'entries' ? buildGroups(entries, sort, mediaTypeById) : null;
 
+  // Select all / Deselect all operates on every entry the current
+  // filters + search resolve to — not just whichever group is
+  // scrolled into view when sorted by month or by type — since the
+  // whole point (per David) is "filter to a given month of films,
+  // then select all of them" in one step.
+  const allVisibleSelected = entries.length > 0 && entries.every((e) => selectedIds.has(e.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(entries.map((e) => e.id)));
+  };
+
   const tabCount = (tab: EntryStatus) => {
     if (tab === 'completed') return completedEntries?.length;
     if (tab === 'in_progress') return inProgressEntries?.length;
@@ -268,6 +278,11 @@ export default function LibraryPage() {
             fullWidth size="small"
             slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
           />
+          {selectionMode && (
+            <Button size="small" onClick={toggleSelectAll} sx={{ flexShrink: 0 }}>
+              {allVisibleSelected ? 'Deselect all' : 'Select all'}
+            </Button>
+          )}
           <Button size="small" variant={selectionMode ? 'contained' : 'outlined'} onClick={() => { setSelectionMode((v) => !v); if (selectionMode) clearSelection(); }} sx={{ flexShrink: 0 }}>
             {selectionMode ? 'Done' : 'Select'}
           </Button>
