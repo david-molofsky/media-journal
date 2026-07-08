@@ -13,6 +13,7 @@ import {
   searchTV,
   getTVDetails,
 } from '@/services/metadata/tmdbService';
+import { searchSeries } from '@/services/metadata/comicVineService';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 
@@ -25,11 +26,12 @@ interface MetadataSearchProps {
   onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
 }
 
-type Source = 'openlibrary' | 'tmdb' | null;
+type Source = 'openlibrary' | 'tmdb' | 'comicvine' | null;
 
 function getSource(mediaTypeId: string): Source {
   if (!hasMetadataSearch(mediaTypeId)) return null;
   if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return 'openlibrary';
+  if (mediaTypeId === 'comic') return 'comicvine';
   return 'tmdb'; // film or tv — the only other types hasMetadataSearch allows
 }
 
@@ -39,6 +41,7 @@ function getSearchFn(
   if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return searchBooks;
   if (mediaTypeId === 'film') return searchFilms;
   if (mediaTypeId === 'tv') return searchTV;
+  if (mediaTypeId === 'comic') return searchSeries;
   return null;
 }
 
@@ -46,8 +49,11 @@ async function fetchDetails(
   mediaTypeId: string,
   result: SearchResult,
 ): Promise<{ fields: Record<string, string>; genres?: string[] }> {
-  // Open Library results already contain all fields (and any genre
-  // guesses) in one call.
+  // Open Library and ComicVine results already contain all fields (and
+  // any genre guesses) in one call — ComicVine series search returns
+  // series + publisher directly, with credits/cover date/cover image
+  // deferred to a separate "Fetch issue details" step in EntryForm
+  // once an issue number is known (see comicVineService.ts).
   if (Object.keys(result.fields).length > 0) return { fields: result.fields, genres: result.genres };
   // TMDB results need a second call to get director/cast/creator/genres.
   if (mediaTypeId === 'film') return getFilmDetails(result.id);
@@ -57,13 +63,17 @@ async function fetchDetails(
 
 /**
  * Optional metadata search shown at the top of the entry form for
- * supported media types (book, audiobook, film, tv). The user can
- * type a title, pick a result, and have the form pre-filled — or
+ * supported media types (book, audiobook, film, tv, comic). The user
+ * can type a title, pick a result, and have the form pre-filled — or
  * ignore it entirely and fill the form manually.
  *
  * Books/Audiobooks use Open Library (no key, one API call).
  * Films use TMDB (two calls: search then credits on selection).
  * TV shows use TMDB (two calls: search then details on selection).
+ * Comic Issues use ComicVine (one call here — series + publisher only;
+ * credits/cover date/cover image need an issue number, which isn't
+ * known yet at this point in the form, so that's a separate "Fetch
+ * issue details" step further down EntryForm instead).
  */
 export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   const source = getSource(mediaTypeId);
@@ -118,7 +128,9 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   const attribution =
     source === 'tmdb'
       ? 'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data provided by JustWatch.'
-      : 'Search powered by Open Library.';
+      : source === 'comicvine'
+        ? 'Data provided by ComicVine. Search a series first, then use Fetch issue details for credits.'
+        : 'Search powered by Open Library.';
 
   return (
     <Box>
@@ -145,9 +157,11 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
             placeholder={
               source === 'openlibrary'
                 ? 'Search Open Library…'
-                : source === 'tmdb' && mediaTypeId === 'film'
-                ? 'Search TMDB for a film…'
-                : 'Search TMDB for a TV show…'
+                : source === 'comicvine'
+                  ? 'Search ComicVine for a series…'
+                  : mediaTypeId === 'film'
+                    ? 'Search TMDB for a film…'
+                    : 'Search TMDB for a TV show…'
             }
             slotProps={{
               input: {

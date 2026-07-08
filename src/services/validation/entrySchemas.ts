@@ -105,6 +105,22 @@ const comicMetadataSchema = z
     issueStart: z.number().min(1, 'Issue start must be at least 1').optional(),
     issueEnd: z.number().optional(),
     source: z.string().optional(),
+    // ComicVine auto-fill fields (Settings > Metadata auto-fill).
+    // `coverImagePath` isn't in defaultMediaTypes.ts's `fields[]` (it
+    // gets bespoke UI in EntryForm, same pattern as Film/TV's
+    // posterPath), but must still be listed here — per-type schemas
+    // silently strip any metadata key they don't know about.
+    publisher: z.string().optional(),
+    issueTitle: z.string().optional(),
+    coverDate: z.string().optional(),
+    writer: z.string().optional(),
+    penciller: z.string().optional(),
+    inker: z.string().optional(),
+    colorist: z.string().optional(),
+    letterer: z.string().optional(),
+    coverArtist: z.string().optional(),
+    editor: z.string().optional(),
+    coverImagePath: z.string().optional(),
   })
   .refine(
     (data) =>

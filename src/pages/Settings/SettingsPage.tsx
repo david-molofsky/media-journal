@@ -10,6 +10,7 @@ import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
 import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
+import { ComicVineAutofillSection } from '@/components/settings/ComicVineAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
@@ -38,6 +39,8 @@ export default function SettingsPage() {
         <MediaTypeManager />
 
         <TmdbAutofillSection />
+
+        <ComicVineAutofillSection />
 
         <Box>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>

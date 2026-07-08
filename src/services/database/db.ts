@@ -589,6 +589,53 @@ export class MediaJournalDatabase extends Dexie {
         if (toAdd.length > 0) await table.put({ ...tv, fields: [...tv.fields, ...toAdd] });
       }
     });
+
+    /**
+     * Version 17: adds the new ComicVine auto-fill metadata fields to
+     * Comic Issues — `publisher`, `issueTitle`, `coverDate`, and the
+     * seven creator credit fields (`writer`, `penciller`, `inker`,
+     * `colorist`, `letterer`, `coverArtist`, `editor`). Same shape as
+     * the version 16 migration: only adds field *definitions* so Media
+     * Details renders them and comicMetadataSchema (entrySchemas.ts)
+     * doesn't strip values once ComicVine starts supplying them.
+     * `coverImagePath` is also a new metadata key as of this version
+     * but isn't added to `fields[]` here — bespoke UI in EntryForm,
+     * same as Film/TV's `posterPath`.
+     *
+     * Deliberately scoped to Comic Issues only — Magazine Issues keeps
+     * its own field set (per David's instruction that Comic and
+     * Magazine changes stay separate unless he says otherwise).
+     *
+     * No existing entry data is touched — every new key is optional and
+     * simply absent from `metadata` until the user re-runs auto-fill or
+     * enters a value manually.
+     */
+    this.version(17).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+
+      const comic = await table.get('comic');
+      if (comic) {
+        const existingKeys = new Set(comic.fields.map((f) => f.key));
+        const toAdd: MediaType['fields'] = [];
+        if (!existingKeys.has('publisher')) toAdd.push({ key: 'publisher', label: 'Publisher', type: 'text', required: false });
+        if (!existingKeys.has('issueTitle')) toAdd.push({ key: 'issueTitle', label: 'Issue title', type: 'text', required: false });
+        if (!existingKeys.has('coverDate')) toAdd.push({ key: 'coverDate', label: 'Cover date', type: 'text', required: false });
+        if (!existingKeys.has('writer')) toAdd.push({ key: 'writer', label: 'Writer', type: 'text', required: false });
+        if (!existingKeys.has('penciller')) toAdd.push({ key: 'penciller', label: 'Penciller', type: 'text', required: false });
+        if (!existingKeys.has('inker')) toAdd.push({ key: 'inker', label: 'Inker', type: 'text', required: false });
+        if (!existingKeys.has('colorist')) toAdd.push({ key: 'colorist', label: 'Colorist', type: 'text', required: false });
+        if (!existingKeys.has('letterer')) toAdd.push({ key: 'letterer', label: 'Letterer', type: 'text', required: false });
+        if (!existingKeys.has('coverArtist')) toAdd.push({ key: 'coverArtist', label: 'Cover artist', type: 'text', required: false });
+        if (!existingKeys.has('editor')) toAdd.push({ key: 'editor', label: 'Editor', type: 'text', required: false });
+        if (toAdd.length > 0) await table.put({ ...comic, fields: [...comic.fields, ...toAdd] });
+      }
+    });
   }
 }
 

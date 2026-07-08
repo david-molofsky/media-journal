@@ -130,6 +130,23 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Physical', 'Humble Bundle', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby', 'Digital', 'Global Comix', 'Comichaus', 'Webtoons'],
       },
+      // Added for ComicVine auto-fill (Settings > Metadata auto-fill).
+      // Appended after the original fields, same convention as the TMDB
+      // fields on 'film'/'tv' above. `coverImagePath` is deliberately
+      // NOT declared here — it gets bespoke UI in EntryForm (a cover
+      // thumbnail, opt-in) rather than rendering through the generic
+      // field loop, but it's still a valid metadata key per
+      // comicMetadataSchema in entrySchemas.ts.
+      { key: 'publisher', label: 'Publisher', type: 'text', required: false },
+      { key: 'issueTitle', label: 'Issue title', type: 'text', required: false },
+      { key: 'coverDate', label: 'Cover date', type: 'text', required: false },
+      { key: 'writer', label: 'Writer', type: 'text', required: false },
+      { key: 'penciller', label: 'Penciller', type: 'text', required: false },
+      { key: 'inker', label: 'Inker', type: 'text', required: false },
+      { key: 'colorist', label: 'Colorist', type: 'text', required: false },
+      { key: 'letterer', label: 'Letterer', type: 'text', required: false },
+      { key: 'coverArtist', label: 'Cover artist', type: 'text', required: false },
+      { key: 'editor', label: 'Editor', type: 'text', required: false },
     ],
   },
   {

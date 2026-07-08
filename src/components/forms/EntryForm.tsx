@@ -13,7 +13,10 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
+import { getIssueDetails } from '@/services/metadata/comicVineService';
 import { comicIssueCount } from '@/utils/comicIssues';
 import { todayIso } from '@/utils/dateUtils';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
@@ -96,6 +99,13 @@ export function EntryForm({
 }: EntryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Carries the ComicVine series id from the search step (MetadataSearch)
+  // to the later "Fetch issue details" step below. Deliberately local
+  // component state, not a form/metadata field — it's an internal
+  // lookup key, not data that belongs on the saved entry.
+  const [comicVineVolumeId, setComicVineVolumeId] = useState<string | null>(null);
+  const [fetchingIssueDetails, setFetchingIssueDetails] = useState(false);
+  const [issueFetchError, setIssueFetchError] = useState<string | null>(null);
   const Icon = getMediaTypeIcon(mediaType.icon);
 
   const defaultValues = useMemo(
@@ -129,6 +139,13 @@ export function EntryForm({
   const posterPath = watch('metadata.posterPath' as 'metadata');
   const showPoster =
     (mediaType.id === 'film' || mediaType.id === 'tv') && typeof posterPath === 'string' && posterPath;
+  // Cover image only ever renders here, in Edit Entry — never in the
+  // Library card or grid, same reasoning as the Film/TV poster above.
+  // Unlike posterPath (a TMDB path fragment), coverImagePath already
+  // holds ComicVine's full hosted image URL, so it's used as-is.
+  const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
+  const showCoverImage =
+    mediaType.id === 'comic' && typeof coverImagePath === 'string' && coverImagePath;
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -192,7 +209,15 @@ export function EntryForm({
             mediaTypeId={mediaType.id}
             onFill={(title, fields, genres) => {
               setValue('title', toTitleCase(title), { shouldValidate: true });
-              for (const [key, value] of Object.entries(fields)) {
+              // comicVineVolumeId rides along in `fields` from
+              // searchSeries (comicVineService.ts) purely to reach this
+              // handler — it's not a real metadata field (there's no
+              // schema entry for it), so it's captured into local state
+              // and never written to the form/entry.
+              const { comicVineVolumeId: volumeId, ...restFields } = fields;
+              if (volumeId) setComicVineVolumeId(volumeId);
+              setIssueFetchError(null);
+              for (const [key, value] of Object.entries(restFields)) {
                 // Bug fix: every auto-filled field was being run through
                 // toTitleCase and written as a string, including
                 // `runtime` (needs to be a number per entrySchemas.ts —
@@ -203,7 +228,8 @@ export function EntryForm({
                 // be title-cased — toTitleCase is meant for short
                 // proper-noun-style fields like Director or Cast).
                 const fieldDef = mediaType.fields.find((f) => f.key === key);
-                const skipTitleCase = key === 'overview' || key === 'posterPath';
+                const skipTitleCase =
+                  key === 'overview' || key === 'posterPath' || key === 'coverImagePath';
                 const nextValue: unknown =
                   fieldDef?.type === 'number'
                     ? Number(value)
@@ -225,6 +251,14 @@ export function EntryForm({
             <Box
               component="img"
               src={`https://image.tmdb.org/t/p/w154${posterPath}`}
+              alt=""
+              sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
+            />
+          )}
+          {showCoverImage && (
+            <Box
+              component="img"
+              src={coverImagePath}
               alt=""
               sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
             />
@@ -348,6 +382,64 @@ export function EntryForm({
                   {comicIssueCount(issueStart, issueEnd) === 1 ? '' : 's'}.
                 </Alert>
               )}
+            {/* ComicVine credits/cover date/cover image need a specific
+                issue number, which isn't known at search time (the
+                search box above only resolves the series) — so this is
+                a deliberate second step, enabled once both a series has
+                been selected via search and an issue number is typed. */}
+            {mediaType.id === 'comic' && (
+              <Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={
+                    fetchingIssueDetails ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <DownloadOutlinedIcon fontSize="small" />
+                    )
+                  }
+                  disabled={!comicVineVolumeId || typeof issueStart !== 'number' || fetchingIssueDetails}
+                  onClick={async () => {
+                    if (!comicVineVolumeId || typeof issueStart !== 'number') return;
+                    setFetchingIssueDetails(true);
+                    setIssueFetchError(null);
+                    try {
+                      const { fields } = await getIssueDetails(comicVineVolumeId, String(issueStart));
+                      if (Object.keys(fields).length === 0) {
+                        setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
+                        return;
+                      }
+                      // ComicVine's own values (creator names, issue
+                      // title) are already correctly cased — unlike the
+                      // TMDB onFill path above, this doesn't run values
+                      // through toTitleCase.
+                      for (const [key, value] of Object.entries(fields)) {
+                        setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
+                          shouldValidate: true,
+                        });
+                      }
+                    } catch {
+                      setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
+                    } finally {
+                      setFetchingIssueDetails(false);
+                    }
+                  }}
+                >
+                  Fetch issue details from ComicVine
+                </Button>
+                {!comicVineVolumeId && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Search for the series above, then enter an issue number, to enable this.
+                  </Typography>
+                )}
+                {issueFetchError && (
+                  <Alert severity="warning" variant="outlined" sx={{ mt: 1 }}>
+                    {issueFetchError}
+                  </Alert>
+                )}
+              </Box>
+            )}
             {mediaType.id === 'tv' &&
               typeof episodeStart === 'number' &&
               typeof episodeEnd === 'number' &&
