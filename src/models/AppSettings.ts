@@ -40,22 +40,6 @@ export const SETTINGS_KEYS = {
    * exports — those are a separate, unrelated action. */
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
-  /** ComicVine (Comic Issues) auto-fill toggles — read by
-   * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
-   * (ComicVine)). Same convention as the TMDB toggles above: all
-   * default to `true` except `autofillComicCoverImage`, which is
-   * opt-in for the same reason `autofillPoster` is. */
-  autofillComicPublisher: 'autofillComicPublisher',
-  autofillComicIssueTitle: 'autofillComicIssueTitle',
-  autofillComicCoverDate: 'autofillComicCoverDate',
-  autofillComicWriter: 'autofillComicWriter',
-  autofillComicPenciller: 'autofillComicPenciller',
-  autofillComicInker: 'autofillComicInker',
-  autofillComicColorist: 'autofillComicColorist',
-  autofillComicLetterer: 'autofillComicLetterer',
-  autofillComicCoverArtist: 'autofillComicCoverArtist',
-  autofillComicEditor: 'autofillComicEditor',
-  autofillComicCoverImage: 'autofillComicCoverImage',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
