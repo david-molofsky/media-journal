@@ -32,15 +32,27 @@ const STATUS_CONFIG = {
 const SOURCE_BADGE = { bgcolor: '#E3F2FD', color: '#1565C0', border: '#90CAF9' } as const;
 
 /**
- * Derives the subtitle line shown beneath the title: just the
- * completion date. Previously also surfaced a per-type detail (Author,
- * "Dir. {name}", Season N, Issues X–Y) — removed per David's request to
- * keep cards down to date and Source only. Source itself isn't part of
- * this string; it renders as its own badge (see `completedSource` /
- * `source` below), same as before this change.
+ * Derives the subtitle line shown beneath the title: just a date, plus
+ * Source rendered separately as its own badge (see `completedSource` /
+ * `source` below).
+ *
+ * Bug fix: this used to always format `entry.completedDate` regardless
+ * of status. Wishlist entries (and In Progress entries before a start
+ * date is set) have no `completedDate`, and `dayjs(undefined)` doesn't
+ * return "no date" — it returns *right now* — so every Wishlist card
+ * was silently showing today's date as if it had just been added,
+ * which directly undermined the "Newest added" default sort (every
+ * card looked equally recent). Mirrors the status-aware date already
+ * used correctly in ShareEntrySheet.tsx's getFooterDateText.
  */
 function buildSubtitle(entry: MediaEntry): string {
-  return dayjs(entry.completedDate).format('D MMM YYYY');
+  if (entry.status === 'completed' && entry.completedDate) {
+    return dayjs(entry.completedDate).format('D MMM YYYY');
+  }
+  if (entry.status === 'in_progress' && entry.startedDate) {
+    return `Started ${dayjs(entry.startedDate).format('D MMM YYYY')}`;
+  }
+  return `Added ${dayjs(entry.createdAt).format('D MMM YYYY')}`;
 }
 
 export function EntryCard({

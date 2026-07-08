@@ -131,8 +131,18 @@ export default function EditEntryPage() {
     navigate(editEntryPath(copy.id));
   };
 
-  const convertTarget = entry.mediaType === 'book' ? 'audiobook' : entry.mediaType === 'audiobook' ? 'book' : undefined;
-  const convertTargetLabel = mediaTypes.find((t) => t.id === convertTarget)?.displayName ?? convertTarget;
+  // Bug fix: this used to compute convertTarget from entry.mediaType
+  // alone, so it offered "Convert to Audiobook" even if Audiobook had
+  // been disabled in Settings > Manage Media Types. Converting would
+  // then leave the entry pointing at a type `mediaTypes` (enabled-only)
+  // can't find, hitting the "Media type unavailable" placeholder above
+  // on next load — technically handled, but a confusing dead end.
+  // Checking the target is in the current enabled list avoids offering
+  // a conversion that immediately locks the entry.
+  const rawConvertTarget = entry.mediaType === 'book' ? 'audiobook' : entry.mediaType === 'audiobook' ? 'book' : undefined;
+  const convertTargetType = mediaTypes.find((t) => t.id === rawConvertTarget);
+  const convertTarget = convertTargetType?.id;
+  const convertTargetLabel = convertTargetType?.displayName;
 
   const handleConvert = async () => {
     if (!convertTarget) return;

@@ -118,7 +118,13 @@ export async function matchCandidate(candidate: BackfillCandidate): Promise<Matc
   if (results.length === 0) {
     return { entry, missingFields, candidates: [], status: 'none' };
   }
-  return { entry, missingFields, candidates: results.slice(0, 5), status: 'ambiguous' };
+  // Bug fix: ambiguous entries need a default selection — the confirmed
+  // wireframe showed the first candidate pre-selected (still changeable,
+  // still skippable), but this returned no `selectedId` at all, so
+  // clicking "Apply" without touching the radio group silently skipped
+  // the entry instead of using the top result.
+  const topCandidates = results.slice(0, 5);
+  return { entry, missingFields, candidates: topCandidates, status: 'ambiguous', selectedId: topCandidates[0]?.id };
 }
 
 /** Applies one resolved match: fetches TMDB details, then writes only

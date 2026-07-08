@@ -193,10 +193,26 @@ export function EntryForm({
             onFill={(title, fields, genres) => {
               setValue('title', toTitleCase(title), { shouldValidate: true });
               for (const [key, value] of Object.entries(fields)) {
-                setValue(
-                  `metadata.${key}` as 'metadata',
-                  toTitleCase(value) as unknown as EntryMetadata,
-                );
+                // Bug fix: every auto-filled field was being run through
+                // toTitleCase and written as a string, including
+                // `runtime` (needs to be a number per entrySchemas.ts —
+                // writing it as a string failed Zod validation with
+                // "Invalid input", even though the value displayed
+                // looked correct) and `overview`/`posterPath` (prose and
+                // a URL fragment respectively, neither of which should
+                // be title-cased — toTitleCase is meant for short
+                // proper-noun-style fields like Director or Cast).
+                const fieldDef = mediaType.fields.find((f) => f.key === key);
+                const skipTitleCase = key === 'overview' || key === 'posterPath';
+                const nextValue: unknown =
+                  fieldDef?.type === 'number'
+                    ? Number(value)
+                    : skipTitleCase
+                      ? value
+                      : toTitleCase(value);
+                setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, {
+                  shouldValidate: true,
+                });
               }
               if (genres && genres.length > 0) {
                 const existing = getValues('genres') ?? [];
