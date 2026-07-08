@@ -12,7 +12,7 @@ import Radio from '@mui/material/Radio';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Alert from '@mui/material/Alert';
-import type { MatchState } from '@/services/metadata/backfillService';
+import { matchSourceLabel, type MatchState } from '@/services/metadata/backfillService';
 import type { BackfillPhase } from '@/hooks/useBackfillFlow';
 
 interface BackfillDialogProps {
@@ -31,13 +31,20 @@ interface BackfillDialogProps {
  * Bulk-select "Back-fill missing fields" dialog (Library > Select).
  * Purely presentational — all state and async work live in
  * useBackfillFlow, which BulkActionBar starts from the Back-fill
- * button's onClick. This component just renders whichever phase it's
- * handed:
+ * button's onClick. Covers Film/TV (TMDB) and Comic Issues (ComicVine)
+ * in the same pass — a mixed selection shows a mixed review list, with
+ * each row tagged by source (see matchSourceLabel). This component
+ * just renders whichever phase it's handed:
  *
- *   searching — sequential per-entry TMDB search progress.
+ *   searching — sequential per-entry search progress.
  *   review    — auto-matched entries shown locked-in; ambiguous ones
  *               let the person pick a candidate or skip; "no match"
- *               entries are skip-only.
+ *               entries are skip-only. Comic entries missing a series
+ *               or issue number show their own reason instead of the
+ *               generic "no match" text (see MatchState.reason).
+ *               Comic entries spanning more than one issue show a note
+ *               that only the first issue's details will be used (see
+ *               MatchState.note).
  *   applying  — sequential per-entry apply progress.
  *   done      — short summary.
  *   empty     — nothing in the selection needed backfilling.
@@ -61,15 +68,15 @@ export function BackfillDialog({
           <Stack spacing={2} alignItems="center" sx={{ py: 3 }}>
             <CircularProgress size={28} />
             <Typography variant="body2" color="text.secondary">
-              Checking TMDB… {progress.done} of {progress.total || '…'}
+              Checking metadata sources… {progress.done} of {progress.total || '…'}
             </Typography>
           </Stack>
         )}
 
         {phase === 'empty' && (
           <Alert severity="info" variant="outlined">
-            Nothing to back-fill — the selected entries are either not Film/TV, or already have
-            every currently-enabled field filled in.
+            Nothing to back-fill — the selected entries are either not Film/TV/Comic Issues, or
+            already have every currently-enabled field filled in.
           </Alert>
         )}
 
@@ -84,17 +91,20 @@ export function BackfillDialog({
             {matches.map((match, index) => {
               if (match.status === 'auto') {
                 return (
-                  <Stack
-                    key={match.entry.id}
-                    direction="row"
-                    alignItems="center"
-                    spacing={1}
-                    sx={{ opacity: 0.7 }}
-                  >
-                    <CheckCircleOutlineIcon fontSize="small" color="success" />
-                    <Typography variant="body2" sx={{ flex: 1 }}>{match.entry.title}</Typography>
-                    <Typography variant="caption" color="text.secondary">matched</Typography>
-                  </Stack>
+                  <Box key={match.entry.id} sx={{ opacity: 0.7 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <CheckCircleOutlineIcon fontSize="small" color="success" />
+                      <Typography variant="body2" sx={{ flex: 1 }}>{match.entry.title}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        matched &middot; {matchSourceLabel(match.entry.mediaType)}
+                      </Typography>
+                    </Stack>
+                    {match.note && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pl: 3.5 }}>
+                        {match.note}
+                      </Typography>
+                    )}
+                  </Box>
                 );
               }
 
@@ -103,7 +113,7 @@ export function BackfillDialog({
                   <Box key={match.entry.id} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
                     <Typography variant="body2" fontWeight={500}>{match.entry.title}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      No match found on TMDB — will be skipped.
+                      {match.reason ?? `No match found on ${matchSourceLabel(match.entry.mediaType)} — will be skipped.`}
                     </Typography>
                   </Box>
                 );
@@ -116,9 +126,14 @@ export function BackfillDialog({
                   <Typography variant="body2" fontWeight={500} sx={{ mb: 0.5 }}>
                     {match.entry.title}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                    Multiple close matches on TMDB. Pick one, or skip.
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: match.note ? 0.5 : 1 }}>
+                    Multiple close matches on {matchSourceLabel(match.entry.mediaType)}. Pick one, or skip.
                   </Typography>
+                  {match.note && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                      {match.note}
+                    </Typography>
+                  )}
                   <RadioGroup
                     value={match.status === 'skipped' ? '' : (match.selectedId ?? '')}
                     onChange={(_, value) => onPickCandidate(index, value)}

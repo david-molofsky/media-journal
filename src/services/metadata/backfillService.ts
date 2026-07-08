@@ -2,13 +2,16 @@ import { db } from '@/services/database/db';
 import { updateEntry } from '@/services/database/entryService';
 import { getSetting } from '@/services/database/settingsService';
 import { searchFilms, getFilmDetails, searchTV, getTVDetails } from '@/services/metadata/tmdbService';
+import { searchSeries, getIssueDetails } from '@/services/metadata/comicVineService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import type { MediaEntry, EntryMetadata, MetadataValue } from '@/models';
 
 /**
- * Backfill only ever targets Film/TV (TMDB) — per David's answer when
- * this feature was scoped, Books/Audiobooks (Open Library) are left for
- * a possible future pass rather than bundled in here.
+ * Backfill targets Film/TV (TMDB) and, as of the ComicVine integration,
+ * Comic Issues too. Books/Audiobooks (Open Library) are still left for
+ * a possible future pass — per David's original scoping decision, not
+ * revisited here. One button, one dialog, one selection can mix all
+ * three supported media types in a single run.
  */
 export type BackfillableField =
   | 'overview'
@@ -17,29 +20,94 @@ export type BackfillableField =
   | 'network'
   | 'series'
   | 'tvStatus'
-  | 'posterPath';
+  | 'posterPath'
+  | 'publisher'
+  | 'issueTitle'
+  | 'coverDate'
+  | 'writer'
+  | 'penciller'
+  | 'inker'
+  | 'colorist'
+  | 'letterer'
+  | 'coverArtist'
+  | 'editor'
+  | 'coverImagePath';
 
 const FILM_FIELDS: BackfillableField[] = ['overview', 'runtime', 'productionCompany', 'series', 'posterPath'];
 // No 'series' for TV — TMDB has no TV equivalent of a film "collection"
 // (see tmdbService.ts), so it's never a backfill candidate for TV.
 const TV_FIELDS: BackfillableField[] = ['overview', 'runtime', 'network', 'tvStatus', 'posterPath'];
+// No 'series' for Comic either, but for a different reason than TV:
+// metadata.series is comic backfill's *search input*, not an output —
+// it has to already be present to look anything up on ComicVine, so it
+// can never itself be a "missing field" this flow fills in.
+const COMIC_FIELDS: BackfillableField[] = [
+  'publisher',
+  'issueTitle',
+  'coverDate',
+  'writer',
+  'penciller',
+  'inker',
+  'colorist',
+  'letterer',
+  'coverArtist',
+  'editor',
+  'coverImagePath',
+];
 
 function hasValue(value: MetadataValue): boolean {
   return value !== undefined && value !== null && String(value).trim() !== '';
 }
 
-/** Reads the same Settings > Metadata auto-fill toggles tmdbService
- * reads, so backfill only ever fills what regular auto-fill would have
- * filled. `productionCompany` and `network` share one toggle
- * (`autofillProductionCompany`), same as in tmdbService. */
+/** Human-readable label for the review screen's source tag and default
+ * "no match" wording — derived from mediaType rather than stored
+ * per-match, since it's always a pure function of which service a
+ * given entry's matches came from. */
+export function matchSourceLabel(mediaType: string): string {
+  return mediaType === 'comic' ? 'ComicVine' : 'TMDB';
+}
+
+/** Reads the same Settings > Metadata auto-fill toggles tmdbService and
+ * comicVineService read, so backfill only ever fills what regular
+ * auto-fill would have filled. `productionCompany` and `network` share
+ * one toggle (`autofillProductionCompany`), same as in tmdbService. */
 async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
-  const [overview, runtime, productionCompany, tvStatus, series, poster] = await Promise.all([
+  const [
+    overview,
+    runtime,
+    productionCompany,
+    tvStatus,
+    series,
+    poster,
+    comicPublisher,
+    comicIssueTitle,
+    comicCoverDate,
+    comicWriter,
+    comicPenciller,
+    comicInker,
+    comicColorist,
+    comicLetterer,
+    comicCoverArtist,
+    comicEditor,
+    comicCoverImage,
+  ] = await Promise.all([
     getSetting('autofillOverview', true),
     getSetting('autofillRuntime', true),
     getSetting('autofillProductionCompany', true),
     getSetting('autofillTvStatus', true),
     getSetting('autofillSeries', true),
     getSetting('autofillPoster', false),
+    getSetting('autofillComicPublisher', true),
+    getSetting('autofillComicIssueTitle', true),
+    getSetting('autofillComicCoverDate', true),
+    getSetting('autofillComicWriter', true),
+    getSetting('autofillComicPenciller', true),
+    getSetting('autofillComicInker', true),
+    getSetting('autofillComicColorist', true),
+    getSetting('autofillComicLetterer', true),
+    getSetting('autofillComicCoverArtist', true),
+    getSetting('autofillComicEditor', true),
+    getSetting('autofillComicCoverImage', false),
   ]);
   return {
     overview,
@@ -49,6 +117,17 @@ async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
     series,
     tvStatus,
     posterPath: poster,
+    publisher: comicPublisher,
+    issueTitle: comicIssueTitle,
+    coverDate: comicCoverDate,
+    writer: comicWriter,
+    penciller: comicPenciller,
+    inker: comicInker,
+    colorist: comicColorist,
+    letterer: comicLetterer,
+    coverArtist: comicCoverArtist,
+    editor: comicEditor,
+    coverImagePath: comicCoverImage,
   };
 }
 
@@ -57,8 +136,8 @@ export interface BackfillCandidate {
   missingFields: BackfillableField[];
 }
 
-/** Narrows a selection down to Film/TV entries that are missing at
- * least one currently-enabled field. Everything else (wrong media
+/** Narrows a selection down to Film/TV/Comic entries that are missing
+ * at least one currently-enabled field. Everything else (wrong media
  * type, or already fully filled) is silently excluded rather than
  * shown as a zero-work row. */
 export async function computeBackfillCandidates(
@@ -71,8 +150,9 @@ export async function computeBackfillCandidates(
 
   const candidates: BackfillCandidate[] = [];
   for (const entry of entries) {
-    if (entry.mediaType !== 'film' && entry.mediaType !== 'tv') continue;
-    const fieldKeys = entry.mediaType === 'film' ? FILM_FIELDS : TV_FIELDS;
+    if (entry.mediaType !== 'film' && entry.mediaType !== 'tv' && entry.mediaType !== 'comic') continue;
+    const fieldKeys =
+      entry.mediaType === 'film' ? FILM_FIELDS : entry.mediaType === 'tv' ? TV_FIELDS : COMIC_FIELDS;
     const missingFields = fieldKeys.filter(
       (key) => enabled[key] && !hasValue(entry.metadata[key]),
     );
@@ -89,19 +169,33 @@ export interface MatchState {
   /** Up to 5 candidates for the confirm screen; empty when status is 'none'. */
   candidates: SearchResult[];
   status: MatchStatus;
-  /** TMDB id of the chosen candidate — set automatically for 'auto',
-   * or by the user picking from `candidates` on the confirm screen. */
+  /** TMDB or ComicVine id of the chosen candidate — set automatically
+   * for 'auto', or by the user picking from `candidates` on the
+   * confirm screen. */
   selectedId?: string;
+  /** Overrides the review screen's default "no match found" wording
+   * for a 'none' status that isn't simply "nothing found" — currently
+   * only comic entries missing `series` or an issue number, which
+   * can't be searched on ComicVine at all. */
+  reason?: string;
+  /** Comic-only: set when the entry spans more than one issue
+   * (issueEnd > issueStart). ComicVine detail — credits, cover date,
+   * cover image — is always fetched for issueStart alone, the same
+   * single-issue behaviour EntryForm's "Fetch issue details" button
+   * already has, so this just surfaces that on the review screen
+   * rather than changing what gets fetched. */
+  note?: string;
 }
 
-/** Searches TMDB by title for a single candidate and classifies the
- * result: an exact (case-insensitive) title match with nothing else
- * competing auto-matches with no confirmation needed; anything with
- * multiple close results, or none, needs the person's input. Calls are
- * made one at a time by the caller (a sequential loop, not
- * Promise.all) to avoid bursting the TMDB API on a large selection. */
-export async function matchCandidate(candidate: BackfillCandidate): Promise<MatchState> {
-  const { entry, missingFields } = candidate;
+/** Searches TMDB by title for a single Film/TV candidate and
+ * classifies the result: an exact (case-insensitive) title match with
+ * nothing else competing auto-matches with no confirmation needed;
+ * anything with multiple close results, or none, needs the person's
+ * input. */
+async function matchFilmOrTvCandidate(
+  entry: MediaEntry,
+  missingFields: BackfillableField[],
+): Promise<MatchState> {
   const searchFn = entry.mediaType === 'film' ? searchFilms : searchTV;
   const results = await searchFn(entry.title);
 
@@ -127,15 +221,77 @@ export async function matchCandidate(candidate: BackfillCandidate): Promise<Matc
   return { entry, missingFields, candidates: topCandidates, status: 'ambiguous', selectedId: topCandidates[0]?.id };
 }
 
-/** Applies one resolved match: fetches TMDB details, then writes only
- * the fields that were actually missing (never overwrites anything
- * already present, and never touches a field this entry didn't need)
- * plus merges any genre guesses, same merge-don't-overwrite rule as
- * regular auto-fill. Returns whether an update happened. */
-export async function applyMatch(state: MatchState): Promise<'updated' | 'skipped'> {
-  if (state.status !== 'auto' && state.status !== 'ambiguous') return 'skipped';
-  if (!state.selectedId) return 'skipped';
+/** Searches ComicVine by series name (not entry.title — a comic's
+ * title often isn't the series name verbatim, e.g. "The Walking Dead
+ * #65", whereas metadata.series is exactly what ComicVine's volume
+ * search expects). Entries missing `series` or a numeric issue number
+ * can't be searched at all — they're classified 'none' with an
+ * explanatory `reason` rather than attempting (and failing) a call. */
+async function matchComicCandidate(
+  entry: MediaEntry,
+  missingFields: BackfillableField[],
+): Promise<MatchState> {
+  const series = entry.metadata.series;
+  const issueStart = entry.metadata.issueStart;
+  const issueEnd = entry.metadata.issueEnd;
 
+  if (typeof series !== 'string' || !series.trim() || typeof issueStart !== 'number') {
+    return {
+      entry,
+      missingFields,
+      candidates: [],
+      status: 'none',
+      reason: 'Series and issue number are required to search ComicVine.',
+    };
+  }
+
+  const note =
+    typeof issueEnd === 'number' && issueEnd > issueStart
+      ? `Based on issue ${issueStart} only (issues ${issueStart}\u2013${issueEnd}).`
+      : undefined;
+
+  const results = await searchSeries(series);
+  const exactMatches = results.filter(
+    (r) => r.title.trim().toLowerCase() === series.trim().toLowerCase(),
+  );
+
+  if (exactMatches.length === 1) {
+    const match = exactMatches[0];
+    if (match) {
+      return { entry, missingFields, candidates: results, status: 'auto', selectedId: match.id, note };
+    }
+  }
+  if (results.length === 0) {
+    return { entry, missingFields, candidates: [], status: 'none', note };
+  }
+  const topCandidates = results.slice(0, 5);
+  return {
+    entry,
+    missingFields,
+    candidates: topCandidates,
+    status: 'ambiguous',
+    selectedId: topCandidates[0]?.id,
+    note,
+  };
+}
+
+/** Classifies one backfill candidate against its media type's search
+ * source. Calls are made one candidate at a time by the caller (a
+ * sequential loop, not Promise.all) to avoid bursting either TMDB's or
+ * ComicVine's rate limits on a large mixed selection. */
+export async function matchCandidate(candidate: BackfillCandidate): Promise<MatchState> {
+  const { entry, missingFields } = candidate;
+  if (entry.mediaType === 'comic') return matchComicCandidate(entry, missingFields);
+  return matchFilmOrTvCandidate(entry, missingFields);
+}
+
+/** Applies one resolved Film/TV match: fetches TMDB details, then
+ * writes only the fields that were actually missing (never overwrites
+ * anything already present, and never touches a field this entry
+ * didn't need) plus merges any genre guesses, same merge-don't-
+ * overwrite rule as regular auto-fill. */
+async function applyFilmOrTvMatch(state: MatchState): Promise<'updated' | 'skipped'> {
+  if (!state.selectedId) return 'skipped';
   const getDetails = state.entry.mediaType === 'film' ? getFilmDetails : getTVDetails;
   const { fields, genres } = await getDetails(state.selectedId);
 
@@ -158,4 +314,38 @@ export async function applyMatch(state: MatchState): Promise<'updated' | 'skippe
 
   await updateEntry(state.entry.id, { metadata, genres: mergedGenres });
   return 'updated';
+}
+
+/** Applies one resolved Comic match: fetches ComicVine issue detail
+ * for issueStart (see the `note` field on MatchState re: multi-issue
+ * entries), then writes only the fields that were actually missing.
+ * No genre merging — ComicVine has no genre concept, unlike TMDB. */
+async function applyComicMatch(state: MatchState): Promise<'updated' | 'skipped'> {
+  if (!state.selectedId) return 'skipped';
+  const issueStart = state.entry.metadata.issueStart;
+  if (typeof issueStart !== 'number') return 'skipped';
+
+  const { fields } = await getIssueDetails(state.selectedId, String(issueStart));
+  if (Object.keys(fields).length === 0) return 'skipped';
+
+  const metadata: EntryMetadata = { ...state.entry.metadata };
+  let changed = false;
+  for (const key of state.missingFields) {
+    const value = fields[key];
+    if (value === undefined) continue;
+    metadata[key] = value;
+    changed = true;
+  }
+  if (!changed) return 'skipped';
+
+  await updateEntry(state.entry.id, { metadata });
+  return 'updated';
+}
+
+/** Applies one resolved match, routing to the right source by media
+ * type. Returns whether an update happened. */
+export async function applyMatch(state: MatchState): Promise<'updated' | 'skipped'> {
+  if (state.status !== 'auto' && state.status !== 'ambiguous') return 'skipped';
+  if (state.entry.mediaType === 'comic') return applyComicMatch(state);
+  return applyFilmOrTvMatch(state);
 }
