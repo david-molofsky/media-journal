@@ -14,6 +14,8 @@ import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import CircularProgress from '@mui/material/CircularProgress';
+import Switch from '@mui/material/Switch';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import GoogleIcon from '@mui/icons-material/Google';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined';
@@ -28,6 +30,8 @@ import {
   type DriveExportFile,
 } from '@/services/googleDrive/googleDriveService';
 import { db } from '@/services/database/db';
+import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { SETTINGS_KEYS } from '@/models';
 
 /**
  * Google Drive section in Settings. Handles:
@@ -52,6 +56,32 @@ export function GoogleDriveSection() {
   const [importOpen, setImportOpen] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveExportFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+
+  // Automatic daily backup — see src/hooks/useAutoBackup.ts for the
+  // watcher that actually triggers backups; this section only owns
+  // the toggle, its confirmation, and the "last run" status line.
+  const [autoBackupEnabled, setAutoBackupEnabled] = useBooleanSetting(
+    SETTINGS_KEYS.autoBackupEnabled,
+    false,
+  );
+  const [autoBackupConfirmOpen, setAutoBackupConfirmOpen] = useState(false);
+  const lastAutoBackupAt = useLiveQuery(async () => {
+    const record = await db.appSettings.get(SETTINGS_KEYS.lastAutoBackupAt);
+    return (record?.value as string) ?? null;
+  }, []);
+
+  const handleAutoBackupToggle = (checked: boolean) => {
+    if (checked) {
+      setAutoBackupConfirmOpen(true);
+    } else {
+      setAutoBackupEnabled(false);
+    }
+  };
+
+  const handleConfirmAutoBackup = () => {
+    setAutoBackupConfirmOpen(false);
+    setAutoBackupEnabled(true);
+  };
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -174,6 +204,40 @@ export function GoogleDriveSection() {
               Disconnect
             </Button>
           </Stack>
+
+          <Box sx={{ mt: 3, pt: 2.5, borderTop: 1, borderColor: 'divider' }}>
+            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Automatic daily backup
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Backs up to Drive at 23:59 each day this device is on, or as soon as
+                  it's next opened.
+                </Typography>
+              </Box>
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={autoBackupEnabled}
+                    onChange={(e) => handleAutoBackupToggle(e.target.checked)}
+                  />
+                }
+                label=""
+              />
+            </Stack>
+
+            <Alert severity="warning" sx={{ mt: 1.5 }}>
+              Only enable this on one device. Turning it on elsewhere too can cause
+              backups to overwrite each other unpredictably.
+            </Alert>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Last automatic backup:{' '}
+              {lastAutoBackupAt ? dayjs(lastAutoBackupAt).format('D MMM YYYY, HH:mm') : 'never'}
+            </Typography>
+          </Box>
         </>
       )}
 
@@ -212,6 +276,30 @@ export function GoogleDriveSection() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setImportOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Automatic daily backup confirmation */}
+      <Dialog
+        open={autoBackupConfirmOpen}
+        onClose={() => setAutoBackupConfirmOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Enable automatic daily backup?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            This device will back up your library to Google Drive every day at 23:59.
+          </Typography>
+          <Alert severity="warning">
+            Enable this on one device only, to avoid backups overwriting each other.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAutoBackupConfirmOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmAutoBackup} variant="contained">
+            Enable
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
