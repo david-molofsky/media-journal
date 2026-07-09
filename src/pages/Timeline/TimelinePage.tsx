@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -8,8 +8,10 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
-import { useTimelineBars } from '@/hooks/useTimelineBars';
+import { useTimelineEntries } from '@/hooks/useTimelineEntries';
+import { packTimelineBars } from '@/utils/timelinePacking';
 import { TimelineChart } from '@/components/timeline/TimelineChart';
+import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ROUTES, editEntryPath } from '@/routes/paths';
@@ -24,12 +26,43 @@ import { TIMELINE_ZOOM_ORDER, TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } fro
 export default function TimelinePage() {
   const navigate = useNavigate();
   const mediaTypes = useMediaTypes();
-  const bars = useTimelineBars();
+  const entries = useTimelineEntries();
   const [zoom, setZoom] = useState<TimelineZoomLevel>('month');
+  // Tracks exclusions rather than inclusions so "all types on" needs no
+  // initialization once mediaTypes loads, and always starts empty (all
+  // on) each visit — no persistence across sessions, per chat.
+  const [excludedTypeIds, setExcludedTypeIds] = useState<Set<string>>(new Set());
 
-  if (mediaTypes === undefined || bars === undefined) {
+  const allTypeIds = useMemo(() => new Set(mediaTypes?.map((mt) => mt.id) ?? []), [mediaTypes]);
+
+  // Filtering happens before packing (not after) so hiding a type
+  // re-packs the remaining bars tighter into fewer rows, rather than
+  // leaving gaps where the hidden rows used to be — see chat.
+  const bars = useMemo(() => {
+    if (!entries) return undefined;
+    const filtered = entries.filter((e) => !excludedTypeIds.has(e.mediaType));
+    return packTimelineBars(filtered);
+  }, [entries, excludedTypeIds]);
+
+  if (mediaTypes === undefined || entries === undefined || bars === undefined) {
     return <LoadingIndicator />;
   }
+
+  const toggleType = (mediaTypeId: string) => {
+    setExcludedTypeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(mediaTypeId)) next.delete(mediaTypeId);
+      else next.add(mediaTypeId);
+      return next;
+    });
+  };
+
+  const soloType = (mediaTypeId: string) => {
+    const isAlreadySolo = allTypeIds.size - excludedTypeIds.size === 1 && !excludedTypeIds.has(mediaTypeId);
+    setExcludedTypeIds(
+      isAlreadySolo ? new Set() : new Set([...allTypeIds].filter((id) => id !== mediaTypeId)),
+    );
+  };
 
   return (
     <Box sx={{ px: 2, pt: 2, pb: 4 }}>
@@ -42,7 +75,7 @@ export default function TimelinePage() {
         </Typography>
       </Stack>
 
-      {bars.length === 0 ? (
+      {entries.length === 0 ? (
         <PagePlaceholder
           title="Nothing to show yet"
           description="Once you've completed a few entries, they'll show up here as an overlapping timeline."
@@ -69,27 +102,29 @@ export default function TimelinePage() {
             </Typography>
           </Stack>
 
-          <TimelineChart
-            bars={bars}
-            zoom={zoom}
+          <TimelineTypeFilter
             mediaTypes={mediaTypes}
-            onOpenEntry={(entryId) => navigate(editEntryPath(entryId))}
+            excludedTypeIds={excludedTypeIds}
+            onToggle={toggleType}
+            onSolo={soloType}
           />
 
-          <Stack direction="row" flexWrap="wrap" gap={1.5}>
-            {mediaTypes.map((mt) => (
-              <Stack key={mt.id} direction="row" alignItems="center" spacing={0.5}>
-                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: mt.colour }} />
-                <Typography variant="caption" color="text.secondary">
-                  {mt.displayName}
-                </Typography>
-              </Stack>
-            ))}
-          </Stack>
+          {bars.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No entries match the selected types.
+            </Typography>
+          ) : (
+            <TimelineChart
+              bars={bars}
+              zoom={zoom}
+              mediaTypes={mediaTypes}
+              onOpenEntry={(entryId) => navigate(editEntryPath(entryId))}
+            />
+          )}
 
           <Typography variant="caption" color="text.secondary">
             A dot means no start date was recorded for that entry, so only the day it was
-            completed is shown.
+            completed is shown. Tap a type above to hide it, double-tap to solo it.
           </Typography>
         </Stack>
       )}

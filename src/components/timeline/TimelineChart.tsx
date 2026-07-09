@@ -40,7 +40,8 @@ const MAX_VISIBLE_ROWS = 6;
 
 /**
  * The horizontally-scrollable Gantt chart itself. Rows come pre-packed
- * from useTimelineBars/packTimelineBars — this component only turns
+ * from TimelinePage (useTimelineEntries + packTimelineBars, filtered by
+ * the type-filter chips) — this component only turns
  * (row, start, end) into pixel positions and handles zoom/scroll.
  *
  * The visible date range always runs from the earliest bar's start
@@ -149,19 +150,22 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
     const distance = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        pinchRef.current = { startDist: distance(e.touches[0], e.touches[1]), startPpd: ppdRef.current };
-      }
+      if (e.touches.length !== 2) return;
+      const [t0, t1] = [e.touches[0], e.touches[1]];
+      if (!t0 || !t1) return;
+      pinchRef.current = { startDist: distance(t0, t1), startPpd: ppdRef.current };
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 2 || !pinchRef.current) return;
+      const [t0, t1] = [e.touches[0], e.touches[1]];
+      if (!t0 || !t1) return;
       e.preventDefault();
-      const dist = distance(e.touches[0], e.touches[1]);
+      const dist = distance(t0, t1);
       const ratio = dist / pinchRef.current.startDist;
       const nextPpd = clamp(pinchRef.current.startPpd * ratio);
       const rect = el.getBoundingClientRect();
-      const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const midX = (t0.clientX + t1.clientX) / 2 - rect.left;
       anchorRef.current = { dayIndex: (el.scrollLeft + midX) / ppdRef.current, clientX: midX };
       setPpd(nextPpd);
     };
