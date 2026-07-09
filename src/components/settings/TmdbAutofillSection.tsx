@@ -6,6 +6,7 @@ import Switch from '@mui/material/Switch';
 import Alert from '@mui/material/Alert';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 interface ToggleRowProps {
   label: string;
@@ -60,14 +61,16 @@ export function TmdbAutofillSection() {
   const [series, setSeries] = useBooleanSetting('autofillSeries', true);
   const [poster, setPoster] = useBooleanSetting('autofillPoster', false);
 
+  const onCount = [overview, runtime, productionCompany, tvStatus, series, poster].filter(
+    Boolean,
+  ).length;
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <DownloadOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Typography variant="subtitle2" color="text.secondary">
-          Metadata auto-fill
-        </Typography>
-      </Box>
+    <CollapsibleSection
+      title="Metadata auto-fill (TMDB)"
+      icon={DownloadOutlinedIcon}
+      badge={`${onCount}/6 on`}
+    >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which fields TMDB fills in automatically when you search for a Film or TV entry.
       </Typography>
@@ -130,6 +133,6 @@ export function TmdbAutofillSection() {
           Library list and grid stay text-only either way.
         </Alert>
       </Box>
-    </Box>
+    </CollapsibleSection>
   );
 }

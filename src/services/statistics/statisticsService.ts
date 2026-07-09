@@ -247,6 +247,74 @@ export async function getWishlistGenreTotals(): Promise<Record<string, number>> 
   return totals;
 }
 
+export interface TopGenreShareByMediaType {
+  genre: string;
+  /** This genre's weighted share of every completed entry within
+   * `year` (0–100, rounded) — the headline number used in the
+   * "X is your favourite genre" insight. */
+  overallPercentage: number;
+  /** Per media type present in `year`: what percentage of that type's
+   * *own* completed entries carry the top genre (e.g. 42% of Books
+   * were Sci-Fi). Unweighted — a genre either applies to an entry or
+   * it doesn't, unlike `getTopGenresByCount`'s comic/TV-episode
+   * weighting, since this answers "how much of this type is this
+   * genre" rather than "how much volume did I consume". Media types
+   * with zero entries this year are omitted entirely; a type with
+   * entries but none matching the top genre still appears, at 0%. */
+  shareByMediaType: { mediaType: string; percentage: number }[];
+}
+
+/**
+ * Finds the single most-consumed genre within `year` (same weighting
+ * as `getTopGenresByCount`) and breaks down what share of each media
+ * type it represents — the "42% of your books, 38% of your films were
+ * Sci-Fi" statistic. Returns `null` when there's no genre data at all
+ * for the year, so callers can skip rendering rather than showing an
+ * empty breakdown.
+ */
+export async function getTopGenreShareByMediaType(
+  year: number,
+): Promise<TopGenreShareByMediaType | null> {
+  const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
+  if (entries.length === 0) return null;
+
+  const genreTotals: Record<string, number> = {};
+  let totalWeighted = 0;
+  for (const entry of entries) {
+    const weight = getEntryWeight(entry, tvMode);
+    totalWeighted += weight;
+    for (const genre of entry.genres ?? []) {
+      genreTotals[genre] = (genreTotals[genre] ?? 0) + weight;
+    }
+  }
+
+  const topEntry = Object.entries(genreTotals).sort(([, a], [, b]) => b - a)[0];
+  if (!topEntry) return null;
+  const [genre, genreWeight] = topEntry;
+
+  const totalsByType: Record<string, number> = {};
+  const matchingByType: Record<string, number> = {};
+  for (const entry of entries) {
+    totalsByType[entry.mediaType] = (totalsByType[entry.mediaType] ?? 0) + 1;
+    if ((entry.genres ?? []).includes(genre)) {
+      matchingByType[entry.mediaType] = (matchingByType[entry.mediaType] ?? 0) + 1;
+    }
+  }
+
+  const shareByMediaType = Object.entries(totalsByType)
+    .map(([mediaType, total]) => ({
+      mediaType,
+      percentage: Math.round(((matchingByType[mediaType] ?? 0) / total) * 100),
+    }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  return {
+    genre,
+    overallPercentage: Math.round((genreWeight / totalWeighted) * 100),
+    shareByMediaType,
+  };
+}
+
 /** Histogram of ratings (0–10 in 0.5 steps) within `year`, ignoring
  * unrated entries. */
 export async function getRatingDistribution(
@@ -460,12 +528,13 @@ export async function getRepeatConsumption(year: number): Promise<number> {
  * omitted from both this function and the Statistics screen.
  */
 export async function getInsights(year: number): Promise<string[]> {
-  const [totals, previousTotals, favourite, weekday, repeats] = await Promise.all([
+  const [totals, previousTotals, favourite, weekday, repeats, topGenre] = await Promise.all([
     getMediaTypeTotals(year),
     getMediaTypeTotals(year - 1),
     getFavouriteMediaType(year),
     getMostActiveWeekday(year),
     getRepeatConsumption(year),
+    getTopGenreShareByMediaType(year),
   ]);
 
   const totalEntries = Object.values(totals).reduce((sum, count) => sum + count, 0);
@@ -477,6 +546,12 @@ export async function getInsights(year: number): Promise<string[]> {
   if (favourite && totals[favourite] !== undefined) {
     const share = Math.round((totals[favourite] / totalEntries) * 100);
     insights.push(`${favourite} entries account for ${share}% of your media this year.`);
+  }
+
+  if (topGenre) {
+    insights.push(
+      `${topGenre.genre} is your favourite genre this year, making up ${topGenre.overallPercentage}% of what you completed.`,
+    );
   }
 
   if (weekday !== null && WEEKDAY_NAMES[weekday]) {

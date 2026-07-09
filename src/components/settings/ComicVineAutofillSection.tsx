@@ -6,6 +6,7 @@ import Switch from '@mui/material/Switch';
 import Alert from '@mui/material/Alert';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 interface ToggleRowProps {
   label: string;
@@ -68,14 +69,26 @@ export function ComicVineAutofillSection() {
   const [editor, setEditor] = useBooleanSetting('autofillComicEditor', true);
   const [coverImage, setCoverImage] = useBooleanSetting('autofillComicCoverImage', false);
 
+  const onCount = [
+    publisher,
+    issueTitle,
+    coverDate,
+    writer,
+    penciller,
+    inker,
+    colorist,
+    letterer,
+    coverArtist,
+    editor,
+    coverImage,
+  ].filter(Boolean).length;
+
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <DownloadOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Typography variant="subtitle2" color="text.secondary">
-          Metadata auto-fill (ComicVine)
-        </Typography>
-      </Box>
+    <CollapsibleSection
+      title="Metadata auto-fill (ComicVine)"
+      icon={DownloadOutlinedIcon}
+      badge={`${onCount}/11 on`}
+    >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which fields ComicVine fills in automatically when you search for a Comic Issue
         entry.
@@ -169,6 +182,6 @@ export function ComicVineAutofillSection() {
           Library list and grid stay text-only either way.
         </Alert>
       </Box>
-    </Box>
+    </CollapsibleSection>
   );
 }

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
@@ -17,6 +16,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Tooltip from '@mui/material/Tooltip';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import { useAllMediaTypes } from '@/hooks/useAllMediaTypes';
 import {
   setMediaTypeEnabled,
@@ -24,6 +24,7 @@ import {
   isDefaultMediaType,
 } from '@/services/database/mediaTypeService';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { AddMediaTypeDialog } from './AddMediaTypeDialog';
 import type { MediaType } from '@/models';
 
@@ -39,12 +40,16 @@ export function MediaTypeManager() {
     setPendingDelete(null);
   };
 
+  const enabledCount = (mediaTypes ?? []).filter((mt) => mt.enabled).length;
+  const totalCount = (mediaTypes ?? []).length;
+
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="subtitle2" color="text.secondary">
-          Manage media types
-        </Typography>
+    <CollapsibleSection
+      title="Manage media types"
+      icon={CategoryOutlinedIcon}
+      badge={`${enabledCount}/${totalCount} enabled`}
+    >
+      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
         <Button size="small" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
           Add type
         </Button>
@@ -125,6 +130,6 @@ export function MediaTypeManager() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </CollapsibleSection>
   );
 }

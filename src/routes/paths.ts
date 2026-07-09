@@ -11,6 +11,7 @@ export const ROUTES = {
   addEntry: '/entry/new',
   editEntry: '/entry/:id',
   statistics: '/statistics',
+  timeline: '/timeline',
   settings: '/settings',
 } as const;
 
