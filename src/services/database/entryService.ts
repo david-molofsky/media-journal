@@ -1,7 +1,7 @@
 import { db } from './db';
 import type { MediaEntry, NewMediaEntryInput, MediaEntryUpdate, EntryStatus } from '@/models';
 import { generateId } from '@/utils/id';
-import { nowIso, yearOf } from '@/utils/dateUtils';
+import { nowIso, yearOf, todayIso } from '@/utils/dateUtils';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 
 function validateEntry(entry: NewMediaEntryInput): void {
@@ -67,7 +67,13 @@ export async function updateEntry(
 /**
  * Moves an entry to a new status, handling date logic automatically:
  *   → completed: sets completedDate (today if not provided) and completedYear.
- *   → in_progress / wishlist: clears completedDate and completedYear.
+ *   → in_progress: clears completedDate/completedYear; defaults
+ *     startedDate to today if it doesn't already have one, so the
+ *     entry has something to place it on the Timeline (which renders
+ *     in_progress entries as running from start to today) — matters
+ *     most for the Library "Start tracking" quick action, which has no
+ *     date field of its own for the person to fill in.
+ *   → wishlist: clears completedDate and completedYear.
  */
 export async function updateEntryStatus(
   id: string,
@@ -86,6 +92,9 @@ export async function updateEntryStatus(
   } else {
     update.completedDate = undefined;
     update.completedYear = undefined;
+    if (status === 'in_progress' && !existing.startedDate) {
+      update.startedDate = todayIso();
+    }
   }
 
   await db.mediaEntries.update(id, update);

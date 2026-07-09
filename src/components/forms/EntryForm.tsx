@@ -293,6 +293,14 @@ export function EntryForm({
                   if (v !== 'completed') setValue('completedDate', undefined as unknown as string);
                   // Restore today when switching back to completed
                   if (v === 'completed') setValue('completedDate', todayIso());
+                  // In Progress needs a start date to place it on the
+                  // Timeline (it renders as running from start to today
+                  // — see TimelineChart) — default to today rather than
+                  // leaving it blank, without clobbering a date the
+                  // person already entered.
+                  if (v === 'in_progress' && !getValues('startedDate')) {
+                    setValue('startedDate', todayIso());
+                  }
                 }}
                 size="small"
                 fullWidth

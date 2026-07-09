@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import type { TimelineBar } from '@/utils/timelinePacking';
 import {
   TIMELINE_ZOOM_LEVELS,
@@ -33,6 +34,13 @@ const LABEL_GAP = 8;
 const ROW_HEIGHT = 64;
 const MIN_BAR_WIDTH = 6;
 const AXIS_HEIGHT = 24;
+// Rough average glyph width at the 10px caption size used for bar/label
+// text — good enough to decide "does this title fit inside the bar",
+// not a real text-measurement API (canvas measureText would be more
+// exact but isn't worth the render-thread cost for a threshold check).
+const CHAR_WIDTH_ESTIMATE = 5.5;
+const INSIDE_LABEL_PADDING = 8;
+const IN_PROGRESS_ARROW_SIZE = 14;
 // Visible viewport caps at this many rows before scrolling vertically,
 // so a single busy stretch of overlapping history (which sets the row
 // count for the *entire* chart width) doesn't blow the page out with
@@ -247,21 +255,23 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
           const rowTop = AXIS_HEIGHT + bar.row * ROW_HEIGHT + TOP_PAD;
           const colour = colourFor(bar.mediaType);
 
-          // Title always renders as a label below the bar/marker rather
-          // than inside or beside it — legible regardless of how narrow
-          // the bar is at the current zoom level (see chat: cramming
-          // text inside sub-24px bars made most titles unreadable).
-          const label = (
+          // Below-label centers on the anchor point (marker center, or
+          // bar center) with a slight rightward bias rather than
+          // perfect symmetric centering or the old left-flush start —
+          // reads more naturally under a dot or a bar too narrow for
+          // its own title (see chat).
+          const belowLabel = (centerX: number) => (
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{
                 position: 'absolute',
-                left,
+                left: centerX,
                 top: rowTop + BAR_HEIGHT + LABEL_GAP,
                 fontSize: 10,
                 whiteSpace: 'nowrap',
                 lineHeight: 1.2,
+                transform: 'translateX(-35%)',
               }}
             >
               {bar.title}
@@ -284,12 +294,18 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
                     bgcolor: colour,
                   }}
                 />
-                {label}
+                {belowLabel(left)}
               </Box>
             );
           }
 
           const width = Math.max(bar.end.diff(bar.start, 'day') * pixelsPerDay, MIN_BAR_WIDTH);
+          // Wide-enough bars get their title inside (centered, white,
+          // ellipsis as a safety net since this is an estimate rather
+          // than a real measurement) instead of a separate label below —
+          // reserve the below-label treatment for bars too narrow to
+          // hold their own title.
+          const fitsInside = width >= bar.title.length * CHAR_WIDTH_ESTIMATE + INSIDE_LABEL_PADDING;
 
           return (
             <Box key={bar.entryId}>
@@ -302,11 +318,44 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
                   top: rowTop,
                   width,
                   height: BAR_HEIGHT,
-                  bgcolor: colour,
-                  borderRadius: '4px',
+                  bgcolor: bar.isInProgress ? undefined : colour,
+                  background: bar.isInProgress
+                    ? `linear-gradient(to right, ${colour} 0%, ${colour} 70%, ${colour}00 100%)`
+                    : undefined,
+                  borderRadius: bar.isInProgress ? '4px 0 0 4px' : '4px',
+                  overflow: 'hidden',
+                  px: fitsInside ? 0.5 : 0,
                 }}
-              />
-              {label}
+              >
+                {fitsInside && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: '#fff',
+                      fontSize: 10,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      width: '100%',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {bar.title}
+                  </Typography>
+                )}
+              </ButtonBase>
+              {bar.isInProgress && (
+                <ArrowForwardIcon
+                  sx={{
+                    position: 'absolute',
+                    left: left + width + 2,
+                    top: rowTop + (BAR_HEIGHT - IN_PROGRESS_ARROW_SIZE) / 2,
+                    fontSize: IN_PROGRESS_ARROW_SIZE,
+                    color: colour,
+                  }}
+                />
+              )}
+              {!fitsInside && belowLabel(left + width / 2)}
             </Box>
           );
         })}

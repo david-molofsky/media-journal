@@ -124,7 +124,8 @@ export default function TimelinePage() {
 
           <Typography variant="caption" color="text.secondary">
             A dot means no start date was recorded for that entry, so only the day it was
-            completed is shown. Tap a type above to hide it, double-tap to solo it.
+            completed is shown. A fading edge with an arrow means it's still in progress, running
+            through to today. Tap a type above to hide it, double-tap to solo it.
           </Typography>
         </Stack>
       )}
