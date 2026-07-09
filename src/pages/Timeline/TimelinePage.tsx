@@ -49,20 +49,25 @@ export default function TimelinePage() {
         />
       ) : (
         <Stack spacing={2}>
-          <ToggleButtonGroup
-            value={zoom}
-            exclusive
-            size="small"
-            onChange={(_event, value: TimelineZoomLevel | null) => {
-              if (value) setZoom(value);
-            }}
-          >
-            {TIMELINE_ZOOM_ORDER.map((level) => (
-              <ToggleButton key={level} value={level}>
-                {TIMELINE_ZOOM_LEVELS[level].label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+          <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
+            <ToggleButtonGroup
+              value={zoom}
+              exclusive
+              size="small"
+              onChange={(_event, value: TimelineZoomLevel | null) => {
+                if (value) setZoom(value);
+              }}
+            >
+              {TIMELINE_ZOOM_ORDER.map((level) => (
+                <ToggleButton key={level} value={level}>
+                  {TIMELINE_ZOOM_LEVELS[level].label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Typography variant="caption" color="text.secondary">
+              Pinch, or ctrl/⌘ + scroll, to zoom freely
+            </Typography>
+          </Stack>
 
           <TimelineChart
             bars={bars}
