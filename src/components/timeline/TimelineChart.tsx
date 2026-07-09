@@ -24,23 +24,29 @@ interface TimelineChartProps {
 // Row layout: bar/marker sits at the top of the row, its title renders
 // directly below in the same row rather than inside/beside the bar —
 // this keeps titles legible at any zoom level, including narrow bars
-// and single-day markers. Rows are deliberately generous (agreed in
-// chat: plenty of vertical space to spend) so titles never crowd the
-// row above or below, even for longer titles or descenders.
+// and single-day markers. Row height is now variable — see the label
+// line-packing pass below — expanding only for rows that actually need
+// stacked label lines, rather than every row reserving the same fixed
+// amount of space.
 const TOP_PAD = 10;
 const BAR_HEIGHT = 20;
 const MARKER_SIZE = 10;
 const LABEL_GAP = 8;
-const ROW_HEIGHT = 64;
+const LABEL_LINE_HEIGHT = 14;
+const ROW_BOTTOM_PAD = 6;
 const MIN_BAR_WIDTH = 6;
 const AXIS_HEIGHT = 24;
 // Rough average glyph width at the 10px caption size used for bar/label
-// text — good enough to decide "does this title fit inside the bar",
-// not a real text-measurement API (canvas measureText would be more
-// exact but isn't worth the render-thread cost for a threshold check).
+// text — good enough to decide "does this title fit inside the bar" and
+// to estimate label widths for collision avoidance, not a real
+// text-measurement API (canvas measureText would be more exact but
+// isn't worth the render-thread cost for a threshold check).
 const CHAR_WIDTH_ESTIMATE = 5.5;
 const INSIDE_LABEL_PADDING = 8;
 const IN_PROGRESS_ARROW_SIZE = 14;
+// Minimum horizontal gap enforced between two below-bar labels before
+// one gets bumped to a stacked line beneath the other.
+const LABEL_COLLISION_GAP = 6;
 // Visible viewport caps at this many rows before scrolling vertically,
 // so a single busy stretch of overlapping history (which sets the row
 // count for the *entire* chart width) doesn't blow the page out with
@@ -107,13 +113,86 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
   const epoch = earliestStart.startOf('month');
   const totalDays = Math.max(today.diff(epoch, 'day') + 1, 1);
   const totalWidth = totalDays * pixelsPerDay;
-  const rowCount = bars.reduce((max, bar) => Math.max(max, bar.row + 1), 1);
-  const chartHeight = rowCount * ROW_HEIGHT;
-
   const dayOffset = (date: dayjs.Dayjs) => date.startOf('day').diff(epoch, 'day') * pixelsPerDay;
 
   const colourFor = (mediaTypeId: string) =>
     mediaTypes.find((mt) => mt.id === mediaTypeId)?.colour ?? '#9E9E9E';
+
+  // Per-bar pixel geometry at the current zoom, computed once up front
+  // and reused for both the label-collision pass below and rendering —
+  // avoids recomputing width/fitsInside twice per bar.
+  interface BarGeometry {
+    bar: TimelineBar;
+    left: number;
+    width: number;
+    fitsInside: boolean;
+    /** Anchor x for a below-bar label (marker center, or bar center) —
+     * only meaningful when the label is actually shown (isMarker or
+     * !fitsInside). */
+    labelAnchorX: number;
+    labelWidth: number;
+  }
+  const geometries: BarGeometry[] = bars.map((bar) => {
+    const left = dayOffset(bar.start);
+    const labelWidth = bar.title.length * CHAR_WIDTH_ESTIMATE;
+    if (bar.isMarker) {
+      return { bar, left, width: 0, fitsInside: false, labelAnchorX: left, labelWidth };
+    }
+    const width = Math.max(bar.end.diff(bar.start, 'day') * pixelsPerDay, MIN_BAR_WIDTH);
+    const fitsInside = width >= labelWidth + INSIDE_LABEL_PADDING;
+    return { bar, left, width, fitsInside, labelAnchorX: left + width / 2, labelWidth };
+  });
+
+  // Label collision avoidance: two bars/markers whose own bar-space
+  // doesn't overlap (packTimelineBars already guarantees that within a
+  // row) can still have overlapping *labels*, since a label is often
+  // wider than what it's attached to — a marker's dot is 10px but its
+  // title might be 80px. Pack each row's below-bar labels into stacked
+  // lines with the same greedy interval approach packTimelineBars uses
+  // for bars themselves, just horizontal-pixel-space instead of dates
+  // (see chat: titles were still colliding after the first below-bar
+  // pass, this is what moves the losing label down a line).
+  const rowCount = bars.reduce((max, bar) => Math.max(max, bar.row + 1), 1);
+  const labelLineByEntry = new Map<string, number>();
+  const lineCountByRow = new Map<number, number>();
+  for (let row = 0; row < rowCount; row++) {
+    const itemsInRow = geometries
+      .filter((g) => g.bar.row === row && (g.bar.isMarker || !g.fitsInside))
+      .map((g) => ({
+        entryId: g.bar.entryId,
+        left: g.labelAnchorX - g.labelWidth * 0.35,
+        right: g.labelAnchorX - g.labelWidth * 0.35 + g.labelWidth,
+      }))
+      .sort((a, b) => a.left - b.left);
+
+    const lineRightEdges: number[] = [];
+    for (const item of itemsInRow) {
+      let line = lineRightEdges.findIndex((right) => right + LABEL_COLLISION_GAP <= item.left);
+      if (line === -1) {
+        line = lineRightEdges.length;
+        lineRightEdges.push(item.right);
+      } else {
+        lineRightEdges[line] = item.right;
+      }
+      labelLineByEntry.set(item.entryId, line);
+    }
+    lineCountByRow.set(row, lineRightEdges.length);
+  }
+
+  // Row heights are now variable — TOP_PAD + bar + however many
+  // stacked label lines that row's labels ended up needing — rather
+  // than every row reserving the same fixed amount whether or not it
+  // has a label at all.
+  const rowTops: number[] = [];
+  let rowCursor = AXIS_HEIGHT;
+  for (let row = 0; row < rowCount; row++) {
+    rowTops.push(rowCursor);
+    const linesUsed = lineCountByRow.get(row) ?? 0;
+    const rowHeight =
+      TOP_PAD + BAR_HEIGHT + (linesUsed > 0 ? LABEL_GAP + linesUsed * LABEL_LINE_HEIGHT : 0) + ROW_BOTTOM_PAD;
+    rowCursor += rowHeight;
+  }
+  const chartHeight = rowCursor - AXIS_HEIGHT;
 
   // Gridlines: one per day (Week zoom) or one per month-start
   // (everything else). Not virtualized — fine at personal-library
@@ -214,13 +293,20 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
     anchorRef.current = null;
   }, [ppd]);
 
+  // Cap the visible viewport at the actual height of the first
+  // MAX_VISIBLE_ROWS rows (now variable per row) rather than a fixed
+  // multiple, so the cap tracks however much label-stacking those rows
+  // actually ended up needing.
+  const visibleRowCount = Math.min(MAX_VISIBLE_ROWS, rowCount);
+  const maxVisibleHeight = visibleRowCount < rowCount ? (rowTops[visibleRowCount] ?? chartHeight + AXIS_HEIGHT) : chartHeight + AXIS_HEIGHT;
+
   return (
     <Box
       ref={scrollRef}
       sx={{
         overflowX: 'auto',
         overflowY: 'auto',
-        maxHeight: MAX_VISIBLE_ROWS * ROW_HEIGHT + AXIS_HEIGHT,
+        maxHeight: maxVisibleHeight,
         borderRadius: 2,
         border: '1px solid',
         borderColor: 'divider',
@@ -250,24 +336,27 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
           </Box>
         ))}
 
-        {bars.map((bar) => {
-          const left = dayOffset(bar.start);
-          const rowTop = AXIS_HEIGHT + bar.row * ROW_HEIGHT + TOP_PAD;
+        {geometries.map(({ bar, left, width, fitsInside, labelAnchorX }) => {
+          const rowTop = (rowTops[bar.row] ?? AXIS_HEIGHT) + TOP_PAD;
           const colour = colourFor(bar.mediaType);
+          const showsLabel = bar.isMarker || !fitsInside;
+          const labelLine = showsLabel ? (labelLineByEntry.get(bar.entryId) ?? 0) : 0;
 
           // Below-label centers on the anchor point (marker center, or
           // bar center) with a slight rightward bias rather than
           // perfect symmetric centering or the old left-flush start —
           // reads more naturally under a dot or a bar too narrow for
-          // its own title (see chat).
-          const belowLabel = (centerX: number) => (
+          // its own title. Stacks onto whichever line the collision
+          // pass above assigned it, so two labels that would overlap
+          // horizontally land on different lines instead (see chat).
+          const belowLabel = (
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{
                 position: 'absolute',
-                left: centerX,
-                top: rowTop + BAR_HEIGHT + LABEL_GAP,
+                left: labelAnchorX,
+                top: rowTop + BAR_HEIGHT + LABEL_GAP + labelLine * LABEL_LINE_HEIGHT,
                 fontSize: 10,
                 whiteSpace: 'nowrap',
                 lineHeight: 1.2,
@@ -294,18 +383,10 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
                     bgcolor: colour,
                   }}
                 />
-                {belowLabel(left)}
+                {belowLabel}
               </Box>
             );
           }
-
-          const width = Math.max(bar.end.diff(bar.start, 'day') * pixelsPerDay, MIN_BAR_WIDTH);
-          // Wide-enough bars get their title inside (centered, white,
-          // ellipsis as a safety net since this is an estimate rather
-          // than a real measurement) instead of a separate label below —
-          // reserve the below-label treatment for bars too narrow to
-          // hold their own title.
-          const fitsInside = width >= bar.title.length * CHAR_WIDTH_ESTIMATE + INSIDE_LABEL_PADDING;
 
           return (
             <Box key={bar.entryId}>
@@ -355,7 +436,7 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
                   }}
                 />
               )}
-              {!fitsInside && belowLabel(left + width / 2)}
+              {!fitsInside && belowLabel}
             </Box>
           );
         })}
