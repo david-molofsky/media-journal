@@ -23,13 +23,14 @@ interface TimelineChartProps {
 // Row layout: bar/marker sits at the top of the row, its title renders
 // directly below in the same row rather than inside/beside the bar —
 // this keeps titles legible at any zoom level, including narrow bars
-// and single-day markers, at the cost of a taller row (agreed in chat
-// over cramming text inside the bar).
-const TOP_PAD = 6;
+// and single-day markers. Rows are deliberately generous (agreed in
+// chat: plenty of vertical space to spend) so titles never crowd the
+// row above or below, even for longer titles or descenders.
+const TOP_PAD = 10;
 const BAR_HEIGHT = 20;
 const MARKER_SIZE = 10;
-const LABEL_GAP = 4;
-const ROW_HEIGHT = 48;
+const LABEL_GAP = 8;
+const ROW_HEIGHT = 64;
 const MIN_BAR_WIDTH = 6;
 const AXIS_HEIGHT = 24;
 // Visible viewport caps at this many rows before scrolling vertically,

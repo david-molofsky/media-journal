@@ -13,6 +13,7 @@ import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
 import { ComicVineAutofillSection } from '@/components/settings/ComicVineAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
+import { GoodreadsImportSection } from '@/components/settings/GoodreadsImportSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 
@@ -36,6 +37,8 @@ export default function SettingsPage() {
         <ImportExportSection />
 
         <LetterboxdImportSection />
+
+        <GoodreadsImportSection />
 
         <GoogleDriveSection />
 
