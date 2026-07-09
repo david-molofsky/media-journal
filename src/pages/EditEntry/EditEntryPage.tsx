@@ -10,6 +10,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -33,8 +36,35 @@ import {
   duplicateEntry,
   listEntries,
 } from '@/services/database/entryService';
+import { convertMetadata } from '@/utils/entryConversion';
 import { ROUTES, editEntryPath } from '@/routes/paths';
+import type { MediaType } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
+
+/** Metadata keys that exist per-type but aren't in defaultMediaTypes.ts's
+ * `fields[]` (they get bespoke UI in EntryForm — poster thumbnail,
+ * cover image, Overview block) yet are still valid, mappable schema
+ * keys. Included here so conversion between e.g. Film and TV carries
+ * Overview/poster over like any other shared-role field. */
+const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
+  film: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
+  tv: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
+  comic: [{ key: 'coverImagePath', label: 'Cover image' }],
+};
+
+function metadataFieldsFor(mediaType: MediaType): { key: string; label: string }[] {
+  return [...mediaType.fields.map((f) => ({ key: f.key, label: f.label })), ...(BESPOKE_FIELD_KEYS[mediaType.id] ?? [])];
+}
+
+/** "A, B and 3 others" once past `max` items, so the convert-confirm
+ * summary stays a one-liner even between types with very different
+ * field sets (e.g. Book has 4 fields, Comic Issues has 13). */
+function formatFieldList(labels: string[], max = 3): string {
+  if (labels.length <= max) return labels.join(', ');
+  const shown = labels.slice(0, max);
+  const rest = labels.length - max;
+  return `${shown.join(', ')} and ${rest} other${rest === 1 ? '' : 's'}`;
+}
 
 /**
  * Edit Entry — visually identical to Add Entry, pre-populated, with
@@ -57,11 +87,13 @@ export default function EditEntryPage() {
   const tvMode = useTvTrackingMode();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  // Book <-> Audiobook only, per David's request — they share identical
-  // fields and the exact same Zod schema (see entrySchemas.ts, where
-  // `audiobook: bookMetadataSchema`), so converting never needs to
-  // remap or drop anything: it's purely a `mediaType` change.
-  const [convertOpen, setConvertOpen] = useState(false);
+  // Any type can convert to any other, via a role-based field mapping
+  // (src/utils/entryConversion.ts) rather than one-off pairs — see chat.
+  // convertMenuAnchor drives the type-picker menu; convertTargetId
+  // (once chosen) drives the confirmation dialog with its dynamic
+  // carried/renamed/dropped/blank summary.
+  const [convertMenuAnchor, setConvertMenuAnchor] = useState<HTMLElement | null>(null);
+  const [convertTargetId, setConvertTargetId] = useState<string | null>(null);
 
   // Derive these unconditionally (before any early returns) so hooks
   // are always called in the same order — Rules of Hooks.
@@ -131,23 +163,36 @@ export default function EditEntryPage() {
     navigate(editEntryPath(copy.id));
   };
 
-  // Bug fix: this used to compute convertTarget from entry.mediaType
-  // alone, so it offered "Convert to Audiobook" even if Audiobook had
-  // been disabled in Settings > Manage Media Types. Converting would
-  // then leave the entry pointing at a type `mediaTypes` (enabled-only)
-  // can't find, hitting the "Media type unavailable" placeholder above
-  // on next load — technically handled, but a confusing dead end.
-  // Checking the target is in the current enabled list avoids offering
-  // a conversion that immediately locks the entry.
-  const rawConvertTarget = entry.mediaType === 'book' ? 'audiobook' : entry.mediaType === 'audiobook' ? 'book' : undefined;
-  const convertTargetType = mediaTypes.find((t) => t.id === rawConvertTarget);
-  const convertTarget = convertTargetType?.id;
-  const convertTargetLabel = convertTargetType?.displayName;
+  // Bug fix (kept from the original Book<->Audiobook feature): only
+  // offer conversion targets that are currently enabled in Settings >
+  // Manage Media Types — `mediaTypes` is already the enabled-only list
+  // (useMediaTypes), so filtering against it instead of a hardcoded
+  // pair avoids offering a conversion that immediately locks the entry
+  // behind "Media type unavailable" (see placeholder above).
+  const convertCandidates = mediaTypes.filter((t) => t.id !== entry.mediaType);
+  const convertTargetType = convertTargetId ? mediaTypes.find((t) => t.id === convertTargetId) : undefined;
+
+  const conversionPreview =
+    rawMediaType && convertTargetType
+      ? convertMetadata(
+          rawMediaType.id,
+          convertTargetType.id,
+          entry.metadata,
+          metadataFieldsFor(convertTargetType).map((f) => f.key),
+        )
+      : undefined;
+
+  const sourceFieldLabels = rawMediaType
+    ? Object.fromEntries(metadataFieldsFor(rawMediaType).map((f) => [f.key, f.label]))
+    : {};
+  const targetFieldLabels = convertTargetType
+    ? Object.fromEntries(metadataFieldsFor(convertTargetType).map((f) => [f.key, f.label]))
+    : {};
 
   const handleConvert = async () => {
-    if (!convertTarget) return;
-    await updateEntry(entry.id, { mediaType: convertTarget });
-    setConvertOpen(false);
+    if (!convertTargetType || !conversionPreview) return;
+    await updateEntry(entry.id, { mediaType: convertTargetType.id, metadata: conversionPreview.metadata });
+    setConvertTargetId(null);
   };
 
   return (
@@ -196,13 +241,13 @@ export default function EditEntryPage() {
               >
                 Duplicate Entry
               </Button>
-              {convertTarget && (
+              {convertCandidates.length > 0 && (
                 <Button
                   startIcon={<SwapHorizIcon />}
-                  onClick={() => setConvertOpen(true)}
+                  onClick={(e) => setConvertMenuAnchor(e.currentTarget)}
                   color="inherit"
                 >
-                  Convert to {convertTargetLabel}
+                  Convert
                 </Button>
               )}
               <Button
@@ -241,17 +286,62 @@ export default function EditEntryPage() {
         }
       />
 
-      <Dialog open={convertOpen} onClose={() => setConvertOpen(false)}>
-        <DialogTitle>Convert to {convertTargetLabel}?</DialogTitle>
+      <Menu
+        anchorEl={convertMenuAnchor}
+        open={Boolean(convertMenuAnchor)}
+        onClose={() => setConvertMenuAnchor(null)}
+      >
+        {convertCandidates.map((type) => (
+          <MenuItem
+            key={type.id}
+            onClick={() => {
+              setConvertTargetId(type.id);
+              setConvertMenuAnchor(null);
+            }}
+          >
+            <ListItemIcon>
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }} />
+            </ListItemIcon>
+            <ListItemText>{type.displayName}</ListItemText>
+          </MenuItem>
+        ))}
+      </Menu>
+
+      <Dialog open={Boolean(convertTargetType)} onClose={() => setConvertTargetId(null)}>
+        <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            This changes the entry's icon, colour, and grouping in Library and Statistics. Every
-            field — Author, Series, Volume, Source, tags, genres, dates, rating — carries over
-            unchanged.
+          <DialogContentText sx={{ mb: 1.5 }}>
+            Title, dates, rating, tags and genres carry over unchanged.
           </DialogContentText>
+          {conversionPreview && (
+            <Stack spacing={0.75}>
+              {conversionPreview.carried.map(({ targetKey }) => (
+                <Typography key={targetKey} variant="body2" color="text.secondary">
+                  {targetFieldLabels[targetKey] ?? targetKey} carries over as-is
+                </Typography>
+              ))}
+              {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
+                <Typography key={targetKey} variant="body2" color="text.secondary">
+                  {sourceFieldLabels[sourceKey] ?? sourceKey} becomes {targetFieldLabels[targetKey] ?? targetKey}
+                </Typography>
+              ))}
+              {conversionPreview.dropped.length > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {formatFieldList(conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key))} won't
+                  carry over
+                </Typography>
+              )}
+              {conversionPreview.blank.length > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {formatFieldList(conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key))} start
+                  {conversionPreview.blank.length === 1 ? 's' : ''} blank
+                </Typography>
+              )}
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConvertOpen(false)}>Cancel</Button>
+          <Button onClick={() => setConvertTargetId(null)}>Cancel</Button>
           <Button onClick={handleConvert}>Convert</Button>
         </DialogActions>
       </Dialog>

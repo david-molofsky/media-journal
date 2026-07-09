@@ -53,9 +53,13 @@ export function GoodreadsImportSection() {
       <GoodreadsImportDialog
         open={dialogOpen}
         phase={flow.phase}
+        selectedStatuses={flow.selectedStatuses}
+        emptyReason={flow.emptyReason}
         rows={flow.rows}
         progress={flow.progress}
         summary={flow.summary}
+        onToggleStatus={flow.toggleStatus}
+        onConfirmShelves={() => void flow.confirmShelves()}
         onSetCompletedDate={flow.setCompletedDate}
         onSkip={flow.skipEntry}
         onApply={() => void flow.applyAll()}

@@ -7,23 +7,36 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import CircularProgress from '@mui/material/CircularProgress';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Alert from '@mui/material/Alert';
 import type { GoodreadsRowState } from '@/services/importExport/goodreadsImportService';
 import type { GoodreadsImportPhase } from '@/hooks/useGoodreadsImportFlow';
+import type { EntryStatus } from '@/models';
 
 interface GoodreadsImportDialogProps {
   open: boolean;
   phase: GoodreadsImportPhase;
+  selectedStatuses: Set<EntryStatus>;
+  emptyReason: 'no_rows' | 'no_selection_match';
   rows: GoodreadsRowState[];
   progress: { done: number; total: number };
   summary: { imported: number; skipped: number };
+  onToggleStatus: (status: EntryStatus) => void;
+  onConfirmShelves: () => void;
   onSetCompletedDate: (index: number, date: string) => void;
   onSkip: (index: number) => void;
   onApply: () => void;
   onClose: () => void;
 }
+
+const SHELF_OPTIONS: { status: EntryStatus; label: string; mapsTo: string }[] = [
+  { status: 'completed', label: 'Read', mapsTo: 'Completed' },
+  { status: 'in_progress', label: 'Currently reading', mapsTo: 'In progress' },
+  { status: 'wishlist', label: 'To-read', mapsTo: 'Wishlist' },
+];
 
 const STATUS_LABEL: Record<string, string> = {
   completed: 'read',
@@ -45,9 +58,13 @@ const STATUS_LABEL: Record<string, string> = {
 export function GoodreadsImportDialog({
   open,
   phase,
+  selectedStatuses,
+  emptyReason,
   rows,
   progress,
   summary,
+  onToggleStatus,
+  onConfirmShelves,
   onSetCompletedDate,
   onSkip,
   onApply,
@@ -66,9 +83,39 @@ export function GoodreadsImportDialog({
       <DialogContent>
         {phase === 'empty' && (
           <Alert severity="info" variant="outlined">
-            No readable rows found. Make sure this is Goodreads' library export CSV, with at
-            least a Title and an Exclusive Shelf column.
+            {emptyReason === 'no_selection_match'
+              ? "No rows match the shelves you selected. Go back and choose at least one."
+              : "No readable rows found. Make sure this is Goodreads' library export CSV, with at least a Title and an Exclusive Shelf column."}
           </Alert>
+        )}
+
+        {phase === 'select_shelves' && (
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Which shelves would you like to bring in?
+            </Typography>
+            <Stack spacing={1}>
+              {SHELF_OPTIONS.map((option) => (
+                <FormControlLabel
+                  key={option.status}
+                  control={
+                    <Checkbox
+                      checked={selectedStatuses.has(option.status)}
+                      onChange={() => onToggleStatus(option.status)}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      {option.label}{' '}
+                      <Typography component="span" variant="caption" color="text.secondary">
+                        → {option.mapsTo}
+                      </Typography>
+                    </Typography>
+                  }
+                />
+              ))}
+            </Stack>
+          </Stack>
         )}
 
         {phase === 'review' && (
@@ -167,6 +214,14 @@ export function GoodreadsImportDialog({
       </DialogContent>
       <DialogActions>
         {(phase === 'empty' || phase === 'done') && <Button onClick={onClose}>Close</Button>}
+        {phase === 'select_shelves' && (
+          <>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button variant="contained" onClick={onConfirmShelves} disabled={selectedStatuses.size === 0}>
+              Continue
+            </Button>
+          </>
+        )}
         {phase === 'review' && (
           <>
             <Button onClick={onClose}>Cancel</Button>
