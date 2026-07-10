@@ -12,9 +12,7 @@ import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
 import { ComicVineAutofillSection } from '@/components/settings/ComicVineAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
-import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
-import { GoodreadsImportSection } from '@/components/settings/GoodreadsImportSection';
-import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
+import { ImportSourcesSection } from '@/components/settings/ImportSourcesSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 
@@ -26,6 +24,8 @@ export default function SettingsPage() {
       </Typography>
 
       <Stack spacing={4} divider={<Divider />}>
+        <GoogleDriveSection />
+
         {/* General — dark mode + TV tracking grouped together */}
         <Stack spacing={3}>
           <Typography variant="subtitle2" color="text.secondary">
@@ -37,13 +37,7 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <LetterboxdImportSection />
-
-        <GoodreadsImportSection />
-
-        <ImdbImportSection />
-
-        <GoogleDriveSection />
+        <ImportSourcesSection />
 
         <MediaTypeManager />
 

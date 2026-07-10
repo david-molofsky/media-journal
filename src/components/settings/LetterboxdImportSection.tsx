@@ -1,18 +1,24 @@
 import { useRef } from 'react';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
 import { useLetterboxdImportFlow } from '@/hooks/useLetterboxdImportFlow';
 import { LetterboxdImportDialog } from '@/components/settings/LetterboxdImportDialog';
+import { ImportInstructionsDialog } from '@/components/settings/ImportInstructionsDialog';
+
+interface LetterboxdImportSectionProps {
+  /** Controlled by the row in ImportSourcesSection, rather than owned
+   * here — lets one shared list trigger any of the three sources'
+   * instructions dialog. */
+  open: boolean;
+  onCloseInstructions: () => void;
+}
 
 /**
- * Settings > Import from Letterboxd. Entry point only — all flow state
- * lives in useLetterboxdImportFlow, kicked off from this file input's
- * onChange (a plain event handler, not a useEffect).
+ * Import from Letterboxd. All flow state lives in
+ * useLetterboxdImportFlow, kicked off from the file input's onChange (a
+ * plain event handler, not a useEffect). Renders no visible row of its
+ * own — that's ImportSourcesSection's compact list; this just owns the
+ * instructions dialog, file input, and the import flow dialog.
  */
-export function LetterboxdImportSection() {
+export function LetterboxdImportSection({ open, onCloseInstructions }: LetterboxdImportSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const flow = useLetterboxdImportFlow();
 
@@ -21,26 +27,30 @@ export function LetterboxdImportSection() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file next time
-    if (file) void flow.start(file);
+    if (file) {
+      onCloseInstructions();
+      void flow.start(file);
+    }
   };
 
-  const dialogOpen = flow.phase !== 'idle';
+  const flowDialogOpen = flow.phase !== 'idle';
 
   return (
-    <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        Import from Letterboxd
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Upload <code>diary.csv</code> from a Letterboxd data export (Settings &gt; Import
-        &amp; Export &gt; Export your data, on letterboxd.com). Each viewing becomes a Film
-        entry, matched against TMDB — re-running this later only imports what's new.
-      </Typography>
-      <Stack direction="row" spacing={2}>
-        <Button variant="outlined" startIcon={<UploadOutlinedIcon />} onClick={handleChoose}>
-          Choose diary.csv
-        </Button>
-      </Stack>
+    <>
+      <ImportInstructionsDialog
+        open={open}
+        onClose={onCloseInstructions}
+        title="Import from Letterboxd"
+        description={
+          <>
+            Upload <code>diary.csv</code> from a Letterboxd data export (Settings &gt; Import
+            &amp; Export &gt; Export your data, on letterboxd.com). Each viewing becomes a Film
+            entry, matched against TMDB — re-running this later only imports what's new.
+          </>
+        }
+        buttonLabel="Choose diary.csv"
+        onChoose={handleChoose}
+      />
       <input
         ref={fileInputRef}
         type="file"
@@ -50,7 +60,7 @@ export function LetterboxdImportSection() {
       />
 
       <LetterboxdImportDialog
-        open={dialogOpen}
+        open={flowDialogOpen}
         phase={flow.phase}
         matches={flow.matches}
         progress={flow.progress}
@@ -61,6 +71,6 @@ export function LetterboxdImportSection() {
         onApply={() => void flow.applyAll()}
         onClose={flow.reset}
       />
-    </Box>
+    </>
   );
 }

@@ -1,18 +1,24 @@
 import { useRef } from 'react';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
 import { useGoodreadsImportFlow } from '@/hooks/useGoodreadsImportFlow';
 import { GoodreadsImportDialog } from '@/components/settings/GoodreadsImportDialog';
+import { ImportInstructionsDialog } from '@/components/settings/ImportInstructionsDialog';
+
+interface GoodreadsImportSectionProps {
+  /** Controlled by the row in ImportSourcesSection, rather than owned
+   * here — lets one shared list trigger any of the three sources'
+   * instructions dialog. */
+  open: boolean;
+  onCloseInstructions: () => void;
+}
 
 /**
- * Settings > Import from Goodreads. Entry point only — all flow state
- * lives in useGoodreadsImportFlow, kicked off from this file input's
- * onChange (a plain event handler, not a useEffect).
+ * Import from Goodreads. All flow state lives in
+ * useGoodreadsImportFlow, kicked off from the file input's onChange (a
+ * plain event handler, not a useEffect). Renders no visible row of its
+ * own — that's ImportSourcesSection's compact list; this just owns the
+ * instructions dialog, file input, and the import flow dialog.
  */
-export function GoodreadsImportSection() {
+export function GoodreadsImportSection({ open, onCloseInstructions }: GoodreadsImportSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const flow = useGoodreadsImportFlow();
 
@@ -21,27 +27,31 @@ export function GoodreadsImportSection() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file next time
-    if (file) void flow.start(file);
+    if (file) {
+      onCloseInstructions();
+      void flow.start(file);
+    }
   };
 
-  const dialogOpen = flow.phase !== 'idle';
+  const flowDialogOpen = flow.phase !== 'idle';
 
   return (
-    <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        Import from Goodreads
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Upload <code>goodreads_library_export.csv</code> (My Books &gt; Import and Export &gt;
-        Export Library, on goodreads.com — desktop only). Read, currently-reading and to-read
-        shelves all import as Book or Audiobook entries — re-running this later only imports
-        what's new.
-      </Typography>
-      <Stack direction="row" spacing={2}>
-        <Button variant="outlined" startIcon={<UploadOutlinedIcon />} onClick={handleChoose}>
-          Choose goodreads_library_export.csv
-        </Button>
-      </Stack>
+    <>
+      <ImportInstructionsDialog
+        open={open}
+        onClose={onCloseInstructions}
+        title="Import from Goodreads"
+        description={
+          <>
+            Upload <code>goodreads_library_export.csv</code> (My Books &gt; Import and Export
+            &gt; Export Library, on goodreads.com — desktop only). Read, currently-reading and
+            to-read shelves all import as Book or Audiobook entries — re-running this later only
+            imports what's new.
+          </>
+        }
+        buttonLabel="Choose CSV"
+        onChoose={handleChoose}
+      />
       <input
         ref={fileInputRef}
         type="file"
@@ -51,7 +61,7 @@ export function GoodreadsImportSection() {
       />
 
       <GoodreadsImportDialog
-        open={dialogOpen}
+        open={flowDialogOpen}
         phase={flow.phase}
         selectedStatuses={flow.selectedStatuses}
         emptyReason={flow.emptyReason}
@@ -65,6 +75,6 @@ export function GoodreadsImportSection() {
         onApply={() => void flow.applyAll()}
         onClose={flow.reset}
       />
-    </Box>
+    </>
   );
 }
