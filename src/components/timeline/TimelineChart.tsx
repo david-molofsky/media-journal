@@ -34,6 +34,13 @@ const MARKER_SIZE = 10;
 const LABEL_GAP = 8;
 const LABEL_LINE_HEIGHT = 14;
 const ROW_BOTTOM_PAD = 6;
+// Vertical space one stacked "line" occupies — its marker/bar plus its
+// label — and the gap before the next stacked line below it. When a
+// label gets bumped to a lower line to avoid colliding with a
+// neighbour, its marker/bar moves down with it (see chat: moving only
+// the text left it visually detached from its own dot).
+const LINE_UNIT_HEIGHT = BAR_HEIGHT + LABEL_GAP + LABEL_LINE_HEIGHT;
+const UNIT_GAP = 6;
 const MIN_BAR_WIDTH = 6;
 const AXIS_HEIGHT = 24;
 // Rough average glyph width at the 10px caption size used for bar/label
@@ -179,17 +186,19 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
     lineCountByRow.set(row, lineRightEdges.length);
   }
 
-  // Row heights are now variable — TOP_PAD + bar + however many
-  // stacked label lines that row's labels ended up needing — rather
-  // than every row reserving the same fixed amount whether or not it
-  // has a label at all.
+  // Row heights are now variable — TOP_PAD plus however many stacked
+  // marker+label units that row ended up needing — rather than every
+  // row reserving the same fixed amount whether or not it has a label
+  // at all.
   const rowTops: number[] = [];
   let rowCursor = AXIS_HEIGHT;
   for (let row = 0; row < rowCount; row++) {
     rowTops.push(rowCursor);
     const linesUsed = lineCountByRow.get(row) ?? 0;
     const rowHeight =
-      TOP_PAD + BAR_HEIGHT + (linesUsed > 0 ? LABEL_GAP + linesUsed * LABEL_LINE_HEIGHT : 0) + ROW_BOTTOM_PAD;
+      linesUsed > 0
+        ? TOP_PAD + linesUsed * LINE_UNIT_HEIGHT + (linesUsed - 1) * UNIT_GAP + ROW_BOTTOM_PAD
+        : TOP_PAD + BAR_HEIGHT + ROW_BOTTOM_PAD;
     rowCursor += rowHeight;
   }
   const chartHeight = rowCursor - AXIS_HEIGHT;
@@ -337,18 +346,21 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
         ))}
 
         {geometries.map(({ bar, left, width, fitsInside, labelAnchorX }) => {
-          const rowTop = (rowTops[bar.row] ?? AXIS_HEIGHT) + TOP_PAD;
+          const rowBase = rowTops[bar.row] ?? AXIS_HEIGHT;
           const colour = colourFor(bar.mediaType);
-          const showsLabel = bar.isMarker || !fitsInside;
-          const labelLine = showsLabel ? (labelLineByEntry.get(bar.entryId) ?? 0) : 0;
+          const line = labelLineByEntry.get(bar.entryId) ?? 0;
+          // The whole marker/bar + label unit moves down together when
+          // it's been bumped to a lower stacked line — not just the
+          // label — so a dot and its title stay visually paired (see
+          // chat: moving only the text left it floating away from its
+          // own dot).
+          const rowTop = rowBase + TOP_PAD + line * (LINE_UNIT_HEIGHT + UNIT_GAP);
 
           // Below-label centers on the anchor point (marker center, or
           // bar center) with a slight rightward bias rather than
           // perfect symmetric centering or the old left-flush start —
           // reads more naturally under a dot or a bar too narrow for
-          // its own title. Stacks onto whichever line the collision
-          // pass above assigned it, so two labels that would overlap
-          // horizontally land on different lines instead (see chat).
+          // its own title.
           const belowLabel = (
             <Typography
               variant="caption"
@@ -356,7 +368,7 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
               sx={{
                 position: 'absolute',
                 left: labelAnchorX,
-                top: rowTop + BAR_HEIGHT + LABEL_GAP + labelLine * LABEL_LINE_HEIGHT,
+                top: rowTop + BAR_HEIGHT + LABEL_GAP,
                 fontSize: 10,
                 whiteSpace: 'nowrap',
                 lineHeight: 1.2,
