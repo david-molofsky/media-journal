@@ -73,6 +73,26 @@ export interface ImportResult {
 }
 
 /**
+ * Settings that must never be applied from an imported file, even
+ * though `exportLibrary` includes them in the backup for completeness.
+ * These describe *this device's* local behaviour rather than library
+ * data, so re-applying them from someone else's export (or your own
+ * from a different device) would silently change device-specific
+ * configuration without the user's explicit action.
+ *
+ * `autoBackupEnabled` / `lastAutoBackupAt`: if the exporting device had
+ * automatic daily backup switched on, importing that file elsewhere
+ * must not switch it on there too — that toggle is only ever meant to
+ * be set via its own confirmation dialog (Settings > Google Drive),
+ * and enabling it on more than one device causes backups to overwrite
+ * each other unpredictably.
+ */
+const DEVICE_LOCAL_SETTINGS_KEYS: readonly SettingsKey[] = [
+  SETTINGS_KEYS.autoBackupEnabled,
+  SETTINGS_KEYS.lastAutoBackupAt,
+];
+
+/**
  * Validates and imports a previously exported JSON payload (PRD
  * section 5: "Import a previously exported JSON file"). IDs are
  * preserved via `bulkPut`, so re-importing the same file is
@@ -110,6 +130,7 @@ export async function importLibrary(raw: unknown): Promise<ImportResult> {
     const knownKeys = Object.values(SETTINGS_KEYS) as SettingsKey[];
     const updates = knownKeys
       .filter((key) => key in (file.data.settings ?? {}))
+      .filter((key) => !DEVICE_LOCAL_SETTINGS_KEYS.includes(key))
       .map((key) => ({ key, value: file.data.settings![key] }));
     if (updates.length > 0) {
       await db.appSettings.bulkPut(updates);
