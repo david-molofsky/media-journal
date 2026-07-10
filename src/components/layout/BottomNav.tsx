@@ -15,8 +15,7 @@ export function BottomNav() {
   const { pathname } = useLocation();
 
   const activeIndex = useMemo(() => {
-    const index = navItems.findIndex((item) => pathname.startsWith(item.path));
-    return index === -1 ? 0 : index;
+    return navItems.findIndex((item) => pathname.startsWith(item.path));
   }, [pathname]);
 
   return (

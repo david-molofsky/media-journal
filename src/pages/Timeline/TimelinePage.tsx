@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ToggleButton from '@mui/material/ToggleButton';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTimelineEntries } from '@/hooks/useTimelineEntries';
 import { packTimelineBars } from '@/utils/timelinePacking';
@@ -14,14 +12,14 @@ import { TimelineChart } from '@/components/timeline/TimelineChart';
 import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { ROUTES, editEntryPath } from '@/routes/paths';
+import { editEntryPath } from '@/routes/paths';
 import { TIMELINE_ZOOM_ORDER, TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } from '@/utils/timelineZoom';
 
 /**
  * Timeline — horizontally-scrollable Gantt-style view of everything
- * completed, showing how different media overlapped in time. Reached
- * via a link from Statistics rather than the bottom nav, which is
- * already at its five-item limit.
+ * completed, showing how different media overlapped in time. A
+ * primary bottom-nav tab (see chat — it replaced Settings there, which
+ * remains reachable via AppHeader's gear icon on every page).
  */
 export default function TimelinePage() {
   const navigate = useNavigate();
@@ -66,14 +64,9 @@ export default function TimelinePage() {
 
   return (
     <Box sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton aria-label="Back to Statistics" onClick={() => navigate(ROUTES.statistics)}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" component="h1" fontWeight={600}>
-          Timeline
-        </Typography>
-      </Stack>
+      <Typography variant="h6" component="h1" fontWeight={600} sx={{ mb: 2 }}>
+        Timeline
+      </Typography>
 
       {entries.length === 0 ? (
         <PagePlaceholder

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -102,15 +100,6 @@ export default function StatisticsPage() {
           </Typography>
           <YearSelector year={year} years={availableYears} onChange={setYear} />
         </Stack>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ViewTimelineOutlinedIcon />}
-          onClick={() => navigate(ROUTES.timeline)}
-          sx={{ mb: 3 }}
-        >
-          View Timeline
-        </Button>
         <PagePlaceholder
           title="Statistics will appear after you've added some media"
           description="Come back here once you've logged a few entries for this year."
@@ -132,16 +121,6 @@ export default function StatisticsPage() {
         </Typography>
         <YearSelector year={year} years={availableYears} onChange={setYear} />
       </Stack>
-
-      <Button
-        variant="outlined"
-        size="small"
-        startIcon={<ViewTimelineOutlinedIcon />}
-        onClick={() => navigate(ROUTES.timeline)}
-        sx={{ mb: 3 }}
-      >
-        View Timeline
-      </Button>
 
       <Stack spacing={4}>
         <Box>
