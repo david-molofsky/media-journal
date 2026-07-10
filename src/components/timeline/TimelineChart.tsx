@@ -24,23 +24,24 @@ interface TimelineChartProps {
 // Row layout: bar/marker sits at the top of the row, its title renders
 // directly below in the same row rather than inside/beside the bar —
 // this keeps titles legible at any zoom level, including narrow bars
-// and single-day markers. Row height is now variable — see the label
-// line-packing pass below — expanding only for rows that actually need
-// stacked label lines, rather than every row reserving the same fixed
-// amount of space.
+// and single-day markers.
+//
+// Row height is FIXED — every row reserves exactly one label line's
+// worth of space, always, regardless of how many entries land in it or
+// whether their labels actually render. Entries that can't fit a label
+// without colliding with a neighbour simply don't show one (see the
+// collision pass below); they never push the row taller. This is
+// deliberate: a dense cluster of same-week entries must never inflate
+// one row's height, because that inflation cascades — it pushes every
+// row below it further down the page, which is what "the timeline
+// needs a finite bottom" turned out to actually be about (see chat).
 const TOP_PAD = 10;
 const BAR_HEIGHT = 20;
 const MARKER_SIZE = 10;
 const LABEL_GAP = 8;
 const LABEL_LINE_HEIGHT = 14;
 const ROW_BOTTOM_PAD = 6;
-// Vertical space one stacked "line" occupies — its marker/bar plus its
-// label — and the gap before the next stacked line below it. When a
-// label gets bumped to a lower line to avoid colliding with a
-// neighbour, its marker/bar moves down with it (see chat: moving only
-// the text left it visually detached from its own dot).
-const LINE_UNIT_HEIGHT = BAR_HEIGHT + LABEL_GAP + LABEL_LINE_HEIGHT;
-const UNIT_GAP = 6;
+const ROW_HEIGHT = TOP_PAD + BAR_HEIGHT + LABEL_GAP + LABEL_LINE_HEIGHT + ROW_BOTTOM_PAD;
 const MIN_BAR_WIDTH = 6;
 const AXIS_HEIGHT = 24;
 // Rough average glyph width at the 10px caption size used for bar/label
@@ -52,12 +53,27 @@ const CHAR_WIDTH_ESTIMATE = 5.5;
 const INSIDE_LABEL_PADDING = 8;
 const IN_PROGRESS_ARROW_SIZE = 14;
 // Minimum horizontal gap enforced between two below-bar labels before
-// one gets bumped to a stacked line beneath the other.
+// the later one is hidden rather than shown (see chat: stacking a
+// second line was the old behaviour and is exactly what inflated row
+// height; hiding it and relying on tap/hover-to-reveal is the fix).
 const LABEL_COLLISION_GAP = 6;
-// Visible viewport caps at this many rows before scrolling vertically,
-// so a single busy stretch of overlapping history (which sets the row
-// count for the *entire* chart width) doesn't blow the page out with
-// empty space everywhere else. Adjust after checking against real data.
+// Labels (below-bar and inline-fit alike) only render once there's
+// genuinely enough horizontal room per day — i.e. Week and Month zoom.
+// At Quarter/Year, density is naturally highest, so labels drop out
+// entirely in favour of colour + tap/hover-to-reveal (see chat: "mix
+// between" fixed height and zoom-based labels). Tied to the continuous
+// pixels-per-day value (not the discrete zoom prop) so pinch/wheel zoom
+// crosses this threshold smoothly, the same way gridline granularity
+// already does via DAY_GRIDLINE_THRESHOLD.
+const LABEL_VISIBILITY_PPD_THRESHOLD = TIMELINE_ZOOM_LEVELS.month.pixelsPerDay;
+// How long a touch must be held before it's treated as "reveal the
+// title" rather than "open the entry" — long enough to not misfire on
+// an ordinary tap, short enough to not feel unresponsive.
+const LONG_PRESS_MS = 450;
+// Visible viewport caps at this many rows before scrolling vertically —
+// now a simple safety net for genuinely large numbers of truly
+// concurrent entries (row height no longer varies, so this triggers far
+// less often than it used to).
 const MAX_VISIBLE_ROWS = 6;
 
 /**
@@ -81,13 +97,49 @@ const MAX_VISIBLE_ROWS = 6;
  * between MIN/MAX_PIXELS_PER_DAY. Picking a preset re-anchors `ppd`
  * back to that preset's value.
  */
-export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineChartProps) {
+export function TimelineChart({
+  bars,
+  zoom,
+  mediaTypes,
+  onOpenEntry,
+}: TimelineChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [ppd, setPpd] = useState<number>(TIMELINE_ZOOM_LEVELS[zoom].pixelsPerDay);
   const ppdRef = useRef(ppd);
   const pinchRef = useRef<{ startDist: number; startPpd: number } | null>(null);
   const anchorRef = useRef<{ dayIndex: number; clientX: number } | null>(null);
   const scrollToTodayRef = useRef(true);
+
+  // Reveal strip — shows a hidden or hovered/long-pressed title above
+  // the chart, and stays until another entry is hovered/long-pressed
+  // (see chat). Tapping an entry still opens it as before; long-press
+  // (touch) or hover (pointer) is purely additive and never navigates.
+  const [revealedTitle, setRevealedTitle] = useState<string | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
+
+  const startLongPress = (title: string) => {
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressFiredRef.current = true;
+      setRevealedTitle(title);
+    }, LONG_PRESS_MS);
+  };
+  const cancelLongPress = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+  const handleEntryClick = (bar: TimelineBar) => {
+    // A completed long-press already revealed the title — swallow the
+    // click that follows touchend rather than also navigating away.
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+    onOpenEntry(bar.entryId);
+  };
 
   useEffect(() => {
     ppdRef.current = ppd;
@@ -120,7 +172,8 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
   const epoch = earliestStart.startOf('month');
   const totalDays = Math.max(today.diff(epoch, 'day') + 1, 1);
   const totalWidth = totalDays * pixelsPerDay;
-  const dayOffset = (date: dayjs.Dayjs) => date.startOf('day').diff(epoch, 'day') * pixelsPerDay;
+  const dayOffset = (date: dayjs.Dayjs) =>
+    date.startOf('day').diff(epoch, 'day') * pixelsPerDay;
 
   const colourFor = (mediaTypeId: string) =>
     mediaTypes.find((mt) => mt.id === mediaTypeId)?.colour ?? '#9E9E9E';
@@ -154,14 +207,14 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
   // doesn't overlap (packTimelineBars already guarantees that within a
   // row) can still have overlapping *labels*, since a label is often
   // wider than what it's attached to — a marker's dot is 10px but its
-  // title might be 80px. Pack each row's below-bar labels into stacked
-  // lines with the same greedy interval approach packTimelineBars uses
-  // for bars themselves, just horizontal-pixel-space instead of dates
-  // (see chat: titles were still colliding after the first below-bar
-  // pass, this is what moves the losing label down a line).
+  // title might be 80px. Rather than stacking the loser onto a second
+  // line (the old behaviour, and the source of the row-inflation bug —
+  // see chat), the loser's label is hidden outright; its bar/marker
+  // still renders and is still tappable to open, or long-press/hover to
+  // reveal its title in the strip above the chart. Row height is fixed
+  // regardless of how many entries collide in it.
   const rowCount = bars.reduce((max, bar) => Math.max(max, bar.row + 1), 1);
-  const labelLineByEntry = new Map<string, number>();
-  const lineCountByRow = new Map<number, number>();
+  const labelVisibleByEntry = new Map<string, boolean>();
   for (let row = 0; row < rowCount; row++) {
     const itemsInRow = geometries
       .filter((g) => g.bar.row === row && (g.bar.isMarker || !g.fitsInside))
@@ -172,36 +225,25 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
       }))
       .sort((a, b) => a.left - b.left);
 
-    const lineRightEdges: number[] = [];
+    let lastRight = -Infinity;
     for (const item of itemsInRow) {
-      let line = lineRightEdges.findIndex((right) => right + LABEL_COLLISION_GAP <= item.left);
-      if (line === -1) {
-        line = lineRightEdges.length;
-        lineRightEdges.push(item.right);
-      } else {
-        lineRightEdges[line] = item.right;
-      }
-      labelLineByEntry.set(item.entryId, line);
+      const fits = item.left >= lastRight + LABEL_COLLISION_GAP;
+      labelVisibleByEntry.set(item.entryId, fits);
+      if (fits) lastRight = item.right;
     }
-    lineCountByRow.set(row, lineRightEdges.length);
   }
 
-  // Row heights are now variable — TOP_PAD plus however many stacked
-  // marker+label units that row ended up needing — rather than every
-  // row reserving the same fixed amount whether or not it has a label
-  // at all.
-  const rowTops: number[] = [];
-  let rowCursor = AXIS_HEIGHT;
-  for (let row = 0; row < rowCount; row++) {
-    rowTops.push(rowCursor);
-    const linesUsed = lineCountByRow.get(row) ?? 0;
-    const rowHeight =
-      linesUsed > 0
-        ? TOP_PAD + linesUsed * LINE_UNIT_HEIGHT + (linesUsed - 1) * UNIT_GAP + ROW_BOTTOM_PAD
-        : TOP_PAD + BAR_HEIGHT + ROW_BOTTOM_PAD;
-    rowCursor += rowHeight;
-  }
-  const chartHeight = rowCursor - AXIS_HEIGHT;
+  // Labels only render at Week/Month zoom density — see
+  // LABEL_VISIBILITY_PPD_THRESHOLD above.
+  const labelsAllowedAtZoom = pixelsPerDay >= LABEL_VISIBILITY_PPD_THRESHOLD;
+
+  // Row tops are now a simple fixed progression — no per-row variation
+  // to accumulate.
+  const rowTops: number[] = Array.from(
+    { length: rowCount },
+    (_, row) => AXIS_HEIGHT + row * ROW_HEIGHT,
+  );
+  const chartHeight = rowCount * ROW_HEIGHT;
 
   // Gridlines: one per day (Week zoom) or one per month-start
   // (everything else). Not virtualized — fine at personal-library
@@ -210,11 +252,19 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
   // much larger shared library down the line.
   const gridlines: { offset: number; label: string }[] = [];
   if (gridline === 'day') {
-    for (let d = epoch; d.isBefore(today) || d.isSame(today, 'day'); d = d.add(1, 'day')) {
+    for (
+      let d = epoch;
+      d.isBefore(today) || d.isSame(today, 'day');
+      d = d.add(1, 'day')
+    ) {
       gridlines.push({ offset: dayOffset(d), label: d.format('ddd D') });
     }
   } else {
-    for (let m = epoch; m.isBefore(today) || m.isSame(today, 'month'); m = m.add(1, 'month')) {
+    for (
+      let m = epoch;
+      m.isBefore(today) || m.isSame(today, 'month');
+      m = m.add(1, 'month')
+    ) {
       gridlines.push({ offset: dayOffset(m), label: m.format('MMM YYYY') });
     }
   }
@@ -243,8 +293,10 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
     const el = scrollRef.current;
     if (!el) return;
 
-    const clamp = (value: number) => Math.min(MAX_PIXELS_PER_DAY, Math.max(MIN_PIXELS_PER_DAY, value));
-    const distance = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const clamp = (value: number) =>
+      Math.min(MAX_PIXELS_PER_DAY, Math.max(MIN_PIXELS_PER_DAY, value));
+    const distance = (a: Touch, b: Touch) =>
+      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 2) return;
@@ -263,7 +315,10 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
       const nextPpd = clamp(pinchRef.current.startPpd * ratio);
       const rect = el.getBoundingClientRect();
       const midX = (t0.clientX + t1.clientX) / 2 - rect.left;
-      anchorRef.current = { dayIndex: (el.scrollLeft + midX) / ppdRef.current, clientX: midX };
+      anchorRef.current = {
+        dayIndex: (el.scrollLeft + midX) / ppdRef.current,
+        clientX: midX,
+      };
       setPpd(nextPpd);
     };
 
@@ -278,7 +333,10 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
       const clientX = e.clientX - rect.left;
       const factor = Math.exp(-e.deltaY * 0.01);
       const nextPpd = clamp(ppdRef.current * factor);
-      anchorRef.current = { dayIndex: (el.scrollLeft + clientX) / ppdRef.current, clientX };
+      anchorRef.current = {
+        dayIndex: (el.scrollLeft + clientX) / ppdRef.current,
+        clientX,
+      };
       setPpd(nextPpd);
     };
 
@@ -302,156 +360,194 @@ export function TimelineChart({ bars, zoom, mediaTypes, onOpenEntry }: TimelineC
     anchorRef.current = null;
   }, [ppd]);
 
-  // Cap the visible viewport at the actual height of the first
-  // MAX_VISIBLE_ROWS rows (now variable per row) rather than a fixed
-  // multiple, so the cap tracks however much label-stacking those rows
-  // actually ended up needing.
+  // Cap the visible viewport at MAX_VISIBLE_ROWS worth of fixed-height
+  // rows before scrolling vertically kicks in.
   const visibleRowCount = Math.min(MAX_VISIBLE_ROWS, rowCount);
-  const maxVisibleHeight = visibleRowCount < rowCount ? (rowTops[visibleRowCount] ?? chartHeight + AXIS_HEIGHT) : chartHeight + AXIS_HEIGHT;
+  const maxVisibleHeight =
+    visibleRowCount < rowCount
+      ? (rowTops[visibleRowCount] ?? chartHeight + AXIS_HEIGHT)
+      : chartHeight + AXIS_HEIGHT;
 
   return (
-    <Box
-      ref={scrollRef}
-      sx={{
-        overflowX: 'auto',
-        overflowY: 'auto',
-        maxHeight: maxVisibleHeight,
-        borderRadius: 2,
-        border: '1px solid',
-        borderColor: 'divider',
-        touchAction: 'pan-x pan-y',
-      }}
-    >
-      <Box sx={{ position: 'relative', width: totalWidth, height: chartHeight + AXIS_HEIGHT }}>
-        {gridlines.map(({ offset, label }) => (
-          <Box key={offset} sx={{ position: 'absolute', left: offset, top: 0, height: '100%' }}>
+    <Box>
+      <Typography
+        variant="caption"
+        sx={{
+          display: 'block',
+          minHeight: 20,
+          mb: 0.5,
+          fontWeight: 500,
+          color: revealedTitle ? 'text.primary' : 'text.secondary',
+        }}
+      >
+        {revealedTitle ?? 'Long-press or hover an entry to see its title'}
+      </Typography>
+      <Box
+        ref={scrollRef}
+        sx={{
+          overflowX: 'auto',
+          overflowY: 'auto',
+          maxHeight: maxVisibleHeight,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          touchAction: 'pan-x pan-y',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'relative',
+            width: totalWidth,
+            height: chartHeight + AXIS_HEIGHT,
+          }}
+        >
+          {gridlines.map(({ offset, label }) => (
             <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: 0,
-                width: '1px',
-                bgcolor: 'divider',
-              }}
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ position: 'absolute', top: 2, left: 4, whiteSpace: 'nowrap', fontSize: 10 }}
+              key={offset}
+              sx={{ position: 'absolute', left: offset, top: 0, height: '100%' }}
             >
-              {label}
-            </Typography>
-          </Box>
-        ))}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  width: '1px',
+                  bgcolor: 'divider',
+                }}
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  position: 'absolute',
+                  top: 2,
+                  left: 4,
+                  whiteSpace: 'nowrap',
+                  fontSize: 10,
+                }}
+              >
+                {label}
+              </Typography>
+            </Box>
+          ))}
 
-        {geometries.map(({ bar, left, width, fitsInside, labelAnchorX }) => {
-          const rowBase = rowTops[bar.row] ?? AXIS_HEIGHT;
-          const colour = colourFor(bar.mediaType);
-          const line = labelLineByEntry.get(bar.entryId) ?? 0;
-          // The whole marker/bar + label unit moves down together when
-          // it's been bumped to a lower stacked line — not just the
-          // label — so a dot and its title stay visually paired (see
-          // chat: moving only the text left it floating away from its
-          // own dot).
-          const rowTop = rowBase + TOP_PAD + line * (LINE_UNIT_HEIGHT + UNIT_GAP);
+          {geometries.map(({ bar, left, width, fitsInside, labelAnchorX }) => {
+            // Row position is now a fixed lookup — no per-entry vertical
+            // adjustment, since row height no longer varies.
+            const rowTop = (rowTops[bar.row] ?? AXIS_HEIGHT) + TOP_PAD;
+            const colour = colourFor(bar.mediaType);
+            const showBelowLabel =
+              labelsAllowedAtZoom &&
+              (bar.isMarker || !fitsInside) &&
+              (labelVisibleByEntry.get(bar.entryId) ?? true);
+            const showInlineLabel = labelsAllowedAtZoom && fitsInside;
 
-          // Below-label centers on the anchor point (marker center, or
-          // bar center) with a slight rightward bias rather than
-          // perfect symmetric centering or the old left-flush start —
-          // reads more naturally under a dot or a bar too narrow for
-          // its own title.
-          const belowLabel = (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                position: 'absolute',
-                left: labelAnchorX,
-                top: rowTop + BAR_HEIGHT + LABEL_GAP,
-                fontSize: 10,
-                whiteSpace: 'nowrap',
-                lineHeight: 1.2,
-                transform: 'translateX(-35%)',
-              }}
-            >
-              {bar.title}
-            </Typography>
-          );
+            const pressHandlers = {
+              onMouseEnter: () => setRevealedTitle(bar.title),
+              onTouchStart: () => startLongPress(bar.title),
+              onTouchEnd: cancelLongPress,
+              onTouchMove: cancelLongPress,
+              onClick: () => handleEntryClick(bar),
+            };
 
-          if (bar.isMarker) {
+            // Below-label centers on the anchor point (marker center, or
+            // bar center) with a slight rightward bias rather than
+            // perfect symmetric centering or a left-flush start — reads
+            // more naturally under a dot or a bar too narrow for its own
+            // title.
+            const belowLabel = showBelowLabel && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  position: 'absolute',
+                  left: labelAnchorX,
+                  top: rowTop + BAR_HEIGHT + LABEL_GAP,
+                  fontSize: 10,
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.2,
+                  transform: 'translateX(-35%)',
+                }}
+              >
+                {bar.title}
+              </Typography>
+            );
+
+            if (bar.isMarker) {
+              return (
+                <Box key={bar.entryId}>
+                  <ButtonBase
+                    {...pressHandlers}
+                    aria-label={bar.title}
+                    sx={{
+                      position: 'absolute',
+                      left: left - MARKER_SIZE / 2,
+                      top: rowTop + (BAR_HEIGHT - MARKER_SIZE) / 2,
+                      width: MARKER_SIZE,
+                      height: MARKER_SIZE,
+                      borderRadius: '50%',
+                      bgcolor: colour,
+                    }}
+                  />
+                  {belowLabel}
+                </Box>
+              );
+            }
+
             return (
               <Box key={bar.entryId}>
                 <ButtonBase
-                  onClick={() => onOpenEntry(bar.entryId)}
+                  {...pressHandlers}
                   aria-label={bar.title}
                   sx={{
                     position: 'absolute',
-                    left: left - MARKER_SIZE / 2,
-                    top: rowTop + (BAR_HEIGHT - MARKER_SIZE) / 2,
-                    width: MARKER_SIZE,
-                    height: MARKER_SIZE,
-                    borderRadius: '50%',
-                    bgcolor: colour,
+                    left,
+                    top: rowTop,
+                    width,
+                    height: BAR_HEIGHT,
+                    bgcolor: bar.isInProgress ? undefined : colour,
+                    background: bar.isInProgress
+                      ? `linear-gradient(to right, ${colour} 0%, ${colour} 70%, ${colour}00 100%)`
+                      : undefined,
+                    borderRadius: bar.isInProgress ? '4px 0 0 4px' : '4px',
+                    overflow: 'hidden',
+                    px: fitsInside ? 0.5 : 0,
                   }}
-                />
-                {belowLabel}
+                >
+                  {showInlineLabel && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: '#fff',
+                        fontSize: 10,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        width: '100%',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {bar.title}
+                    </Typography>
+                  )}
+                </ButtonBase>
+                {bar.isInProgress && (
+                  <ArrowForwardIcon
+                    sx={{
+                      position: 'absolute',
+                      left: left + width + 2,
+                      top: rowTop + (BAR_HEIGHT - IN_PROGRESS_ARROW_SIZE) / 2,
+                      fontSize: IN_PROGRESS_ARROW_SIZE,
+                      color: colour,
+                    }}
+                  />
+                )}
+                {!fitsInside && belowLabel}
               </Box>
             );
-          }
-
-          return (
-            <Box key={bar.entryId}>
-              <ButtonBase
-                onClick={() => onOpenEntry(bar.entryId)}
-                aria-label={bar.title}
-                sx={{
-                  position: 'absolute',
-                  left,
-                  top: rowTop,
-                  width,
-                  height: BAR_HEIGHT,
-                  bgcolor: bar.isInProgress ? undefined : colour,
-                  background: bar.isInProgress
-                    ? `linear-gradient(to right, ${colour} 0%, ${colour} 70%, ${colour}00 100%)`
-                    : undefined,
-                  borderRadius: bar.isInProgress ? '4px 0 0 4px' : '4px',
-                  overflow: 'hidden',
-                  px: fitsInside ? 0.5 : 0,
-                }}
-              >
-                {fitsInside && (
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: '#fff',
-                      fontSize: 10,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      width: '100%',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {bar.title}
-                  </Typography>
-                )}
-              </ButtonBase>
-              {bar.isInProgress && (
-                <ArrowForwardIcon
-                  sx={{
-                    position: 'absolute',
-                    left: left + width + 2,
-                    top: rowTop + (BAR_HEIGHT - IN_PROGRESS_ARROW_SIZE) / 2,
-                    fontSize: IN_PROGRESS_ARROW_SIZE,
-                    color: colour,
-                  }}
-                />
-              )}
-              {!fitsInside && belowLabel}
-            </Box>
-          );
-        })}
+          })}
+        </Box>
       </Box>
     </Box>
   );
