@@ -19,7 +19,7 @@ export interface DashboardData {
   longestStreak: number;
 }
 
-export function useDashboardData(year: number): DashboardData | undefined {
+export function useDashboardData(year: number | null): DashboardData | undefined {
   return useLiveQuery(async () => {
     const [summary, monthlyBreakdown, ratingDistribution, recentEntries, currentStreak, longestStreak] =
       await Promise.all([

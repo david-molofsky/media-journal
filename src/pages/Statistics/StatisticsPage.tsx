@@ -79,7 +79,7 @@ export default function StatisticsPage() {
   const navigate = useNavigate();
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
-  const [year, setYear] = useState(() => dayjs().year());
+  const [year, setYear] = useState<number | null>(() => dayjs().year());
 
   const data = useStatisticsData(year);
 
@@ -102,7 +102,7 @@ export default function StatisticsPage() {
         </Stack>
         <PagePlaceholder
           title="Statistics will appear after you've added some media"
-          description="Come back here once you've logged a few entries for this year."
+          description="Come back here once you've logged a few entries."
         />
       </Box>
     );
@@ -164,7 +164,7 @@ export default function StatisticsPage() {
               </Typography>
               <MonthlyActivityChart
                 monthlyBreakdown={data.monthlyBreakdown}
-                onSelectMonth={(month) => goToLibrary({ year, month })}
+                onSelectMonth={(month) => goToLibrary(year === null ? { month } : { year, month })}
               />
             </Box>
             <Box>
@@ -232,7 +232,7 @@ export default function StatisticsPage() {
               {Object.keys(data.topGenresByCount).length > 0 && (
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Top genres this year
+                    {year === null ? 'Top genres overall' : 'Top genres this year'}
                   </Typography>
                   <GenreBarChart
                     topGenresByCount={data.topGenresByCount}
@@ -271,7 +271,7 @@ export default function StatisticsPage() {
               {Object.keys(data.topSourcesByCount).length > 0 && (
                 <Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    This year, by source
+                    {year === null ? 'Overall, by source' : 'This year, by source'}
                   </Typography>
                   <Stack spacing={1.5}>
                     {mergedSourceGroups(data.topSourcesByCount, data.averageRatingBySource, mediaTypeById).map((group) => (

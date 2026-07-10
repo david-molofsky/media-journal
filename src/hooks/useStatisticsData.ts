@@ -48,7 +48,7 @@ export interface StatisticsData {
 
 /** Combines every statistics service call the Statistics screen needs
  * (Database Schema & Data Model, section 9) into one reactive query. */
-export function useStatisticsData(year: number): StatisticsData | undefined {
+export function useStatisticsData(year: number | null): StatisticsData | undefined {
   return useLiveQuery(async () => {
     const [
       summary,

@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
-  const [year, setYear] = useState(() => dayjs().year());
+  const [year, setYear] = useState<number | null>(() => dayjs().year());
   const data = useDashboardData(year);
   const [hasSeenWelcome, setHasSeenWelcome] = useBooleanSetting(SETTINGS_KEYS.hasSeenWelcome, false);
 
@@ -90,17 +90,19 @@ export default function DashboardPage() {
                     mediaType={mediaType}
                     count={count}
                     percentOfYear={percentOfYear}
-                    onClick={() => goToLibrary({ year, mediaType: mediaType.id })}
+                    onClick={() =>
+                      goToLibrary(
+                        year === null ? { mediaType: mediaType.id } : { year, mediaType: mediaType.id },
+                      )
+                    }
                   />
                 );
               })}
             </Box>
 
-            <GoalsSection
-              year={year}
-              mediaTypes={mediaTypes}
-              totalsByMediaType={data.totalsByMediaType}
-            />
+            {year !== null && (
+              <GoalsSection year={year} mediaTypes={mediaTypes} totalsByMediaType={data.totalsByMediaType} />
+            )}
 
             <Box>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -108,7 +110,7 @@ export default function DashboardPage() {
               </Typography>
               <MonthlyActivityChart
                 monthlyBreakdown={data.monthlyBreakdown}
-                onSelectMonth={(month) => goToLibrary({ year, month })}
+                onSelectMonth={(month) => goToLibrary(year === null ? { month } : { year, month })}
               />
             </Box>
 

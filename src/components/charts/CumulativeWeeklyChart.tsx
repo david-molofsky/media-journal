@@ -13,7 +13,10 @@ import dayjs from 'dayjs';
 
 interface CumulativeWeeklyChartProps {
   weeklyTotals: Record<number, number>;
-  year: number;
+  /** `null` means All — every week 1–53 renders complete, since
+   * there's no "future" to truncate when this isn't one specific
+   * calendar year in progress. */
+  year: number | null;
 }
 
 /**
@@ -22,7 +25,9 @@ interface CumulativeWeeklyChartProps {
  * chart in the Statistics Trends section — the bar chart answers
  * "how much did I consume each week?", this answers "where am I for
  * the year overall?". For the current year, data points after the
- * current week are omitted so the line doesn't flatline at zero.
+ * current week are omitted so the line doesn't flatline at zero; for
+ * All, every week renders (weeklyTotals is already aggregated by
+ * week-of-year across every year — see getWeeklyTotals).
  */
 export function CumulativeWeeklyChart({ weeklyTotals, year }: CumulativeWeeklyChartProps) {
   const theme = useTheme();

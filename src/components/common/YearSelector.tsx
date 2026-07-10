@@ -3,21 +3,33 @@ import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 
 interface YearSelectorProps {
-  year: number;
+  /** `null` means "All" — every year combined. */
+  year: number | null;
   years: number[];
-  onChange: (year: number) => void;
+  onChange: (year: number | null) => void;
 }
 
-/** Year selector used by both the Dashboard header (UI & UX
- * Specification, section 4) and the Statistics screen. Always
+/** Sentinel used only as the underlying MUI Select value — never
+ * leaves this component (the public API speaks `number | null`). */
+const ALL_VALUE = 'all';
+
+/** Year selector used by both the Dashboard header and the Statistics
+ * screen, including an "All" option for all-time totals. Always
  * includes the currently-selected year even if it has no entries yet,
  * so a freshly-created year stays selectable. */
 export function YearSelector({ year, years, onChange }: YearSelectorProps) {
-  const options = years.includes(year) ? years : [year, ...years].sort((a, b) => b - a);
+  const options = year !== null && !years.includes(year) ? [year, ...years].sort((a, b) => b - a) : years;
 
   return (
     <FormControl size="small">
-      <Select value={year} onChange={(event) => onChange(Number(event.target.value))}>
+      <Select
+        value={year === null ? ALL_VALUE : year}
+        onChange={(event) => {
+          const raw = event.target.value;
+          onChange(raw === ALL_VALUE ? null : Number(raw));
+        }}
+      >
+        <MenuItem value={ALL_VALUE}>All</MenuItem>
         {options.map((option) => (
           <MenuItem key={option} value={option}>
             {option}

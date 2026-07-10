@@ -23,12 +23,17 @@ import { comicIssueCount } from '@/utils/comicIssues';
  * Statistics screen design in Milestone 6, rather than guessed at here.
  */
 
-async function entriesForYear(year: number): Promise<MediaEntry[]> {
-  return db.mediaEntries
-    .where('completedYear')
-    .equals(year)
-    .filter((entry) => !entry.status || entry.status === 'completed')
-    .toArray();
+/** `year === null` means "All" (every completed entry, no year
+ * filter) — a full-table scan rather than the indexed `completedYear`
+ * lookup, which is fine at personal-library scale and keeps this one
+ * function as the single place every statistic routes through
+ * regardless of scope (see chat). */
+async function entriesForYear(year: number | null): Promise<MediaEntry[]> {
+  const entries =
+    year === null
+      ? await db.mediaEntries.toArray()
+      : await db.mediaEntries.where('completedYear').equals(year).toArray();
+  return entries.filter((entry) => !entry.status || entry.status === 'completed');
 }
 
 /** Reads the TV tracking mode from the database (not reactive — used
@@ -74,12 +79,12 @@ function getEntryWeight(entry: MediaEntry, tvMode: TvTrackingMode): number {
 }
 
 export interface YearSummary {
-  year: number;
+  year: number | null;
   totalEntries: number;
   totalsByMediaType: Record<string, number>;
 }
 
-export async function getYearSummary(year: number): Promise<YearSummary> {
+export async function getYearSummary(year: number | null): Promise<YearSummary> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const totalsByMediaType: Record<string, number> = {};
   let totalEntries = 0;
@@ -94,7 +99,7 @@ export async function getYearSummary(year: number): Promise<YearSummary> {
 /** Entry counts for each calendar month (1–12) within `year`, weighted
  * by `getEntryWeight` so a multi-issue comic entry contributes its
  * full issue count rather than one. */
-export async function getMonthlyBreakdown(year: number): Promise<Record<number, number>> {
+export async function getMonthlyBreakdown(year: number | null): Promise<Record<number, number>> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const breakdown: Record<number, number> = {};
   for (let month = 1; month <= 12; month += 1) {
@@ -108,7 +113,7 @@ export async function getMonthlyBreakdown(year: number): Promise<Record<number, 
 }
 
 /** Entry counts grouped by media type within `year`. */
-export async function getMediaTypeTotals(year: number): Promise<Record<string, number>> {
+export async function getMediaTypeTotals(year: number | null): Promise<Record<string, number>> {
   const summary = await getYearSummary(year);
   return summary.totalsByMediaType;
 }
@@ -132,7 +137,7 @@ function sourceOf(entry: MediaEntry): string | undefined {
  * not bucketed under an "Unknown" label — Source is optional, so most
  * historical entries won't have one, and lumping them together
  * wouldn't be meaningful. */
-export async function getTopSourcesByCount(year: number): Promise<Record<string, Record<string, number>>> {
+export async function getTopSourcesByCount(year: number | null): Promise<Record<string, Record<string, number>>> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const totals: Record<string, Record<string, number>> = {};
   for (const entry of entries) {
@@ -171,7 +176,7 @@ export async function getWishlistSourceTotals(): Promise<Record<string, Record<s
  * `getAverageRatingByMediaType` exactly, grouped by Source within each
  * media type instead. Grouped by media type for the same reason as
  * `getTopSourcesByCount` above. */
-export async function getAverageRatingBySource(year: number): Promise<Record<string, Record<string, number>>> {
+export async function getAverageRatingBySource(year: number | null): Promise<Record<string, Record<string, number>>> {
   const entries = (await entriesForYear(year)).filter((entry) => entry.rating !== undefined);
   const sums: Record<string, Record<string, { total: number; count: number }>> = {};
   for (const entry of entries) {
@@ -201,7 +206,7 @@ export async function getAverageRatingBySource(year: number): Promise<Record<str
  * genres; each one it has gets the entry's full weight, same as how
  * Tags work — this is a "how much did I consume tagged X" count, not
  * a mutually-exclusive breakdown. */
-export async function getTopGenresByCount(year: number): Promise<Record<string, number>> {
+export async function getTopGenresByCount(year: number | null): Promise<Record<string, number>> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   const totals: Record<string, number> = {};
   for (const entry of entries) {
@@ -216,7 +221,7 @@ export async function getTopGenresByCount(year: number): Promise<Record<string, 
 /** Average rating per Genre within `year`, ignoring unrated entries.
  * Flat, for the same reason as `getTopGenresByCount`. An entry with
  * multiple genres contributes its rating to each genre's average. */
-export async function getAverageRatingByGenre(year: number): Promise<Record<string, number>> {
+export async function getAverageRatingByGenre(year: number | null): Promise<Record<string, number>> {
   const entries = (await entriesForYear(year)).filter((entry) => entry.rating !== undefined);
   const sums: Record<string, { total: number; count: number }> = {};
   for (const entry of entries) {
@@ -273,7 +278,7 @@ export interface TopGenreShareByMediaType {
  * empty breakdown.
  */
 export async function getTopGenreShareByMediaType(
-  year: number,
+  year: number | null,
 ): Promise<TopGenreShareByMediaType | null> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
   if (entries.length === 0) return null;
@@ -318,7 +323,7 @@ export async function getTopGenreShareByMediaType(
 /** Histogram of ratings (0–10 in 0.5 steps) within `year`, ignoring
  * unrated entries. */
 export async function getRatingDistribution(
-  year: number,
+  year: number | null,
 ): Promise<Record<number, number>> {
   const entries = await entriesForYear(year);
   const distribution: Record<number, number> = {};
@@ -331,7 +336,7 @@ export async function getRatingDistribution(
 
 /** Average rating within `year`, ignoring unrated entries. `null` if
  * no rated entries exist. */
-export async function getAverageRating(year: number): Promise<number | null> {
+export async function getAverageRating(year: number | null): Promise<number | null> {
   const entries = (await entriesForYear(year)).filter(
     (entry) => entry.rating !== undefined,
   );
@@ -343,7 +348,7 @@ export async function getAverageRating(year: number): Promise<number | null> {
 /** Average rating per media type within `year`, ignoring unrated
  * entries and media types with no rated entries. */
 export async function getAverageRatingByMediaType(
-  year: number,
+  year: number | null,
 ): Promise<Record<string, number>> {
   const entries = (await entriesForYear(year)).filter((entry) => entry.rating !== undefined);
   const sums: Record<string, { total: number; count: number }> = {};
@@ -360,15 +365,20 @@ export async function getAverageRatingByMediaType(
 
 /** Entry counts grouped by ISO-ish week (1–53) within `year`, weighted
  * by `getEntryWeight`. Weeks are simple 7-day buckets from 1 January
- * rather than true ISO weeks — close enough for the activity chart
- * this powers (UI & UX Specification, section 8) without adding a
- * date library plugin. */
-export async function getWeeklyTotals(year: number): Promise<Record<number, number>> {
+ * of *each entry's own* completion year — rather than a single week-0
+ * anchor computed once — so this doubles as "week-of-year across all
+ * history" when `year` is null (All): every entry lands in the week
+ * bucket for its own year, and buckets from different years add up
+ * together, answering "which weeks are typically busiest" rather than
+ * mixing in absolute-date math that would only make sense for one
+ * year. True ISO weeks aren't used — close enough for the activity
+ * chart this powers without adding a date library plugin. */
+export async function getWeeklyTotals(year: number | null): Promise<Record<number, number>> {
   const [entries, tvMode] = await Promise.all([entriesForYear(year), getTvTrackingMode()]);
-  const startOfYear = new Date(Date.UTC(year, 0, 1));
   const totals: Record<number, number> = {};
   for (const entry of entries) {
     const date = new Date(entry.completedDate ?? '');
+    const startOfYear = new Date(Date.UTC(date.getFullYear(), 0, 1));
     const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / 86_400_000) + 1;
     const week = Math.min(53, Math.max(1, Math.ceil(dayOfYear / 7)));
     totals[week] = (totals[week] ?? 0) + getEntryWeight(entry, tvMode);
@@ -378,7 +388,7 @@ export async function getWeeklyTotals(year: number): Promise<Record<number, numb
 
 /** The media type with the most entries within `year`, or `null` if
  * the year has no entries. */
-export async function getFavouriteMediaType(year: number): Promise<string | null> {
+export async function getFavouriteMediaType(year: number | null): Promise<string | null> {
   const totals = await getMediaTypeTotals(year);
   const entries = Object.entries(totals);
   if (entries.length === 0) return null;
@@ -387,7 +397,7 @@ export async function getFavouriteMediaType(year: number): Promise<string | null
 
 /** The calendar month (1–12) with the most completions within `year`,
  * or `null` if the year has no entries. */
-export async function getMostActiveMonth(year: number): Promise<number | null> {
+export async function getMostActiveMonth(year: number | null): Promise<number | null> {
   const breakdown = await getMonthlyBreakdown(year);
   const entries = Object.entries(breakdown).filter(([, count]) => count > 0);
   if (entries.length === 0) return null;
@@ -400,7 +410,7 @@ export async function getMostActiveMonth(year: number): Promise<number | null> {
  * which day you tend to log entries, not how much volume you got
  * through, so a single six-issue comic shouldn't outweigh six
  * separate days of reading. */
-export async function getMostActiveWeekday(year: number): Promise<number | null> {
+export async function getMostActiveWeekday(year: number | null): Promise<number | null> {
   const entries = await entriesForYear(year);
   if (entries.length === 0) return null;
   const totals: Record<number, number> = {};
@@ -461,7 +471,7 @@ export async function getCurrentStreak(): Promise<number> {
 
 /** Highest-rated entries within `year`, highest first. */
 export async function getHighestRated(
-  year: number,
+  year: number | null,
   limit: number,
 ): Promise<MediaEntry[]> {
   const entries = (await entriesForYear(year))
@@ -475,7 +485,7 @@ export async function getHighestRated(
  * completion within `year`. Multiple entries on the same day count
  * once; the streak resets on any gap of a full day or more.
  */
-export async function getLongestStreak(year: number): Promise<number> {
+export async function getLongestStreak(year: number | null): Promise<number> {
   const entries = await entriesForYear(year);
   if (entries.length === 0) return 0;
 
@@ -504,12 +514,12 @@ export async function getLongestStreak(year: number): Promise<number> {
  * TODO (Milestone 6): implement alongside the Statistics screen's
  * "Trends" section (PRD section 5; UI & UX Specification section 8).
  */
-export async function getMonthlyTrend(_year: number): Promise<Record<number, number>> {
+export async function getMonthlyTrend(_year: number | null): Promise<Record<number, number>> {
   return getMonthlyBreakdown(_year);
 }
 
 /** Total re-read / re-watched entries within `year`. */
-export async function getRepeatConsumption(year: number): Promise<number> {
+export async function getRepeatConsumption(year: number | null): Promise<number> {
   const entries = await entriesForYear(year);
   return entries.filter((entry) => entry.repeatConsumption).length;
 }
@@ -521,16 +531,20 @@ export async function getRepeatConsumption(year: number): Promise<number> {
  * active completion day"). Returns an empty array for a year with no
  * entries rather than guessing.
  *
+ * `year === null` (All) reworks the "this year" phrasing to "overall"
+ * and drops the year-over-year comparison entirely — there's no
+ * previous-period baseline to compare All time against (see chat).
+ *
  * Note: the PRD also calls out a "longest book" statistic, but the
  * data model has no page-count field for books (Database Schema &
  * Data Model, section 4) — adding one is a future-enhancement
  * decision, not something to infer here, so it's intentionally
  * omitted from both this function and the Statistics screen.
  */
-export async function getInsights(year: number): Promise<string[]> {
+export async function getInsights(year: number | null): Promise<string[]> {
   const [totals, previousTotals, favourite, weekday, repeats, topGenre] = await Promise.all([
     getMediaTypeTotals(year),
-    getMediaTypeTotals(year - 1),
+    year === null ? Promise.resolve({} as Record<string, number>) : getMediaTypeTotals(year - 1),
     getFavouriteMediaType(year),
     getMostActiveWeekday(year),
     getRepeatConsumption(year),
@@ -542,33 +556,40 @@ export async function getInsights(year: number): Promise<string[]> {
 
   const insights: string[] = [];
   const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const scope = year === null ? 'overall' : 'this year';
 
   if (favourite && totals[favourite] !== undefined) {
     const share = Math.round((totals[favourite] / totalEntries) * 100);
-    insights.push(`${favourite} entries account for ${share}% of your media this year.`);
+    insights.push(`${favourite} entries account for ${share}% of your media ${scope}.`);
   }
 
   if (topGenre) {
     insights.push(
-      `${topGenre.genre} is your favourite genre this year, making up ${topGenre.overallPercentage}% of what you completed.`,
+      `${topGenre.genre} is your favourite genre ${scope}, making up ${topGenre.overallPercentage}% of what you completed.`,
     );
   }
 
   if (weekday !== null && WEEKDAY_NAMES[weekday]) {
-    insights.push(`${WEEKDAY_NAMES[weekday]} is your most active completion day.`);
+    insights.push(
+      `${WEEKDAY_NAMES[weekday]} is your most active completion day${year === null ? ' overall' : ''}.`,
+    );
   }
 
-  for (const [mediaType, count] of Object.entries(totals)) {
-    const previousCount = previousTotals[mediaType] ?? 0;
-    if (previousCount === 0 || count === previousCount) continue;
-    const change = Math.round(((count - previousCount) / previousCount) * 100);
-    if (Math.abs(change) < 10) continue;
-    const direction = change > 0 ? 'more' : 'fewer';
-    insights.push(`You consumed ${Math.abs(change)}% ${direction} ${mediaType} than last year.`);
+  if (year !== null) {
+    for (const [mediaType, count] of Object.entries(totals)) {
+      const previousCount = previousTotals[mediaType] ?? 0;
+      if (previousCount === 0 || count === previousCount) continue;
+      const change = Math.round(((count - previousCount) / previousCount) * 100);
+      if (Math.abs(change) < 10) continue;
+      const direction = change > 0 ? 'more' : 'fewer';
+      insights.push(`You consumed ${Math.abs(change)}% ${direction} ${mediaType} than last year.`);
+    }
   }
 
   if (repeats > 0) {
-    insights.push(`You revisited ${repeats} ${repeats === 1 ? 'entry' : 'entries'} this year.`);
+    insights.push(
+      `You revisited ${repeats} ${repeats === 1 ? 'entry' : 'entries'} ${year === null ? 'in total' : 'this year'}.`,
+    );
   }
 
   return insights;
