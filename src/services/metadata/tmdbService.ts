@@ -349,3 +349,78 @@ export async function getTVDetails(
 
   return { fields, genres: extractGenres(data.genres) };
 }
+
+// ── IMDb id lookup (used by IMDb import — direct ID matching rather
+// than the title/year search the Letterboxd import relies on) ────────────────
+
+interface TmdbFindMovieResult { id: number; }
+interface TmdbFindTVResult { id: number; }
+interface TmdbFindEpisodeResult { id: number; show_id: number; season_number: number; episode_number: number; }
+
+export interface ImdbFindResult {
+  /** A film's TMDB id, when the IMDb id resolves to a movie. */
+  movieId?: string;
+  /** A show's TMDB id, when the IMDb id resolves to the show itself
+   * (an IMDb "TV Series"/"TV Mini Series" row rates the show, not an
+   * episode). */
+  tvId?: string;
+  /** Present when the IMDb id resolves to a single episode — `showId`
+   * is the parent show's TMDB id, used to group episode rows under
+   * their show for the per-show season prompt. */
+  episode?: { showId: string; seasonNumber: number; episodeNumber: number };
+}
+
+/**
+ * Resolves an IMDb id (the `Const` column in an IMDb ratings export) to
+ * TMDB via the /find endpoint's external-id lookup — a direct match,
+ * not a fuzzy title/year search, so there's no ambiguous-candidates
+ * step for IMDb import the way there is for Letterboxd's title-based
+ * matching. Returns an empty object if nothing matches.
+ */
+export async function findByImdbId(imdbId: string): Promise<ImdbFindResult> {
+  const data = await tmdbGet<{
+    movie_results: TmdbFindMovieResult[];
+    tv_results: TmdbFindTVResult[];
+    tv_episode_results: TmdbFindEpisodeResult[];
+  }>(`/find/${imdbId}?external_source=imdb_id`);
+
+  const movie = data.movie_results?.[0];
+  if (movie) return { movieId: String(movie.id) };
+
+  const tv = data.tv_results?.[0];
+  if (tv) return { tvId: String(tv.id) };
+
+  const episode = data.tv_episode_results?.[0];
+  if (episode) {
+    return {
+      episode: {
+        showId: String(episode.show_id),
+        seasonNumber: episode.season_number,
+        episodeNumber: episode.episode_number,
+      },
+    };
+  }
+
+  return {};
+}
+
+interface TmdbSeasonSummary { season_number: number; }
+interface TmdbShowSummary { name: string; seasons?: TmdbSeasonSummary[]; }
+
+/**
+ * A show's display title and real season-number list (excluding season
+ * 0, TMDB's convention for specials/extras) — used to build the
+ * per-show season prompt's checkbox list, so it always reflects every
+ * season the show actually has rather than only the ones with IMDb
+ * episode-rating evidence.
+ */
+export async function getTVShowSummary(
+  tmdbId: string,
+): Promise<{ title: string; seasonNumbers: number[] }> {
+  const data = await tmdbGet<TmdbShowSummary>(`/tv/${tmdbId}`);
+  const seasonNumbers = (data.seasons ?? [])
+    .map((s) => s.season_number)
+    .filter((n) => n > 0)
+    .sort((a, b) => a - b);
+  return { title: data.name, seasonNumbers };
+}
