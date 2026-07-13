@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Media Journal</title>
+<meta name="description" content="Privacy policy for Media Journal, a personal media-tracking app.">
+<style>
+  body {
+    background: #121212;
+    color: #E8E6E1;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #2A2A2A;
+  }
+  header svg { flex-shrink: 0; }
+  header .title {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+  }
+  .meta {
+    font-size: 13px;
+    color: #9A9A9A;
+    margin: 0 0 28px;
+  }
+  h2 {
+    font-size: 15px;
+    margin: 28px 0 8px;
+    color: #81C784;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  p, li {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #CFCFCF;
+  }
+  ul {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  a {
+    color: #81C784;
+  }
+  .note {
+    font-size: 12px;
+    color: #8A8A8A;
+    border-top: 1px solid #2A2A2A;
+    margin-top: 32px;
+    padding-top: 16px;
+  }
+  .backlink {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #81C784;
+    margin-top: 8px;
+    text-decoration: none;
+  }
+  .backlink:hover {
+    text-decoration: underline;
+  }
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: #6B6B6B;
+    border-top: 1px solid #2A2A2A;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+    <path d="M4 4h16v16H4z" stroke-linejoin="round"/>
+    <path d="M8 8h8M8 12h8M8 16h5" stroke-linecap="round"/>
+  </svg>
+  <span class="title">Media Journal</span>
+</header>
+
+<main>
+  <h1>Privacy policy</h1>
+  <p class="meta">Effective date: 13 July 2026</p>
+
+  <p>Media Journal ("the app") is a personal media-tracking application. This policy explains what data the app accesses, how it's used, and how it's stored.</p>
+
+  <h2>Overview</h2>
+  <p>Media Journal is offline-first: all of your library data (entries, ratings, notes, tags) is stored locally on your device using your browser's built-in storage. Media Journal does not operate a server or database of its own, and does not collect, transmit, or have access to your data except as described below.</p>
+
+  <h2>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+      <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/>
+    </svg>
+    Google Drive access
+  </h2>
+  <p>Media Journal offers an optional backup feature that uses the Google Drive API to save a copy of your library to your own Google Drive account.</p>
+  <ul>
+    <li><strong>What we access:</strong> Media Journal requests the <code>drive.file</code> scope, a restricted, per-file permission. The app can only see and manage files it itself creates in your Drive — specifically, a folder named "Media Journal" containing your backup files. It has no access to any other files, folders, or content in your Google Drive.</li>
+    <li><strong>What we don't access:</strong> Media Journal cannot read, modify, or delete any other files in your Drive, and has no access to your Gmail, Google Calendar, Google Contacts, or any other Google service.</li>
+    <li><strong>What's stored in the backup:</strong> Backup files contain the same data visible in your Media Journal library — entries, ratings, notes, tags, and related metadata. No data is added that isn't already in your local library.</li>
+    <li><strong>Where your Google credentials go:</strong> Authentication is handled entirely by Google's own sign-in flow (Google Identity Services). Media Journal never sees or stores your Google password. The app stores only a short-lived access token, kept locally on your device, used solely to make Drive API requests on your behalf.</li>
+    <li><strong>Third parties:</strong> Media Journal does not share, sell, or transmit your Google Drive data — or any of your library data — to any third party. No analytics or advertising services have access to this data.</li>
+  </ul>
+
+  <h2>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+      <circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/>
+    </svg>
+    Your control over this data
+  </h2>
+  <ul>
+    <li>Connecting Google Drive backup is entirely optional; the app is fully functional without it.</li>
+    <li>You can disconnect Google Drive access at any time from within the app's settings. This removes the locally stored access token.</li>
+    <li>You can revoke Media Journal's access at any time directly from your <a href="https://myaccount.google.com/permissions">Google Account permissions page</a>.</li>
+    <li>You can delete backup files at any time from within your own Google Drive, in the "Media Journal" folder.</li>
+  </ul>
+
+  <h2>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+      <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>
+    </svg>
+    Other data the app accesses
+  </h2>
+  <p>Media Journal may also connect to the following third-party services to fetch media metadata (titles, cover art, descriptions). These requests do not include any personal or account information about you:</p>
+  <ul>
+    <li>The Movie Database (TMDB)</li>
+    <li>ComicVine</li>
+  </ul>
+  <p>These lookups are used only to help populate entries in your library and are not linked to your identity.</p>
+
+  <h2>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+      <path d="M12 8v5l4 2"/><circle cx="12" cy="12" r="9"/>
+    </svg>
+    Data retention
+  </h2>
+  <p>All library data remains on your device unless you explicitly export it or connect Google Drive backup. Uninstalling the app or clearing your browser's site data will permanently remove locally stored data. Google Drive backup files persist in your own Drive account until you delete them, independent of the app.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If how Media Journal accesses or uses Google user data changes, this policy will be updated and, where required, you will be prompted to review and consent to the change before continued use of the affected feature.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be directed to: <a href="mailto:editor@ap2hyc.com">editor@ap2hyc.com</a></p>
+
+  <p class="note">This policy is a starting draft prepared to support Google OAuth verification and general transparency. It has not been reviewed by a lawyer — consider having it checked before publishing, particularly the contact/effective-date fields and any claims about third-party services, which should be confirmed against their current terms.</p>
+
+  <a class="backlink" href="/media-journal/">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
+      <path d="M15 18l-6-6 6-6"/>
+    </svg>
+    Back to Media Journal
+  </a>
+</main>
+
+<footer>Media Journal</footer>
+
+</body>
+</html>
