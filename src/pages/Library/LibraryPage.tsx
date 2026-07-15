@@ -192,10 +192,26 @@ export default function LibraryPage() {
     setSelectedIds(allVisibleSelected ? new Set() : new Set(entries.map((e) => e.id)));
   };
 
-  const tabCount = (tab: EntryStatus) => {
+  // Unfiltered total for a tab, regardless of which tab is active.
+  const tabTotal = (tab: EntryStatus) => {
     if (tab === 'completed') return completedEntries?.length;
     if (tab === 'in_progress') return inProgressEntries?.length;
     return wishlistEntries?.length;
+  };
+
+  // Badge shown on a status tab: the currently active tab reflects
+  // active filters/search ("23/142"), since `entries` is already
+  // scoped to statusTab. Inactive tabs always show their own
+  // unfiltered total — filters are per-tab and don't carry over, so
+  // an inactive tab's true filtered count isn't known without running
+  // its filters, and showing its unfiltered total avoids implying a
+  // filter applies where none has been set for that tab.
+  const tabCount = (tab: EntryStatus): { count: number | undefined; filteredOf: number | undefined } => {
+    const total = tabTotal(tab);
+    if (tab === statusTab && hasActiveFilters) {
+      return { count: entries.length, filteredOf: total };
+    }
+    return { count: total, filteredOf: undefined };
   };
 
   const handleMarkFinished = async () => {
@@ -243,7 +259,8 @@ export default function LibraryPage() {
         variant="fullWidth"
       >
         {STATUS_TABS.map((tab) => {
-          const count = tabCount(tab.value);
+          const { count, filteredOf } = tabCount(tab.value);
+          const isFiltered = filteredOf !== undefined;
           return (
             <Tab
               key={tab.value}
@@ -251,15 +268,18 @@ export default function LibraryPage() {
               label={
                 <Stack direction="row" spacing={0.75} alignItems="center">
                   <span>{tab.label}</span>
-                  {count !== undefined && count > 0 && (
+                  {count !== undefined && (count > 0 || isFiltered) && (
                     <Box
                       sx={{
-                        fontSize: 10, fontWeight: 700, bgcolor: tab.value === statusTab ? 'primary.main' : 'action.hover',
-                        color: tab.value === statusTab ? 'primary.contrastText' : 'text.secondary',
+                        fontSize: 10, fontWeight: 700,
+                        bgcolor: isFiltered ? 'primary.main' : (tab.value === statusTab ? 'primary.main' : 'action.hover'),
+                        color: isFiltered ? 'primary.contrastText' : (tab.value === statusTab ? 'primary.contrastText' : 'text.secondary'),
+                        border: isFiltered ? '1px solid' : undefined,
+                        borderColor: isFiltered ? 'primary.light' : undefined,
                         borderRadius: 10, px: 0.75, py: 0.1, lineHeight: 1.6,
                       }}
                     >
-                      {count}
+                      {isFiltered ? `${count}/${filteredOf}` : count}
                     </Box>
                   )}
                 </Stack>
