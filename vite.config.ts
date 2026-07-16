@@ -16,7 +16,7 @@ export default defineConfig({
         short_name: 'Media Journal',
         description:
           'A personal, offline-first archive for everything you read, watch and listen to.',
-        theme_color: '#1976D2',
+        theme_color: '#2E7D32',
         background_color: '#FFFBFE',
         display: 'standalone',
         start_url: '/media-journal/',
