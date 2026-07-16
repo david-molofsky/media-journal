@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.molofsky.mediajournal",
+      "sha256_cert_fingerprints": [
+        "CB:EA:F1:4B:6C:AD:F7:98:7E:59:BE:1E:6A:4C:F8:D6:62:19:74:F4:09:E8:27:BC:12:BA:BB:46:EE:51:D3:10"
+      ]
+    }
+  }
+]
