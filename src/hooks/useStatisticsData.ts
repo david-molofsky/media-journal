@@ -21,7 +21,8 @@ import {
   getTopGenreShareByMediaType,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
-import type { TopGenreShareByMediaType } from '@/services/statistics/statisticsService';
+import type { TopGenreShareByMediaType, StatsFilters } from '@/services/statistics/statisticsService';
+export type { StatsFilters };
 
 export interface StatisticsData {
   totalEntries: number;
@@ -48,7 +49,7 @@ export interface StatisticsData {
 
 /** Combines every statistics service call the Statistics screen needs
  * (Database Schema & Data Model, section 9) into one reactive query. */
-export function useStatisticsData(year: number | null): StatisticsData | undefined {
+export function useStatisticsData(year: number | null, filters?: StatsFilters): StatisticsData | undefined {
   return useLiveQuery(async () => {
     const [
       summary,
@@ -71,25 +72,28 @@ export function useStatisticsData(year: number | null): StatisticsData | undefin
       wishlistGenreTotals,
       topGenreShareByMediaType,
     ] = await Promise.all([
-      getYearSummary(year),
-      getMonthlyBreakdown(year),
-      getWeeklyTotals(year),
-      getRatingDistribution(year),
-      getAverageRating(year),
-      getAverageRatingByMediaType(year),
-      getHighestRated(year, 5),
-      getLongestStreak(year),
-      getFavouriteMediaType(year),
-      getMostActiveMonth(year),
-      getRepeatConsumption(year),
-      getInsights(year),
-      getTopSourcesByCount(year),
+      getYearSummary(year, filters),
+      getMonthlyBreakdown(year, filters),
+      getWeeklyTotals(year, filters),
+      getRatingDistribution(year, filters),
+      getAverageRating(year, filters),
+      getAverageRatingByMediaType(year, filters),
+      getHighestRated(year, 5, filters),
+      getLongestStreak(year, filters),
+      getFavouriteMediaType(year, filters),
+      getMostActiveMonth(year, filters),
+      getRepeatConsumption(year, filters),
+      getInsights(year, filters),
+      getTopSourcesByCount(year, filters),
+      // Wishlist breakdowns are deliberately excluded from the filter
+      // bar — see StatsFilters' doc comment — so these two calls never
+      // receive `filters`.
       getWishlistSourceTotals(),
-      getAverageRatingBySource(year),
-      getTopGenresByCount(year),
-      getAverageRatingByGenre(year),
+      getAverageRatingBySource(year, filters),
+      getTopGenresByCount(year, filters),
+      getAverageRatingByGenre(year, filters),
       getWishlistGenreTotals(),
-      getTopGenreShareByMediaType(year),
+      getTopGenreShareByMediaType(year, filters),
     ]);
     return {
       totalEntries: summary.totalEntries,
@@ -113,5 +117,5 @@ export function useStatisticsData(year: number | null): StatisticsData | undefin
       wishlistGenreTotals,
       topGenreShareByMediaType,
     };
-  }, [year]);
+  }, [year, JSON.stringify(filters)]);
 }

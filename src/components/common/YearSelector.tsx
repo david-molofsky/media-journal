@@ -29,7 +29,7 @@ export function YearSelector({ year, years, onChange }: YearSelectorProps) {
           onChange(raw === ALL_VALUE ? null : Number(raw));
         }}
       >
-        <MenuItem value={ALL_VALUE}>All</MenuItem>
+        <MenuItem value={ALL_VALUE}>All time</MenuItem>
         {options.map((option) => (
           <MenuItem key={option} value={option}>
             {option}

@@ -6,7 +6,10 @@ import Typography from '@mui/material/Typography';
 import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
-import { useStatisticsData } from '@/hooks/useStatisticsData';
+import { useAvailableGenres } from '@/hooks/useAvailableGenres';
+import { useAvailableTags } from '@/hooks/useAvailableTags';
+import { useStatisticsData, type StatsFilters } from '@/hooks/useStatisticsData';
+import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
 import { YearSelector } from '@/components/common/YearSelector';
 import { MetricCard } from '@/components/statistics/MetricCard';
 import { InsightCard } from '@/components/statistics/InsightCard';
@@ -79,9 +82,12 @@ export default function StatisticsPage() {
   const navigate = useNavigate();
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
+  const availableGenres = useAvailableGenres();
+  const availableTags = useAvailableTags();
   const [year, setYear] = useState<number | null>(() => dayjs().year());
+  const [filters, setFilters] = useState<StatsFilters>({});
 
-  const data = useStatisticsData(year);
+  const data = useStatisticsData(year, filters);
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
     navigate(ROUTES.library, { state: filter });
@@ -90,6 +96,13 @@ export default function StatisticsPage() {
   if (mediaTypes === undefined || data === undefined || availableYears === undefined) {
     return <LoadingIndicator />;
   }
+
+  const hasActiveFilters =
+    (filters.mediaTypeIds && filters.mediaTypeIds.length > 0) ||
+    !!filters.genre ||
+    !!filters.tag ||
+    filters.ratingMin !== undefined ||
+    filters.ratingMax !== undefined;
 
   if (data.totalEntries === 0) {
     return (
@@ -100,10 +113,24 @@ export default function StatisticsPage() {
           </Typography>
           <YearSelector year={year} years={availableYears} onChange={setYear} />
         </Stack>
-        <PagePlaceholder
-          title="Statistics will appear after you've added some media"
-          description="Come back here once you've logged a few entries."
+        <StatsFilterBar
+          filters={filters}
+          onChange={setFilters}
+          mediaTypes={mediaTypes}
+          availableGenres={availableGenres}
+          availableTags={availableTags}
         />
+        {hasActiveFilters ? (
+          <PagePlaceholder
+            title="No entries match these filters"
+            description="Try widening the Media Type, Genre, Tags or Rating range."
+          />
+        ) : (
+          <PagePlaceholder
+            title="Statistics will appear after you've added some media"
+            description="Come back here once you've logged a few entries."
+          />
+        )}
       </Box>
     );
   }
@@ -121,6 +148,14 @@ export default function StatisticsPage() {
         </Typography>
         <YearSelector year={year} years={availableYears} onChange={setYear} />
       </Stack>
+
+      <StatsFilterBar
+        filters={filters}
+        onChange={setFilters}
+        mediaTypes={mediaTypes}
+        availableGenres={availableGenres}
+        availableTags={availableTags}
+      />
 
       <Stack spacing={4}>
         <Box>
