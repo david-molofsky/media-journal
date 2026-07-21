@@ -37,6 +37,15 @@ export default defineConfig({
         // service worker cache, so this only ever needs to cache static assets.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
+        // oauth-callback.html (MAL/Trakt OAuth return target) must be
+        // served as the actual static file, not redirected to the SPA
+        // shell — without this, the service worker's default
+        // navigate-to-index.html fallback intercepts the provider's
+        // redirect back and boots the app fresh at its default route
+        // instead of running the callback-handling script, silently
+        // dropping the `code`/`state` params and breaking every OAuth
+        // connection (see chat).
+        navigateFallbackDenylist: [/^\/media-journal\/oauth-callback\.html$/],
       },
       devOptions: {
         enabled: false,
