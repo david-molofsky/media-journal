@@ -237,14 +237,14 @@ function buildFilmMetadata(fields: Record<string, string>): EntryMetadata {
   return metadata;
 }
 
-function buildTvMetadata(fields: Record<string, string>, seasonNumber: number): EntryMetadata {
+function buildTvMetadata(fields: Record<string, string>, seasonNumber: number, source: string): EntryMetadata {
   const metadata: EntryMetadata = {};
   for (const [key, value] of Object.entries(fields)) {
     if (key === 'runtime') metadata[key] = Number(value);
     else if (key === 'overview' || key === 'posterPath') metadata[key] = value;
     else metadata[key] = toTitleCase(value);
   }
-  metadata['source'] = 'IMDb';
+  metadata['source'] = source;
   metadata['seasonNumber'] = seasonNumber;
   return metadata;
 }
@@ -290,10 +290,16 @@ export interface ApplyShowSeasonsResult {
  * season numbers the person checked on that show's prompt card;
  * already-imported (title, season) pairs are silently skipped (see
  * loadExistingKeys) rather than duplicated on a later run.
+ *
+ * `source` defaults to 'IMDb' (this function's original caller) but is
+ * parametrized since Trakt's import reuses this same function for its
+ * TV-season rollup (see chat) — every Trakt-imported season was
+ * incorrectly labelled "IMDb" as its source until this was added.
  */
 export async function applyShowSeasons(
   group: ShowGroup,
   selectedSeasons: Set<number>,
+  source = 'IMDb',
 ): Promise<ApplyShowSeasonsResult> {
   if (selectedSeasons.size === 0) return { imported: 0, skippedSeasons: [] };
 
@@ -325,7 +331,7 @@ export async function applyShowSeasons(
       repeatConsumption: false,
       tags: [],
       genres: genres ?? [],
-      metadata: buildTvMetadata(fields, seasonNumber),
+      metadata: buildTvMetadata(fields, seasonNumber, source),
     });
     imported += 1;
   }

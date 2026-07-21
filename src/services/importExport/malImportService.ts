@@ -54,7 +54,7 @@ const FORMAT_LABELS: Record<string, string> = {
 
 function buildAnimeMetadata(entry: MalListEntry): EntryMetadata {
   const { node, list_status: status } = entry;
-  const metadata: EntryMetadata = { malId: String(node.id) };
+  const metadata: EntryMetadata = { malId: String(node.id), source: 'MyAnimeList' };
   if (node.studios?.[0]?.name) metadata['studio'] = node.studios[0].name;
   if (node.media_type) metadata['format'] = FORMAT_LABELS[node.media_type] ?? node.media_type;
   if (status.num_episodes_watched !== undefined) metadata['episodesWatched'] = status.num_episodes_watched;
@@ -67,7 +67,7 @@ function buildAnimeMetadata(entry: MalListEntry): EntryMetadata {
 
 function buildMangaMetadata(entry: MalListEntry): EntryMetadata {
   const { node, list_status: status } = entry;
-  const metadata: EntryMetadata = { malId: String(node.id) };
+  const metadata: EntryMetadata = { malId: String(node.id), source: 'MyAnimeList' };
   const author = node.authors?.[0]?.node;
   if (author) metadata['author'] = `${author.first_name} ${author.last_name}`.trim();
   if (status.num_chapters_read !== undefined) metadata['chaptersRead'] = status.num_chapters_read;

@@ -162,7 +162,7 @@ export async function runTraktImport(
       // ambiguous about which seasons were actually watched; Trakt's
       // episode-level history already tells us exactly that).
       const selected = new Set(show.episodeEvidence.keys());
-      const result = await applyShowSeasons(group, selected);
+      const result = await applyShowSeasons(group, selected, 'Trakt');
       seasonsImported += result.imported;
     } catch {
       showsErrored += 1;
