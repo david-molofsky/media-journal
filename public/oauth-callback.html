@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Media Journal — Connecting…</title>
+</head>
+<body>
+<p>Connecting… you'll be redirected automatically.</p>
+<script>
+  // Shared OAuth redirect target for every third-party connection (MAL,
+  // Trakt, etc). This file MUST live at a plain, fragment-free path —
+  // OAuth's redirect_uri can't contain a '#', which rules out sending
+  // providers straight to a route inside this app's HashRouter. This
+  // static page is the thing providers actually redirect to; it then
+  // forwards into the real in-app route.
+  //
+  // Routing to the right provider's callback handler: the `state`
+  // param each provider echoes back is generated as
+  // "{provider}:{random}" (see malService.ts's buildAuthorizeUrl and
+  // any equivalent for other providers) specifically so this shim can
+  // tell them apart without needing its own per-provider copy.
+  var params = new URLSearchParams(window.location.search);
+  var state = params.get('state') || '';
+  var provider = state.split(':')[0] || 'unknown';
+  var base = window.location.pathname.replace(/oauth-callback\.html$/, '');
+  window.location.replace(base + '#/settings/' + provider + '-callback' + window.location.search);
+</script>
+</body>
+</html>

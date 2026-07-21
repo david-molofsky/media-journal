@@ -13,6 +13,7 @@ const EditEntryPage = lazy(() => import('@/pages/EditEntry/EditEntryPage'));
 const StatisticsPage = lazy(() => import('@/pages/Statistics/StatisticsPage'));
 const TimelinePage = lazy(() => import('@/pages/Timeline/TimelinePage'));
 const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage'));
+const MalCallbackPage = lazy(() => import('@/pages/Settings/MalCallbackPage'));
 
 /**
  * Top-level route table, matching the routes defined in the Technical
@@ -31,6 +32,7 @@ export function AppRoutes() {
           <Route path={ROUTES.statistics} element={<StatisticsPage />} />
           <Route path={ROUTES.timeline} element={<TimelinePage />} />
           <Route path={ROUTES.settings} element={<SettingsPage />} />
+          <Route path={ROUTES.malCallback} element={<MalCallbackPage />} />
           <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
         </Route>
       </Routes>

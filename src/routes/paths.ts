@@ -13,6 +13,7 @@ export const ROUTES = {
   statistics: '/statistics',
   timeline: '/timeline',
   settings: '/settings',
+  malCallback: '/settings/mal-callback',
 } as const;
 
 /** Builds a concrete edit-entry path for a given entry id. */

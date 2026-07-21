@@ -64,6 +64,14 @@ export const SETTINGS_KEYS = {
    * update it in Settings. Scoped only to streaming lookups, not
    * metadata language or search results. */
   watchProviderRegion: 'watchProviderRegion',
+  /** MyAnimeList OAuth (PKCE) tokens — read/written by malService.ts.
+   * `malTokenExpiresAt` is an ISO timestamp used to decide whether a
+   * refresh is needed before the next API call. All three are cleared
+   * together on disconnect. Presence of `malAccessToken` is what
+   * Settings uses to show "Connected" vs "Connect" for MyAnimeList. */
+  malAccessToken: 'malAccessToken',
+  malRefreshToken: 'malRefreshToken',
+  malTokenExpiresAt: 'malTokenExpiresAt',
   /** Set true the first time the onboarding welcome screen is shown
    * (Dashboard, empty-library state on a fresh device) — see
    * WelcomeScreen.tsx. Device-local, like everything pre-sync, so a
