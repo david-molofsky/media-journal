@@ -29,10 +29,6 @@ export default function SettingsPage() {
       <Stack spacing={4} divider={<Divider />}>
         <GoogleDriveSection />
 
-        <MalImportSection />
-
-        <TraktImportSection />
-
         {/* General — dark mode + TV tracking grouped together */}
         <Stack spacing={3}>
           <Typography variant="subtitle2" color="text.secondary">
@@ -46,7 +42,14 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <ImportSourcesSection />
+        {/* Import Data — CSV-based sources plus the two connected-account
+            sources (MAL, Trakt), grouped together per the original
+            scoping decision (see chat) rather than split apart. */}
+        <Stack spacing={3}>
+          <ImportSourcesSection />
+          <MalImportSection />
+          <TraktImportSection />
+        </Stack>
 
         <MediaTypeManager />
 

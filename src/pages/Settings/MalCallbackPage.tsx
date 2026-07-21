@@ -7,26 +7,26 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import { completeMalAuth } from '@/services/metadata/malService';
-import { runMalImport, type MalImportSummary, type MalImportProgress } from '@/services/importExport/malImportService';
+import { useMalImportFlow } from '@/hooks/useMalImportFlow';
+import { MalDateReviewDialog } from '@/components/settings/MalDateReviewDialog';
 import { ROUTES } from '@/routes/paths';
 
-type Phase = 'connecting' | 'importing' | 'done' | 'error';
+type AuthPhase = 'connecting' | 'ready' | 'error';
 
 /**
  * Lands here after MyAnimeList redirects back through
- * public/oauth-callback.html. Completes the token exchange, then runs
- * the full anime + manga import with a live progress readout, all on
- * one page — simpler than round-tripping back into a Settings dialog
- * after a full-page redirect (which would lose all in-memory state
- * anyway).
+ * public/oauth-callback.html. Completes the token exchange, then hands
+ * off to the shared useMalImportFlow hook — which fetches both lists,
+ * skips straight to importing if nothing needs a date, or shows the
+ * review step first if MAL has any 'completed' entries with no
+ * finish_date recorded (see chat).
  */
 export default function MalCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>('connecting');
-  const [progress, setProgress] = useState<MalImportProgress>({ phase: 'anime', fetched: 0 });
-  const [summary, setSummary] = useState<MalImportSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [authPhase, setAuthPhase] = useState<AuthPhase>('connecting');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const flow = useMalImportFlow();
 
   useEffect(() => {
     (async () => {
@@ -35,80 +35,110 @@ export default function MalCallbackPage() {
       const oauthError = searchParams.get('error');
 
       if (oauthError) {
-        setError(`MyAnimeList declined the connection (${oauthError}).`);
-        setPhase('error');
+        setAuthError(`MyAnimeList declined the connection (${oauthError}).`);
+        setAuthPhase('error');
         return;
       }
       if (!code || !state) {
-        setError('Missing authorisation details from MyAnimeList — please try connecting again.');
-        setPhase('error');
+        setAuthError('Missing authorisation details from MyAnimeList — please try connecting again.');
+        setAuthPhase('error');
         return;
       }
 
       try {
         await completeMalAuth(code, state);
-        setPhase('importing');
-        const result = await runMalImport((p) => setProgress(p));
-        setSummary(result);
-        setPhase('done');
+        setAuthPhase('ready');
+        await flow.start();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong connecting to MyAnimeList.');
-        setPhase('error');
+        setAuthError(e instanceof Error ? e.message : 'Something went wrong connecting to MyAnimeList.');
+        setAuthPhase('error');
       }
     })();
-    // Intentionally run once — searchParams won't meaningfully change
-    // after the initial navigation to this page.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  if (authPhase === 'connecting') {
+    return (
+      <CenteredMessage>
+        <CircularProgress size={32} />
+        <Typography variant="body2" color="text.secondary">
+          Connecting to MyAnimeList…
+        </Typography>
+      </CenteredMessage>
+    );
+  }
+
+  if (authPhase === 'error') {
+    return (
+      <CenteredMessage>
+        <Alert severity="error" variant="outlined">
+          {authError}
+        </Alert>
+        <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
+          Back to Settings
+        </Button>
+      </CenteredMessage>
+    );
+  }
+
+  if (flow.phase === 'fetching') {
+    return (
+      <CenteredMessage>
+        <CircularProgress size={32} />
+        <Typography variant="body2" color="text.secondary">
+          Fetching your {flow.fetchProgress.phase} list…
+          {flow.fetchProgress.fetched > 0 ? ` ${flow.fetchProgress.fetched} found so far` : ''}
+        </Typography>
+      </CenteredMessage>
+    );
+  }
+
+  if (flow.phase === 'review') {
+    return (
+      <Box sx={{ maxWidth: 480, mx: 'auto', pt: 4 }}>
+        <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+          Review before importing
+        </Typography>
+        <MalDateReviewDialog
+          rows={flow.rows}
+          onSetCompletedDate={flow.setCompletedDate}
+          onSkip={flow.skipRow}
+          onConfirm={() => void flow.confirmReview()}
+        />
+      </Box>
+    );
+  }
+
+  if (flow.phase === 'importing') {
+    return (
+      <CenteredMessage>
+        <CircularProgress size={32} />
+        <Typography variant="body2" color="text.secondary">
+          Importing… {flow.applyProgress.done} of {flow.applyProgress.total}
+        </Typography>
+      </CenteredMessage>
+    );
+  }
+
+  // flow.phase === 'done'
+  return (
+    <CenteredMessage>
+      <Alert severity="success" variant="outlined" sx={{ textAlign: 'left' }}>
+        Imported {flow.summary.imported} {flow.summary.imported === 1 ? 'entry' : 'entries'}
+        {flow.summary.skipped > 0 ? `, ${flow.summary.skipped} skipped` : ''}.
+      </Alert>
+      <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
+        Done
+      </Button>
+    </CenteredMessage>
+  );
+}
+
+function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
       <Stack spacing={2} alignItems="center" sx={{ maxWidth: 320, textAlign: 'center' }}>
-        {phase === 'connecting' && (
-          <>
-            <CircularProgress size={32} />
-            <Typography variant="body2" color="text.secondary">
-              Connecting to MyAnimeList…
-            </Typography>
-          </>
-        )}
-
-        {phase === 'importing' && (
-          <>
-            <CircularProgress size={32} />
-            <Typography variant="body2" color="text.secondary">
-              Importing your {progress.phase === 'anime' ? 'anime' : 'manga'} list…
-              {progress.fetched > 0 ? ` ${progress.fetched} found so far` : ''}
-            </Typography>
-          </>
-        )}
-
-        {phase === 'error' && (
-          <>
-            <Alert severity="error" variant="outlined">
-              {error}
-            </Alert>
-            <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
-              Back to Settings
-            </Button>
-          </>
-        )}
-
-        {phase === 'done' && summary && (
-          <>
-            <Alert severity="success" variant="outlined" sx={{ textAlign: 'left' }}>
-              Imported {summary.animeImported} anime
-              {summary.animeSkipped > 0 ? ` (${summary.animeSkipped} already imported)` : ''}
-              {summary.animeErrored > 0 ? ` (${summary.animeErrored} failed)` : ''} and{' '}
-              {summary.mangaImported} manga
-              {summary.mangaSkipped > 0 ? ` (${summary.mangaSkipped} already imported)` : ''}
-              {summary.mangaErrored > 0 ? ` (${summary.mangaErrored} failed)` : ''}.
-            </Alert>
-            <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
-              Done
-            </Button>
-          </>
-        )}
+        {children}
       </Stack>
     </Box>
   );
