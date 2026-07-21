@@ -100,9 +100,13 @@ export default function TraktCallbackPage() {
           <>
             <Alert severity="success" variant="outlined" sx={{ textAlign: 'left' }}>
               Imported {summary.moviesImported} movies
-              {summary.moviesSkipped > 0 ? ` (${summary.moviesSkipped} already imported)` : ''},{' '}
-              {summary.seasonsImported} TV seasons, and {summary.watchlistImported} watchlist
-              {summary.watchlistSkipped > 0 ? ` (${summary.watchlistSkipped} already imported)` : ''}.
+              {summary.moviesSkipped > 0 ? ` (${summary.moviesSkipped} already imported)` : ''}
+              {summary.moviesErrored > 0 ? ` (${summary.moviesErrored} failed)` : ''},{' '}
+              {summary.seasonsImported} TV seasons
+              {summary.showsErrored > 0 ? ` (${summary.showsErrored} shows failed)` : ''}, and{' '}
+              {summary.watchlistImported} watchlist
+              {summary.watchlistSkipped > 0 ? ` (${summary.watchlistSkipped} already imported)` : ''}
+              {summary.watchlistErrored > 0 ? ` (${summary.watchlistErrored} failed)` : ''}.
             </Alert>
             <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
               Done

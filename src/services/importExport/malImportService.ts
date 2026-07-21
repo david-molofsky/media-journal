@@ -24,6 +24,26 @@ function statusForMalStatus(raw: string): EntryStatus {
   return 'in_progress';
 }
 
+/** MAL sometimes marks something 'completed' without ever recording a
+ * finish_date (common on older list entries) — but this app's schema
+ * requires a completed date whenever status is 'completed'. Rather
+ * than fabricate a false date, fall back to start_date if there's at
+ * least some real date to use; if there's truly no date information
+ * at all, downgrade to 'in_progress' instead of guessing — we
+ * genuinely don't know when it finished, and in_progress doesn't
+ * require a date. */
+function resolveStatusAndDate(
+  rawStatus: string,
+  startDate: string | undefined,
+  finishDate: string | undefined,
+): { status: EntryStatus; completedDate?: string } {
+  const status = statusForMalStatus(rawStatus);
+  if (status !== 'completed') return { status };
+  const completedDate = finishDate || startDate;
+  if (!completedDate) return { status: 'in_progress' };
+  return { status, completedDate };
+}
+
 const FORMAT_LABELS: Record<string, string> = {
   tv: 'TV',
   movie: 'Movie',
@@ -79,8 +99,10 @@ async function loadExistingMalIds(mediaType: 'anime' | 'manga'): Promise<Set<str
 export interface MalImportSummary {
   animeImported: number;
   animeSkipped: number;
+  animeErrored: number;
   mangaImported: number;
   mangaSkipped: number;
+  mangaErrored: number;
 }
 
 export interface MalImportProgress {
@@ -94,6 +116,13 @@ export interface MalImportProgress {
  * creates Media Journal entries for the rest. `onProgress` fires
  * during both the fetch (list pull) and the create phase so the UI can
  * show one continuous progress bar across the whole operation.
+ *
+ * Each entry's creation is wrapped individually — a single malformed
+ * row (e.g. one that still fails validation despite
+ * resolveStatusAndDate's fallback) is counted as errored and skipped
+ * rather than aborting the entire import, which is what happened
+ * before this was added (see chat: one bad "completed with no date"
+ * row silently killed the whole run).
  */
 export async function runMalImport(
   onProgress?: (progress: MalImportProgress) => void,
@@ -105,26 +134,35 @@ export async function runMalImport(
 
   let animeImported = 0;
   let animeSkipped = 0;
+  let animeErrored = 0;
   for (const entry of animeList) {
     const malId = String(entry.node.id);
     if (existingAnimeIds.has(malId)) {
       animeSkipped += 1;
       continue;
     }
-    const status = statusForMalStatus(entry.list_status.status);
-    await createEntry({
-      title: entry.node.title,
-      mediaType: 'anime',
-      status,
-      completedDate: status === 'completed' ? entry.list_status.finish_date || undefined : undefined,
-      startedDate: entry.list_status.start_date || undefined,
-      rating: entry.list_status.score > 0 ? entry.list_status.score : undefined,
-      repeatConsumption: (entry.list_status.num_times_rewatched ?? 0) > 0,
-      tags: buildTags(entry.list_status.num_times_rewatched, 'anime'),
-      genres: entry.node.genres?.map((g) => g.name) ?? [],
-      metadata: buildAnimeMetadata(entry),
-    });
-    animeImported += 1;
+    const { status, completedDate } = resolveStatusAndDate(
+      entry.list_status.status,
+      entry.list_status.start_date,
+      entry.list_status.finish_date,
+    );
+    try {
+      await createEntry({
+        title: entry.node.title,
+        mediaType: 'anime',
+        status,
+        completedDate,
+        startedDate: entry.list_status.start_date || undefined,
+        rating: entry.list_status.score > 0 ? entry.list_status.score : undefined,
+        repeatConsumption: (entry.list_status.num_times_rewatched ?? 0) > 0,
+        tags: buildTags(entry.list_status.num_times_rewatched, 'anime'),
+        genres: entry.node.genres?.map((g) => g.name) ?? [],
+        metadata: buildAnimeMetadata(entry),
+      });
+      animeImported += 1;
+    } catch {
+      animeErrored += 1;
+    }
   }
 
   const [mangaList, existingMangaIds] = await Promise.all([
@@ -134,27 +172,36 @@ export async function runMalImport(
 
   let mangaImported = 0;
   let mangaSkipped = 0;
+  let mangaErrored = 0;
   for (const entry of mangaList) {
     const malId = String(entry.node.id);
     if (existingMangaIds.has(malId)) {
       mangaSkipped += 1;
       continue;
     }
-    const status = statusForMalStatus(entry.list_status.status);
-    await createEntry({
-      title: entry.node.title,
-      mediaType: 'manga',
-      status,
-      completedDate: status === 'completed' ? entry.list_status.finish_date || undefined : undefined,
-      startedDate: entry.list_status.start_date || undefined,
-      rating: entry.list_status.score > 0 ? entry.list_status.score : undefined,
-      repeatConsumption: (entry.list_status.num_times_reread ?? 0) > 0,
-      tags: buildTags(entry.list_status.num_times_reread, 'manga'),
-      genres: entry.node.genres?.map((g) => g.name) ?? [],
-      metadata: buildMangaMetadata(entry),
-    });
-    mangaImported += 1;
+    const { status, completedDate } = resolveStatusAndDate(
+      entry.list_status.status,
+      entry.list_status.start_date,
+      entry.list_status.finish_date,
+    );
+    try {
+      await createEntry({
+        title: entry.node.title,
+        mediaType: 'manga',
+        status,
+        completedDate,
+        startedDate: entry.list_status.start_date || undefined,
+        rating: entry.list_status.score > 0 ? entry.list_status.score : undefined,
+        repeatConsumption: (entry.list_status.num_times_reread ?? 0) > 0,
+        tags: buildTags(entry.list_status.num_times_reread, 'manga'),
+        genres: entry.node.genres?.map((g) => g.name) ?? [],
+        metadata: buildMangaMetadata(entry),
+      });
+      mangaImported += 1;
+    } catch {
+      mangaErrored += 1;
+    }
   }
 
-  return { animeImported, animeSkipped, mangaImported, mangaSkipped };
+  return { animeImported, animeSkipped, animeErrored, mangaImported, mangaSkipped, mangaErrored };
 }

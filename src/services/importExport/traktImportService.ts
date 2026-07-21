@@ -56,9 +56,12 @@ export interface TraktImportProgress {
 export interface TraktImportSummary {
   moviesImported: number;
   moviesSkipped: number;
+  moviesErrored: number;
   seasonsImported: number;
+  showsErrored: number;
   watchlistImported: number;
   watchlistSkipped: number;
+  watchlistErrored: number;
 }
 
 export async function runTraktImport(
@@ -77,6 +80,7 @@ export async function runTraktImport(
 
   let moviesImported = 0;
   let moviesSkipped = 0;
+  let moviesErrored = 0;
   const validMovieRows = movieHistory.filter((row) => row.movie.ids.tmdb);
   for (let i = 0; i < validMovieRows.length; i += 1) {
     const row = validMovieRows[i]!;
@@ -91,20 +95,28 @@ export async function runTraktImport(
       continue;
     }
 
-    const { fields, genres } = await getFilmDetails(tmdbId);
-    await createEntry({
-      title: toTitleCase(row.movie.title),
-      mediaType: 'film',
-      status: 'completed',
-      completedDate,
-      rating: ratingByTmdbId.get(tmdbId),
-      repeatConsumption: false,
-      tags: [],
-      genres: genres ?? [],
-      metadata: buildFilmMetadata(fields),
-    });
-    moviesImported += 1;
-    existingFilmKeys.add(key); // guard against duplicate history rows on the same day
+    // A single bad row here (TMDB lookup failure, unexpected data
+    // shape, validation error) must not abort every remaining movie —
+    // see chat: this exact class of bug already broke the MAL import
+    // once by killing the whole run over one entry.
+    try {
+      const { fields, genres } = await getFilmDetails(tmdbId);
+      await createEntry({
+        title: toTitleCase(row.movie.title),
+        mediaType: 'film',
+        status: 'completed',
+        completedDate,
+        rating: ratingByTmdbId.get(tmdbId),
+        repeatConsumption: false,
+        tags: [],
+        genres: genres ?? [],
+        metadata: buildFilmMetadata(fields),
+      });
+      moviesImported += 1;
+      existingFilmKeys.add(key); // guard against duplicate history rows on the same day
+    } catch {
+      moviesErrored += 1;
+    }
   }
 
   // ── TV (rolled up to seasons, reusing the IMDb import's machinery) ──
@@ -129,27 +141,32 @@ export async function runTraktImport(
   }
 
   let seasonsImported = 0;
+  let showsErrored = 0;
   const showIds = Array.from(showsById.keys());
   for (let i = 0; i < showIds.length; i += 1) {
     const showId = showIds[i]!;
     const show = showsById.get(showId)!;
     onProgress?.({ phase: 'shows', done: i + 1, total: showIds.length });
 
-    const { title, seasonNumbers } = await getTVShowSummary(showId);
-    const group: ShowGroup = {
-      tmdbShowId: showId,
-      title: title || show.title,
-      seasonNumbers,
-      episodeEvidence: show.episodeEvidence,
-    };
-    // Every season with at least one watched episode is imported —
-    // there's no per-show prompt here the way IMDb needs one (IMDb
-    // requires a person's choice because a "TV Series" row alone is
-    // ambiguous about which seasons were actually watched; Trakt's
-    // episode-level history already tells us exactly that).
-    const selected = new Set(show.episodeEvidence.keys());
-    const result = await applyShowSeasons(group, selected);
-    seasonsImported += result.imported;
+    try {
+      const { title, seasonNumbers } = await getTVShowSummary(showId);
+      const group: ShowGroup = {
+        tmdbShowId: showId,
+        title: title || show.title,
+        seasonNumbers,
+        episodeEvidence: show.episodeEvidence,
+      };
+      // Every season with at least one watched episode is imported —
+      // there's no per-show prompt here the way IMDb needs one (IMDb
+      // requires a person's choice because a "TV Series" row alone is
+      // ambiguous about which seasons were actually watched; Trakt's
+      // episode-level history already tells us exactly that).
+      const selected = new Set(show.episodeEvidence.keys());
+      const result = await applyShowSeasons(group, selected);
+      seasonsImported += result.imported;
+    } catch {
+      showsErrored += 1;
+    }
   }
 
   // ── Watchlist → Wishlist ────────────────────────────────────────────
@@ -166,44 +183,58 @@ export async function runTraktImport(
 
   let watchlistImported = 0;
   let watchlistSkipped = 0;
+  let watchlistErrored = 0;
   for (let i = 0; i < watchlist.length; i += 1) {
     const item = watchlist[i]!;
     onProgress?.({ phase: 'watchlist', done: i + 1, total: watchlist.length });
 
-    if (item.type === 'movie' && item.movie?.ids.tmdb) {
-      const key = `film|${item.movie.title.trim().toLowerCase()}`;
-      if (existingWishlistTitles.has(key)) {
-        watchlistSkipped += 1;
-        continue;
+    try {
+      if (item.type === 'movie' && item.movie?.ids.tmdb) {
+        const key = `film|${item.movie.title.trim().toLowerCase()}`;
+        if (existingWishlistTitles.has(key)) {
+          watchlistSkipped += 1;
+          continue;
+        }
+        await createEntry({
+          title: toTitleCase(item.movie.title),
+          mediaType: 'film',
+          status: 'wishlist',
+          repeatConsumption: false,
+          tags: [],
+          genres: [],
+          metadata: { source: 'Trakt' },
+        });
+        watchlistImported += 1;
+      } else if (item.type === 'show' && item.show?.ids.tmdb) {
+        const key = `tv|${item.show.title.trim().toLowerCase()}`;
+        if (existingWishlistTitles.has(key)) {
+          watchlistSkipped += 1;
+          continue;
+        }
+        await createEntry({
+          title: toTitleCase(item.show.title),
+          mediaType: 'tv',
+          status: 'wishlist',
+          repeatConsumption: false,
+          tags: [],
+          genres: [],
+          metadata: { source: 'Trakt' },
+        });
+        watchlistImported += 1;
       }
-      await createEntry({
-        title: toTitleCase(item.movie.title),
-        mediaType: 'film',
-        status: 'wishlist',
-        repeatConsumption: false,
-        tags: [],
-        genres: [],
-        metadata: { source: 'Trakt' },
-      });
-      watchlistImported += 1;
-    } else if (item.type === 'show' && item.show?.ids.tmdb) {
-      const key = `tv|${item.show.title.trim().toLowerCase()}`;
-      if (existingWishlistTitles.has(key)) {
-        watchlistSkipped += 1;
-        continue;
-      }
-      await createEntry({
-        title: toTitleCase(item.show.title),
-        mediaType: 'tv',
-        status: 'wishlist',
-        repeatConsumption: false,
-        tags: [],
-        genres: [],
-        metadata: { source: 'Trakt' },
-      });
-      watchlistImported += 1;
+    } catch {
+      watchlistErrored += 1;
     }
   }
 
-  return { moviesImported, moviesSkipped, seasonsImported, watchlistImported, watchlistSkipped };
+  return {
+    moviesImported,
+    moviesSkipped,
+    moviesErrored,
+    seasonsImported,
+    showsErrored,
+    watchlistImported,
+    watchlistSkipped,
+    watchlistErrored,
+  };
 }

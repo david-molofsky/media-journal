@@ -91,9 +91,11 @@ export function MalImportSection() {
       {summary && (
         <Alert severity="success" variant="outlined">
           Imported {summary.animeImported} anime
-          {summary.animeSkipped > 0 ? ` (${summary.animeSkipped} already imported)` : ''} and{' '}
+          {summary.animeSkipped > 0 ? ` (${summary.animeSkipped} already imported)` : ''}
+          {summary.animeErrored > 0 ? ` (${summary.animeErrored} failed)` : ''} and{' '}
           {summary.mangaImported} manga
-          {summary.mangaSkipped > 0 ? ` (${summary.mangaSkipped} already imported)` : ''}.
+          {summary.mangaSkipped > 0 ? ` (${summary.mangaSkipped} already imported)` : ''}
+          {summary.mangaErrored > 0 ? ` (${summary.mangaErrored} failed)` : ''}.
         </Alert>
       )}
 
