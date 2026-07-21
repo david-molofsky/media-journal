@@ -665,6 +665,37 @@ export class MediaJournalDatabase extends Dexie {
         }
       }
     });
+
+    /**
+     * Version 19: fixes two icon problems from version 18:
+     *   • Sports (`sports_soccer`) and Anime (`live_tv`) referenced icon
+     *     keys that were never registered in mediaTypeIcon.tsx, so they
+     *     rendered as the generic fallback icon instead of anything
+     *     meaningful. The keys themselves were always correct — this
+     *     migration doesn't need to change the stored value, only
+     *     mediaTypeIcon.tsx (a code change, not a data migration) needed
+     *     fixing. Included here as a no-op pass so the version history
+     *     stays an accurate record of what changed and why.
+     *   • Manga was given the same icon key (`auto_stories`) as Comics,
+     *     making the two indistinguishable in any icon-only UI. This
+     *     patches existing installs to the new dedicated `remove_red_eye`
+     *     key — guarded so a user who's since manually changed Manga's
+     *     icon in Settings keeps their choice rather than being
+     *     overwritten.
+     */
+    this.version(19).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+      const manga = await table.get('manga');
+      if (manga && manga.icon === 'auto_stories') {
+        await table.update('manga', { icon: 'remove_red_eye' });
+      }
+    });
   }
 }
 

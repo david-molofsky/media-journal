@@ -306,7 +306,7 @@ export const defaultMediaTypes: MediaType[] = [
   {
     id: 'manga',
     displayName: 'Manga',
-    icon: 'auto_stories',
+    icon: 'remove_red_eye',
     colour: '#8E24AA',
     enabled: true,
     fields: [

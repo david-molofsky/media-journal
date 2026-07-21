@@ -9,6 +9,9 @@ import PaletteOutlinedIcon from '@mui/icons-material/PaletteOutlined';
 import TheaterComedyOutlinedIcon from '@mui/icons-material/TheaterComedyOutlined';
 import NewspaperOutlinedIcon from '@mui/icons-material/NewspaperOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import SportsSoccerOutlinedIcon from '@mui/icons-material/SportsSoccerOutlined';
+import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
+import RemoveRedEyeOutlinedIcon from '@mui/icons-material/RemoveRedEyeOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
 
 /**
@@ -35,6 +38,9 @@ const iconsByKey: Record<string, SvgIconComponent> = {
   palette: PaletteOutlinedIcon,
   theater_comedy: TheaterComedyOutlinedIcon,
   newspaper: NewspaperOutlinedIcon,
+  sports_soccer: SportsSoccerOutlinedIcon,
+  live_tv: LiveTvOutlinedIcon,
+  remove_red_eye: RemoveRedEyeOutlinedIcon,
 };
 
 export function getMediaTypeIcon(iconKey: string): SvgIconComponent {
@@ -55,4 +61,7 @@ export const ICON_OPTIONS: { key: string; label: string }[] = [
   { key: 'palette', label: 'Art' },
   { key: 'theater_comedy', label: 'Theatre' },
   { key: 'newspaper', label: 'Magazine' },
+  { key: 'sports_soccer', label: 'Sports' },
+  { key: 'live_tv', label: 'Anime' },
+  { key: 'remove_red_eye', label: 'Manga' },
 ];
