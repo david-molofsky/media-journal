@@ -12,6 +12,10 @@ interface GenreBarChartProps {
   averageRatingByGenre: Record<string, number>;
   /** How many genres to show, by count descending. Defaults to 8. */
   limit?: number;
+  /** Called with the genre name when a bar is tapped/clicked — used to
+   * drill down into the Library filtered to that genre. Bars render
+   * with a pointer cursor only when this is provided. */
+  onSelectGenre?: (genre: string) => void;
 }
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: GenreDatum }[] }) {
@@ -33,7 +37,12 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payl
  * types (see `getTopGenresByCount`). Hovering a bar shows average
  * rating for that genre, keeping the chart itself uncluttered rather
  * than adding a second rating axis or a separate list. */
-export function GenreBarChart({ topGenresByCount, averageRatingByGenre, limit = 8 }: GenreBarChartProps) {
+export function GenreBarChart({
+  topGenresByCount,
+  averageRatingByGenre,
+  limit = 8,
+  onSelectGenre,
+}: GenreBarChartProps) {
   const theme = useTheme();
   const data: GenreDatum[] = Object.entries(topGenresByCount)
     .sort(([, a], [, b]) => b - a)
@@ -49,7 +58,16 @@ export function GenreBarChart({ topGenresByCount, averageRatingByGenre, limit = 
         <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} />
         <YAxis type="category" dataKey="genre" tickLine={false} axisLine={false} fontSize={12} width={90} />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: theme.palette.action.hover }} />
-        <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[0, 4, 4, 0]} />
+        <Bar
+          dataKey="count"
+          fill={theme.palette.secondary.main}
+          radius={[0, 4, 4, 0]}
+          style={{ cursor: onSelectGenre ? 'pointer' : undefined }}
+          onClick={(data) => {
+            const genre = (data as unknown as { payload?: GenreDatum })?.payload?.genre;
+            if (genre) onSelectGenre?.(genre);
+          }}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

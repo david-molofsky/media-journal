@@ -234,4 +234,89 @@ export const defaultMediaTypes: MediaType[] = [
       },
     ],
   },
+  {
+    id: 'sport',
+    displayName: 'Sports',
+    icon: 'sports_soccer',
+    colour: '#2E7D32',
+    enabled: true,
+    // Single sporting events (a match/game), not ongoing season/league
+    // tracking. Genre is reused as "Sport" (e.g. Football, Tennis) so
+    // it shares the app's existing Genre filter/suggestion mechanism
+    // rather than needing a bespoke one. `teamA`/`teamB`/`scoreA`/
+    // `scoreB`/`supporting`/`outcome` together drive the entry title
+    // ("{teamA} vs {teamB}") and the Library card's score display.
+    fields: [
+      {
+        key: 'sport',
+        label: 'Sport',
+        type: 'autocomplete',
+        required: false,
+        options: ['Football', 'Basketball', 'Tennis', 'Rugby', 'Cricket', 'American Football', 'Baseball', 'Ice Hockey', 'Athletics', 'Motorsport'],
+      },
+      { key: 'teamA', label: 'Team', type: 'text', required: false },
+      { key: 'scoreA', label: 'Score', type: 'number', required: false },
+      { key: 'teamB', label: 'Team', type: 'text', required: false },
+      { key: 'scoreB', label: 'Score', type: 'number', required: false },
+      { key: 'supporting', label: 'Supporting', type: 'text', required: false },
+      {
+        key: 'outcome',
+        label: 'Outcome',
+        type: 'autocomplete',
+        required: false,
+        options: ['Win', 'Draw', 'Loss'],
+      },
+      {
+        key: 'watchedVia',
+        label: 'Watched via',
+        type: 'autocomplete',
+        required: false,
+        options: ['Attended in-person', 'Live (TV/broadcast)', 'Live (stream)', 'Replay / highlights'],
+      },
+      { key: 'venue', label: 'Venue', type: 'text', required: false },
+    ],
+  },
+  {
+    id: 'anime',
+    displayName: 'Anime',
+    icon: 'live_tv',
+    colour: '#5C6BC0',
+    enabled: true,
+    // Metadata for this type comes from MyAnimeList directly (once the
+    // MAL import ships), not TMDB — `malId`/`coverImagePath` mirror the
+    // `posterPath`/`coverImagePath` convention used for Film/TV/Comic
+    // auto-fill (bespoke UI in EntryForm rather than the generic field
+    // loop), but are declared here since there's no separate
+    // animeMetadataSchema forcing them through entrySchemas.ts.
+    fields: [
+      { key: 'studio', label: 'Studio', type: 'text', required: false },
+      {
+        key: 'format',
+        label: 'Format',
+        type: 'autocomplete',
+        required: false,
+        options: ['TV', 'Movie', 'OVA', 'Special'],
+      },
+      { key: 'episodesWatched', label: 'Episodes watched', type: 'number', required: false },
+      { key: 'totalEpisodes', label: 'Total episodes', type: 'number', required: false },
+      { key: 'malId', label: 'MyAnimeList ID', type: 'text', required: false },
+      { key: 'coverImagePath', label: 'Cover image URL', type: 'text', required: false },
+    ],
+  },
+  {
+    id: 'manga',
+    displayName: 'Manga',
+    icon: 'auto_stories',
+    colour: '#8E24AA',
+    enabled: true,
+    fields: [
+      { key: 'author', label: 'Author', type: 'text', required: false },
+      { key: 'chaptersRead', label: 'Chapters read', type: 'number', required: false },
+      { key: 'totalChapters', label: 'Total chapters', type: 'number', required: false },
+      { key: 'volumesRead', label: 'Volumes read', type: 'number', required: false },
+      { key: 'totalVolumes', label: 'Total volumes', type: 'number', required: false },
+      { key: 'malId', label: 'MyAnimeList ID', type: 'text', required: false },
+      { key: 'coverImagePath', label: 'Cover image URL', type: 'text', required: false },
+    ],
+  },
 ];

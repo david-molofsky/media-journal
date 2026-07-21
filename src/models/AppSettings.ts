@@ -56,6 +56,14 @@ export const SETTINGS_KEYS = {
   autofillComicCoverArtist: 'autofillComicCoverArtist',
   autofillComicEditor: 'autofillComicEditor',
   autofillComicCoverImage: 'autofillComicCoverImage',
+  /** ISO 3166-1 alpha-2 region code used for TMDB/JustWatch streaming
+   * availability lookups (Settings > Region). Read by tmdbService
+   * before every watch-providers call. Defaults to 'GB' via
+   * getSetting's fallback, matching the value that was previously
+   * hardcoded — existing users see no change until they actively
+   * update it in Settings. Scoped only to streaming lookups, not
+   * metadata language or search results. */
+  watchProviderRegion: 'watchProviderRegion',
   /** Set true the first time the onboarding welcome screen is shown
    * (Dashboard, empty-library state on a fresh device) — see
    * WelcomeScreen.tsx. Device-local, like everything pre-sync, so a

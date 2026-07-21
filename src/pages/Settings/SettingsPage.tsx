@@ -15,6 +15,7 @@ import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { ImportSourcesSection } from '@/components/settings/ImportSourcesSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
+import { RegionSection } from '@/components/settings/RegionSection';
 
 export default function SettingsPage() {
   return (
@@ -34,6 +35,8 @@ export default function SettingsPage() {
           <DarkModeToggle />
           <TvTrackingSection />
         </Stack>
+
+        <RegionSection />
 
         <ImportExportSection />
 

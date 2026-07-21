@@ -9,17 +9,20 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TheatersOutlinedIcon from '@mui/icons-material/TheatersOutlined';
 import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import StarOutlineOutlinedIcon from '@mui/icons-material/StarOutlineOutlined';
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
 import { GoodreadsImportSection } from '@/components/settings/GoodreadsImportSection';
 import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
+import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportSection';
 
-type ImportSource = 'letterboxd' | 'goodreads' | 'imdb';
+type ImportSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph';
 
 const ROWS: { key: ImportSource; label: string; meta: string; icon: SvgIconComponent }[] = [
   { key: 'letterboxd', label: 'Letterboxd', meta: 'Diary export from letterboxd.com', icon: TheatersOutlinedIcon },
   { key: 'goodreads', label: 'Goodreads', meta: 'Library export from goodreads.com', icon: AutoStoriesOutlinedIcon },
   { key: 'imdb', label: 'IMDb', meta: 'Ratings export from imdb.com', icon: StarOutlineOutlinedIcon },
+  { key: 'storygraph', label: 'StoryGraph', meta: 'Library export from app.thestorygraph.com', icon: MenuBookOutlinedIcon },
 ];
 
 /**
@@ -65,6 +68,10 @@ export function ImportSourcesSection() {
         onCloseInstructions={() => setOpenSource(null)}
       />
       <ImdbImportSection open={openSource === 'imdb'} onCloseInstructions={() => setOpenSource(null)} />
+      <StoryGraphImportSection
+        open={openSource === 'storygraph'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
     </Box>
   );
 }

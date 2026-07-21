@@ -237,6 +237,7 @@ export default function StatisticsPage() {
                   <GenreBarChart
                     topGenresByCount={data.topGenresByCount}
                     averageRatingByGenre={data.averageRatingByGenre}
+                    onSelectGenre={(genre) => goToLibrary(year === null ? { genre } : { year, genre })}
                   />
                 </Box>
               )}
@@ -254,6 +255,7 @@ export default function StatisticsPage() {
                     items={Object.entries(data.wishlistGenreTotals)
                       .map(([name, count]) => ({ name, count }))
                       .sort((a, b) => b.count - a.count)}
+                    onSelectItem={(genre) => goToLibrary({ genre, status: 'wishlist' })}
                   />
                 </Box>
               )}
@@ -279,7 +281,16 @@ export default function StatisticsPage() {
                         <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
                           {group.displayName}
                         </Typography>
-                        <TopList items={group.items} />
+                        <TopList
+                          items={group.items}
+                          onSelectItem={(source) =>
+                            goToLibrary(
+                              year === null
+                                ? { source, mediaType: group.mediaTypeId }
+                                : { year, source, mediaType: group.mediaTypeId },
+                            )
+                          }
+                        />
                       </Box>
                     ))}
                   </Stack>
@@ -306,6 +317,9 @@ export default function StatisticsPage() {
                           </Typography>
                           <TopList
                             items={group.sources.map(([name, count]) => ({ name, count }))}
+                            onSelectItem={(source) =>
+                              goToLibrary({ source, mediaType: group.mediaTypeId, status: 'wishlist' })
+                            }
                           />
                         </Box>
                       ))}

@@ -636,6 +636,35 @@ export class MediaJournalDatabase extends Dexie {
         if (toAdd.length > 0) await table.put({ ...comic, fields: [...comic.fields, ...toAdd] });
       }
     });
+
+    /**
+     * Version 18: adds three new media types — Sports, Anime, Manga —
+     * for existing installs (fresh installs already get them via
+     * seed.ts/defaultMediaTypes.ts). Guarded with `get`/`add` (not
+     * `bulkAdd`) so re-running this migration, or a user who already
+     * manually created a media type with one of these ids, doesn't
+     * clobber existing data.
+     *
+     * No `mediaEntries` changes — these are brand new types with no
+     * prior entries to migrate.
+     */
+    this.version(18).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+    }).upgrade(async (tx) => {
+      const table = tx.table<MediaType>('mediaTypes');
+      for (const newType of defaultMediaTypes.filter((t) =>
+        ['sport', 'anime', 'manga'].includes(t.id),
+      )) {
+        const existing = await table.get(newType.id);
+        if (!existing) {
+          await table.add(newType);
+        }
+      }
+    });
   }
 }
 

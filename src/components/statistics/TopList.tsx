@@ -16,6 +16,11 @@ interface TopListProps {
   /** How many rows to show before collapsing the rest behind
    * "+N more". Defaults to 5. */
   cap?: number;
+  /** Called with the item's name when a row is tapped/clicked — used to
+   * drill down into the Library filtered to that value (e.g. Source).
+   * Rows render with a pointer cursor and hover state only when this
+   * is provided. */
+  onSelectItem?: (name: string) => void;
 }
 
 /**
@@ -25,7 +30,7 @@ interface TopListProps {
  * Statistics — replaces what used to be uncapped, separately-listed
  * count and rating sections.
  */
-export function TopList({ items, cap = 5 }: TopListProps) {
+export function TopList({ items, cap = 5, onSelectItem }: TopListProps) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? items : items.slice(0, cap);
   const remaining = items.length - cap;
@@ -33,7 +38,14 @@ export function TopList({ items, cap = 5 }: TopListProps) {
   return (
     <Stack spacing={0.75}>
       {visible.map((item) => (
-        <Stack key={item.name} direction="row" justifyContent="space-between" alignItems="center">
+        <Stack
+          key={item.name}
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          onClick={onSelectItem ? () => onSelectItem(item.name) : undefined}
+          sx={onSelectItem ? { cursor: 'pointer', '&:hover': { opacity: 0.75 } } : undefined}
+        >
           <Typography variant="body2">{item.name}</Typography>
           <Stack direction="row" spacing={2} alignItems="center">
             <Typography variant="body2" fontWeight={600}>{item.count}</Typography>

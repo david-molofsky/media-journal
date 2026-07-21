@@ -45,12 +45,21 @@ interface TmdbPerson { name: string; }
 // than only when a match happens to be found, since a call may still
 // have been made even if nothing matched.
 
-/** Region used for provider lookups. Fixed rather than derived from
- * device locale for now — matches David's usage, and a wrong guess
- * (e.g. defaulting to US for a non-US user) would silently mis-fill
- * Source with unavailable services. Revisit if this app grows beyond
- * personal use. */
-const WATCH_PROVIDER_REGION = 'GB';
+/** Fallback region for provider lookups when no Settings > Region value
+ * has been chosen yet — matches the value that used to be hardcoded
+ * here, so existing installs see no behaviour change until the user
+ * actively picks a different region. See getWatchProviderRegion. */
+const DEFAULT_WATCH_PROVIDER_REGION = 'GB';
+
+/** Reads the user's configured region (Settings > Region) for TMDB/
+ * JustWatch watch-provider lookups only — doesn't affect metadata
+ * language, search results, or anything else TMDB-related. Manual
+ * rather than geolocation-based, per David's call: avoids a GPS
+ * permission prompt and stays correct while travelling (an entry
+ * logged abroad still reflects home-region availability). */
+async function getWatchProviderRegion(): Promise<string> {
+  return getSetting('watchProviderRegion', DEFAULT_WATCH_PROVIDER_REGION);
+}
 
 interface TmdbWatchProvider {
   provider_name: string;
@@ -86,8 +95,11 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
  * then rental, then purchase. Returns `undefined` if the title has no
  * availability data for that region — Source is then left blank for
  * manual entry, same as before this feature existed. */
-function extractSource(watchProviders: TmdbWatchProviders | undefined): string | undefined {
-  const regionData = watchProviders?.results?.[WATCH_PROVIDER_REGION];
+function extractSource(
+  watchProviders: TmdbWatchProviders | undefined,
+  region: string,
+): string | undefined {
+  const regionData = watchProviders?.results?.[region];
   if (!regionData) return undefined;
 
   const best = regionData.flatrate?.[0] ?? regionData.rent?.[0] ?? regionData.buy?.[0];
@@ -209,7 +221,8 @@ export async function getFilmDetails(
     .slice(0, 5)
     .map((c) => c.name)
     .join(', ');
-  const source = extractSource(data['watch/providers']);
+  const region = await getWatchProviderRegion();
+  const source = extractSource(data['watch/providers'], region);
 
   const fields: Record<string, string> = {};
   if (director) fields['director'] = director;
@@ -321,7 +334,8 @@ export async function getTVDetails(
     .slice(0, 5)
     .map((c) => c.name)
     .join(', ');
-  const source = extractSource(data['watch/providers']);
+  const region = await getWatchProviderRegion();
+  const source = extractSource(data['watch/providers'], region);
 
   const fields: Record<string, string> = {};
   if (creator) fields['creator'] = creator;
