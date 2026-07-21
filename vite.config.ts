@@ -39,13 +39,14 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         // oauth-callback.html (MAL/Trakt OAuth return target) must be
         // served as the actual static file, not redirected to the SPA
-        // shell — without this, the service worker's default
-        // navigate-to-index.html fallback intercepts the provider's
-        // redirect back and boots the app fresh at its default route
-        // instead of running the callback-handling script, silently
-        // dropping the `code`/`state` params and breaking every OAuth
-        // connection (see chat).
-        navigateFallbackDenylist: [/^\/media-journal\/oauth-callback\.html$/],
+        // shell. IMPORTANT: this must NOT be anchored with a trailing
+        // $ — the real request always arrives as
+        // "oauth-callback.html?code=...&state=..." (the provider's
+        // own query params), and an anchored regex silently fails to
+        // match that, letting the fallback intercept it anyway. A
+        // plain substring match is deliberate and correct here (see
+        // chat — this bit us once already).
+        navigateFallbackDenylist: [/oauth-callback\.html/],
       },
       devOptions: {
         enabled: false,
