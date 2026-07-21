@@ -17,6 +17,7 @@ import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 import { RegionSection } from '@/components/settings/RegionSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
+import { TraktImportSection } from '@/components/settings/TraktImportSection';
 
 export default function SettingsPage() {
   return (
@@ -29,6 +30,8 @@ export default function SettingsPage() {
         <GoogleDriveSection />
 
         <MalImportSection />
+
+        <TraktImportSection />
 
         {/* General — dark mode + TV tracking grouped together */}
         <Stack spacing={3}>

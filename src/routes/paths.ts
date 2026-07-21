@@ -14,6 +14,7 @@ export const ROUTES = {
   timeline: '/timeline',
   settings: '/settings',
   malCallback: '/settings/mal-callback',
+  traktCallback: '/settings/trakt-callback',
 } as const;
 
 /** Builds a concrete edit-entry path for a given entry id. */

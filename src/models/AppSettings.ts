@@ -72,6 +72,11 @@ export const SETTINGS_KEYS = {
   malAccessToken: 'malAccessToken',
   malRefreshToken: 'malRefreshToken',
   malTokenExpiresAt: 'malTokenExpiresAt',
+  /** Trakt OAuth tokens — read/written by traktService.ts. Same
+   * shape and convention as the MAL keys above. */
+  traktAccessToken: 'traktAccessToken',
+  traktRefreshToken: 'traktRefreshToken',
+  traktTokenExpiresAt: 'traktTokenExpiresAt',
   /** Set true the first time the onboarding welcome screen is shown
    * (Dashboard, empty-library state on a fresh device) — see
    * WelcomeScreen.tsx. Device-local, like everything pre-sync, so a
