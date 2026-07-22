@@ -19,6 +19,7 @@ interface BrandIconProps {
  */
 export function BrandIcon({ slug, size = 28 }: BrandIconProps) {
   const icon = BRAND_ICONS[slug];
+  const iconSize = size * 0.62;
   return (
     <Box
       sx={{
@@ -30,10 +31,15 @@ export function BrandIcon({ slug, size = 28 }: BrandIconProps) {
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
-        p: size / 7,
       }}
     >
-      <Box component="svg" viewBox="0 0 24 24" sx={{ width: '100%', height: '100%' }} role="img" aria-label={icon.title}>
+      <Box
+        component="svg"
+        viewBox="0 0 24 24"
+        sx={{ width: iconSize, height: iconSize }}
+        role="img"
+        aria-label={icon.title}
+      >
         <path d={icon.path} fill={`#${icon.hex}`} />
       </Box>
     </Box>

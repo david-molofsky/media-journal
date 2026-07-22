@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { BrandIcon } from './BrandIcon';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
@@ -22,15 +21,15 @@ const CSV_BOXES: { key: CsvSource; label: string; meta: string; icon: BrandIconS
 
 /**
  * Welcome screen (below the fold) — Version B from chat: no jump-link
- * sentence, the section speaks for itself once scrolled to. Tapping a
- * CSV box skips straight to that source's instructions dialog (bypasses
- * the intermediate row-list step ImportSourcesSection uses in
- * Settings); MyAnimeList and Trakt are reused as their existing full
- * cards unchanged, since they carry connect/sync state a plain
- * icon+label box can't represent. Every *ImportSection component here
- * is exactly the one Settings uses — fully self-contained, mounted
- * with local `open` state instead of Settings'. Google Drive stays out
- * of this grid (backup/restore, not "library import" — same reasoning
+ * sentence, the section speaks for itself once scrolled to. All six
+ * sources render as one uniform box grid. Tapping a CSV box skips
+ * straight to that source's instructions dialog (bypasses the
+ * intermediate row-list step ImportSourcesSection uses in Settings);
+ * MyAnimeList and Trakt use their 'box' variant (see
+ * MalImportSection.tsx / TraktImportSection.tsx) — same underlying
+ * hooks/dialogs as Settings' row variant, just a matching tap-card
+ * trigger instead of a full row. Google Drive stays out of this grid
+ * (backup/restore, not "library import" — same reasoning
  * ImportSourcesSection already applies) and keeps its own text link
  * elsewhere on the welcome screen.
  */
@@ -48,7 +47,6 @@ export function WelcomeImportSources() {
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: 1.25,
-          mb: 1.5,
         }}
       >
         {CSV_BOXES.map((source) => (
@@ -84,12 +82,10 @@ export function WelcomeImportSources() {
             </Typography>
           </Box>
         ))}
-      </Box>
 
-      <Stack spacing={1.25}>
-        <MalImportSection />
-        <TraktImportSection />
-      </Stack>
+        <MalImportSection variant="box" />
+        <TraktImportSection variant="box" />
+      </Box>
 
       <LetterboxdImportSection
         open={openSource === 'letterboxd'}
