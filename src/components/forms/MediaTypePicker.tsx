@@ -31,9 +31,6 @@ export function MediaTypePicker({ mediaTypes, onSelect }: MediaTypePickerProps) 
 
   return (
     <Box sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Typography variant="h6" component="h1" fontWeight={600} gutterBottom>
-        What did you finish?
-      </Typography>
       <Grid container spacing={2} sx={{ mt: 1 }}>
         {mediaTypes.map((mediaType) => {
           const Icon = getMediaTypeIcon(mediaType.icon);

@@ -8,16 +8,19 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
-import { lookupFilmByUpc } from '@/services/metadata/upcmdbService';
+import {
+  lookupComicByUpc,
+  resolveSeriesSelection,
+  type RankedSeriesCandidate,
+} from '@/services/metadata/upcitemdbService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import { toUpc12 } from '@/utils/upcBarcode';
 
-interface UpcScanDialogProps {
+interface ComicUpcScanDialogProps {
   open: boolean;
   onClose: () => void;
-  /** Same signature as MetadataSearch's / IsbnScanDialog's onFill — the
-   * scan result is handed off identically, so EntryForm doesn't need to
-   * know or care which source produced it. */
+  /** Same signature as every other search/scan source's onFill — see
+   * IsbnScanDialog.tsx / UpcScanDialog.tsx. */
   onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
 }
 
@@ -25,15 +28,26 @@ type ScanPhase =
   | 'scanning'
   | 'looking-up'
   | 'found'
+  | 'choose-series'
+  | 'series-only'
   | 'not-found'
-  | 'tmdb-not-found'
+  | 'no-match'
   | 'service-error'
   | 'camera-denied';
 
-/** Same interval as IsbnScanDialog — see its comment for reasoning. */
+/** Same interval as the other scan dialogs — see IsbnScanDialog.tsx. */
 const DETECT_INTERVAL_MS = 300;
 
-export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
+/** A resolved series (or series+issue) fill result carries a signal —
+ * the presence of `issueStart` — for whether issue-level credits were
+ * actually fetched (phase 'found') or only series/publisher (phase
+ * 'series-only'). See resolveSeriesSelection in upcitemdbService.ts:
+ * it only adds issueStart/issueEnd when getIssueDetails succeeded. */
+function hasIssueDetails(result: SearchResult): boolean {
+  return 'issueStart' in result.fields;
+}
+
+export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialogProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetector | null>(null);
@@ -41,7 +55,10 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
 
   const [phase, setPhase] = useState<ScanPhase>('scanning');
   const [scannedUpc, setScannedUpc] = useState<string | null>(null);
+  const [rawTitle, setRawTitle] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [candidates, setCandidates] = useState<RankedSeriesCandidate[]>([]);
+  const [pendingIssueNumber, setPendingIssueNumber] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current !== null) {
@@ -56,19 +73,47 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
     stopCamera();
     setScannedUpc(upc);
     setPhase('looking-up');
-    const outcome = await lookupFilmByUpc(upc);
-    if (outcome.status === 'found') {
-      setResult(outcome.result);
-      setPhase('found');
-    } else {
-      setPhase(outcome.status);
+
+    const outcome = await lookupComicByUpc(upc);
+    switch (outcome.status) {
+      case 'not-found':
+        setPhase('not-found');
+        return;
+      case 'service-error':
+        setPhase('service-error');
+        return;
+      case 'no-match':
+        setRawTitle(outcome.rawTitle);
+        setPhase('no-match');
+        return;
+      case 'choose':
+        setCandidates(outcome.candidates);
+        setPendingIssueNumber(outcome.issueNumber);
+        setPhase('choose-series');
+        return;
+      case 'auto': {
+        const resolved = await resolveSeriesSelection(outcome.match, outcome.issueNumber);
+        setResult(resolved);
+        setPhase(hasIssueDetails(resolved) ? 'found' : 'series-only');
+        return;
+      }
     }
   }, [stopCamera]);
+
+  const handleSelectCandidate = useCallback(async (candidate: SearchResult) => {
+    setPhase('looking-up');
+    const resolved = await resolveSeriesSelection(candidate, pendingIssueNumber);
+    setResult(resolved);
+    setPhase(hasIssueDetails(resolved) ? 'found' : 'series-only');
+  }, [pendingIssueNumber]);
 
   const startCamera = useCallback(async () => {
     setPhase('scanning');
     setResult(null);
     setScannedUpc(null);
+    setRawTitle(null);
+    setCandidates([]);
+    setPendingIssueNumber(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -123,12 +168,12 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
 
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
-      <DialogTitle>Scan barcode</DialogTitle>
+      <DialogTitle>Scan issue barcode</DialogTitle>
       <DialogContent>
         {phase === 'scanning' && (
           <Stack spacing={1.5}>
             <Typography variant="body2" color="text.secondary">
-              Point at the UPC barcode on the disc case
+              Point at the UPC barcode on the cover or back page
             </Typography>
             <Box
               sx={{
@@ -167,7 +212,7 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
         {phase === 'looking-up' && (
           <Stack spacing={1.5} alignItems="center" sx={{ py: 3 }}>
             <Typography variant="body2" color="text.secondary">
-              Looking up {scannedUpc}…
+              {scannedUpc ? `Looking up ${scannedUpc}…` : 'Fetching issue details…'}
             </Typography>
           </Stack>
         )}
@@ -175,7 +220,7 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
         {phase === 'found' && result && (
           <Stack spacing={1.5} alignItems="center" sx={{ py: 2 }}>
             <Alert severity="success" variant="outlined" sx={{ width: '100%' }}>
-              UPC recognised — matched via IMDb
+              Matched to a ComicVine series and issue
             </Alert>
             <Typography variant="body1" fontWeight={600}>
               {result.title}
@@ -188,20 +233,84 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
           </Stack>
         )}
 
+        {phase === 'series-only' && result && (
+          <Stack spacing={1.5} sx={{ py: 1 }}>
+            <Alert severity="warning" variant="outlined">
+              Matched the series, but couldn't read an issue number off the barcode listing. Series
+              and Publisher are filled in — enter the issue number after applying this, then use
+              "Fetch issue details" as usual.
+            </Alert>
+            <Box>
+              <Typography variant="body1" fontWeight={600}>
+                {result.title}
+              </Typography>
+              {result.fields['publisher'] && (
+                <Typography variant="body2" color="text.secondary">
+                  {result.fields['publisher']}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+        )}
+
+        {phase === 'choose-series' && (
+          <Stack spacing={1.5}>
+            <Alert severity="info" variant="outlined">
+              Found a barcode match, but a few ComicVine series look close. Which one is it?
+            </Alert>
+            <Stack spacing={1}>
+              {candidates.map(({ result: candidate }) => (
+                <Box
+                  key={candidate.id}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    bgcolor: 'action.hover',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    px: 1.5,
+                    py: 1,
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>
+                      {candidate.title}
+                    </Typography>
+                    {candidate.subtitle && (
+                      <Typography variant="caption" color="text.secondary">
+                        {candidate.subtitle}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void handleSelectCandidate(candidate)}
+                  >
+                    Select
+                  </Button>
+                </Box>
+              ))}
+            </Stack>
+          </Stack>
+        )}
+
         {phase === 'not-found' && (
           <Stack spacing={1.5} sx={{ py: 1 }}>
             <Alert severity="warning" variant="outlined">
-              Read the barcode ({scannedUpc}), but couldn't find a match in UPCMDB. This can happen
-              with less common editions, box sets, or region variants.
+              Read the barcode ({scannedUpc}), but couldn't find a match in the product database.
+              This can happen with less common or newer issues.
             </Alert>
           </Stack>
         )}
 
-        {phase === 'tmdb-not-found' && (
+        {phase === 'no-match' && (
           <Stack spacing={1.5} sx={{ py: 1 }}>
             <Alert severity="warning" variant="outlined">
-              UPCMDB matched this barcode, but the title couldn't be found on TMDB. This is rare —
-              try entering it manually below instead.
+              Read the barcode as "{rawTitle}" — but nothing close came up on ComicVine. This can
+              happen with less common or newer listings. Try entering it manually below.
             </Alert>
           </Stack>
         )}
@@ -223,7 +332,7 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
       </DialogContent>
       <DialogActions>
         {phase === 'scanning' && <Button onClick={handleClose}>Cancel</Button>}
-        {phase === 'found' && (
+        {(phase === 'found' || phase === 'series-only') && (
           <>
             <Button onClick={handleClose}>Cancel</Button>
             <Button variant="contained" onClick={handleUseResult}>
@@ -231,7 +340,8 @@ export function UpcScanDialog({ open, onClose, onFill }: UpcScanDialogProps) {
             </Button>
           </>
         )}
-        {(phase === 'not-found' || phase === 'tmdb-not-found' || phase === 'service-error') && (
+        {phase === 'choose-series' && <Button onClick={handleClose}>Enter manually instead</Button>}
+        {(phase === 'not-found' || phase === 'no-match' || phase === 'service-error') && (
           <>
             <Button onClick={handleClose}>Enter manually instead</Button>
             <Button variant="contained" onClick={() => void startCamera()}>

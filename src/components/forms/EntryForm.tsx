@@ -7,8 +7,6 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -18,6 +16,8 @@ import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import QrCodeScannerOutlinedIcon from '@mui/icons-material/QrCodeScannerOutlined';
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
+import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 import { getIssueDetails } from '@/services/metadata/comicVineService';
 import { comicIssueCount } from '@/utils/comicIssues';
@@ -30,6 +30,7 @@ import { GenreInput } from './GenreInput';
 import { MetadataSearch } from './MetadataSearch';
 import { IsbnScanDialog } from './IsbnScanDialog';
 import { UpcScanDialog } from './UpcScanDialog';
+import { ComicUpcScanDialog } from './ComicUpcScanDialog';
 import { AutocompleteField } from './AutocompleteField';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
@@ -268,40 +269,36 @@ export function EntryForm({
             variant="outlined"
             sx={{ fontWeight: 600 }}
           />
-          {scanAvailable && (
-            <Tooltip title="Scan ISBN barcode">
-              <IconButton
+          <Stack direction="row" spacing={1}>
+            {scanAvailable && (
+              <Button
                 onClick={() => setScanDialogOpen(true)}
                 size="small"
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  borderRadius: 2,
-                }}
-                aria-label="Scan ISBN barcode"
+                variant="outlined"
+                startIcon={<MenuBookOutlinedIcon fontSize="small" />}
+                sx={{ borderRadius: 4, textTransform: 'none', fontWeight: 600 }}
               >
-                <QrCodeScannerOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-          {upcScanAvailable && (
-            <Tooltip title="Scan UPC barcode">
-              <IconButton
+                ISBN
+              </Button>
+            )}
+            {upcScanAvailable && (
+              <Button
                 onClick={() => setUpcScanDialogOpen(true)}
                 size="small"
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  borderRadius: 2,
-                }}
-                aria-label="Scan UPC barcode"
+                variant="outlined"
+                startIcon={
+                  mediaType.id === 'comic' ? (
+                    <AutoStoriesOutlinedIcon fontSize="small" />
+                  ) : (
+                    <QrCodeScannerOutlinedIcon fontSize="small" />
+                  )
+                }
+                sx={{ borderRadius: 4, textTransform: 'none', fontWeight: 600 }}
               >
-                <QrCodeScannerOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
+                UPC
+              </Button>
+            )}
+          </Stack>
         </Stack>
 
         <IsbnScanDialog
@@ -309,11 +306,20 @@ export function EntryForm({
           onClose={() => setScanDialogOpen(false)}
           onFill={applyMetadataFill}
         />
-        <UpcScanDialog
-          open={upcScanDialogOpen}
-          onClose={() => setUpcScanDialogOpen(false)}
-          onFill={applyMetadataFill}
-        />
+        {mediaType.id === 'film' && (
+          <UpcScanDialog
+            open={upcScanDialogOpen}
+            onClose={() => setUpcScanDialogOpen(false)}
+            onFill={applyMetadataFill}
+          />
+        )}
+        {mediaType.id === 'comic' && (
+          <ComicUpcScanDialog
+            open={upcScanDialogOpen}
+            onClose={() => setUpcScanDialogOpen(false)}
+            onFill={applyMetadataFill}
+          />
+        )}
 
         <Stack spacing={2}>
           <Typography variant="subtitle2" color="text.secondary">

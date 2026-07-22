@@ -1,12 +1,15 @@
 /**
- * Feature detection for UPC barcode scanning (Film entry form only —
- * see chat: Comics single-issue UPC scanning is a separate, lower-
- * priority backlog item using a different lookup service/fuzzy-match
- * flow, not this one). Same no-polyfill approach as isbnScanSupport.ts:
- * on unsupported browsers the scan button simply doesn't render.
+ * Feature detection for UPC barcode scanning. Two media types, two
+ * different lookup flows behind the same button pattern:
+ *   - film: UPC -> UPCMDB -> IMDb id -> TMDB (see upcmdbService.ts)
+ *   - comic: UPC -> UPCitemdb -> fuzzy match against ComicVine (see
+ *     upcitemdbService.ts) — single issues only; trades/graphic novels
+ *     use the ISBN scan button instead (isbnScanSupport.ts).
+ * Same no-polyfill approach as isbnScanSupport.ts: on unsupported
+ * browsers the scan button simply doesn't render.
  */
 
-const UPC_BARCODE_MEDIA_TYPES = new Set(['film']);
+const UPC_BARCODE_MEDIA_TYPES = new Set(['film', 'comic']);
 
 export function hasUpcScan(mediaTypeId: string): boolean {
   return UPC_BARCODE_MEDIA_TYPES.has(mediaTypeId);
