@@ -110,19 +110,25 @@ export function TimelineChart({
   const anchorRef = useRef<{ dayIndex: number; clientX: number } | null>(null);
   const scrollToTodayRef = useRef(true);
 
-  // Reveal strip — shows a hidden or hovered/long-pressed title above
-  // the chart, and stays until another entry is hovered/long-pressed
-  // (see chat). Tapping an entry still opens it as before; long-press
-  // (touch) or hover (pointer) is purely additive and never navigates.
+  // Reveal strip — shows the tapped/clicked/hovered entry's title
+  // above the chart, and stays until another entry is tapped/hovered
+  // (see chat). A quick tap or single click reveals the name; a
+  // long-press (touch) or double-click (mouse) navigates to that
+  // entry's edit page instead. This is the reverse of the original
+  // mapping (tap navigated, long-press revealed) — swapped per
+  // David's call, since a quick tap is the lower-commitment action
+  // and should be the lower-commitment result (just showing the
+  // name), while the deliberate gesture (long-press/double-click)
+  // should be the one that navigates away from the Timeline.
   const [revealedTitle, setRevealedTitle] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const longPressFiredRef = useRef(false);
 
-  const startLongPress = (title: string) => {
+  const startLongPress = (bar: TimelineBar) => {
     longPressFiredRef.current = false;
     longPressTimerRef.current = window.setTimeout(() => {
       longPressFiredRef.current = true;
-      setRevealedTitle(title);
+      onOpenEntry(bar.entryId);
     }, LONG_PRESS_MS);
   };
   const cancelLongPress = () => {
@@ -132,13 +138,13 @@ export function TimelineChart({
     }
   };
   const handleEntryClick = (bar: TimelineBar) => {
-    // A completed long-press already revealed the title — swallow the
-    // click that follows touchend rather than also navigating away.
+    // A completed long-press already navigated away — swallow the
+    // click that follows touchend rather than also revealing.
     if (longPressFiredRef.current) {
       longPressFiredRef.current = false;
       return;
     }
-    onOpenEntry(bar.entryId);
+    setRevealedTitle(bar.title);
   };
 
   useEffect(() => {
@@ -380,7 +386,7 @@ export function TimelineChart({
           color: revealedTitle ? 'text.primary' : 'text.secondary',
         }}
       >
-        {revealedTitle ?? 'Long-press or hover an entry to see its title'}
+        {revealedTitle ?? 'Tap or hover an entry to see its title'}
       </Typography>
       <Box
         ref={scrollRef}
@@ -445,10 +451,11 @@ export function TimelineChart({
 
             const pressHandlers = {
               onMouseEnter: () => setRevealedTitle(bar.title),
-              onTouchStart: () => startLongPress(bar.title),
+              onTouchStart: () => startLongPress(bar),
               onTouchEnd: cancelLongPress,
               onTouchMove: cancelLongPress,
               onClick: () => handleEntryClick(bar),
+              onDoubleClick: () => onOpenEntry(bar.entryId),
             };
 
             // Below-label centers on the anchor point (marker center, or

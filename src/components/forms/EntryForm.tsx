@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
@@ -7,6 +7,8 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -15,6 +17,7 @@ import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import QrCodeScannerOutlinedIcon from '@mui/icons-material/QrCodeScannerOutlined';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 import { getIssueDetails } from '@/services/metadata/comicVineService';
 import { comicIssueCount } from '@/utils/comicIssues';
@@ -25,8 +28,10 @@ import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
 import { GenreInput } from './GenreInput';
 import { MetadataSearch } from './MetadataSearch';
+import { IsbnScanDialog } from './IsbnScanDialog';
 import { AutocompleteField } from './AutocompleteField';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
+import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
@@ -108,6 +113,20 @@ export function EntryForm({
   const [issueFetchError, setIssueFetchError] = useState<string | null>(null);
   const Icon = getMediaTypeIcon(mediaType.icon);
 
+  // ISBN barcode scanning (Book/Audiobook/Comic only) — see
+  // isbnScanSupport.ts. Availability is resolved asynchronously since
+  // BarcodeDetector.getSupportedFormats() itself returns a Promise;
+  // the button stays hidden until this resolves true, rather than
+  // showing then disappearing.
+  const [scanAvailable, setScanAvailable] = useState(false);
+  const [scanDialogOpen, setScanDialogOpen] = useState(false);
+  useEffect(() => {
+    if (!hasIsbnScan(mediaType.id)) return;
+    (async () => {
+      setScanAvailable(await isIsbnScanAvailable());
+    })();
+  }, [mediaType.id]);
+
   const defaultValues = useMemo(
     () => buildDefaultValues(mediaType, initialValues, defaultStatus),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,14 +204,76 @@ export function EntryForm({
     }
   });
 
+  // Shared by MetadataSearch (typed search) and IsbnScanDialog (barcode
+  // scan) — both hand off a result in the exact same shape, so the form
+  // doesn't need to know or care which one produced it.
+  const applyMetadataFill = (title: string, fields: Record<string, string>, genres?: string[]) => {
+    setValue('title', toTitleCase(title), { shouldValidate: true });
+    // comicVineVolumeId rides along in `fields` from searchSeries
+    // (comicVineService.ts) purely to reach this handler — it's not a
+    // real metadata field (there's no schema entry for it), so it's
+    // captured into local state and never written to the form/entry.
+    const { comicVineVolumeId: volumeId, ...restFields } = fields;
+    if (volumeId) setComicVineVolumeId(volumeId);
+    setIssueFetchError(null);
+    for (const [key, value] of Object.entries(restFields)) {
+      // Bug fix: every auto-filled field was being run through
+      // toTitleCase and written as a string, including `runtime`
+      // (needs to be a number per entrySchemas.ts — writing it as a
+      // string failed Zod validation with "Invalid input", even
+      // though the value displayed looked correct) and
+      // `overview`/`posterPath` (prose and a URL fragment
+      // respectively, neither of which should be title-cased —
+      // toTitleCase is meant for short proper-noun-style fields like
+      // Director or Cast).
+      const fieldDef = mediaType.fields.find((f) => f.key === key);
+      const skipTitleCase = key === 'overview' || key === 'posterPath' || key === 'coverImagePath';
+      const nextValue: unknown =
+        fieldDef?.type === 'number' ? Number(value) : skipTitleCase ? value : toTitleCase(value);
+      setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, {
+        shouldValidate: true,
+      });
+    }
+    if (genres && genres.length > 0) {
+      const existing = getValues('genres') ?? [];
+      const merged = Array.from(new Set([...existing, ...genres]));
+      setValue('genres', merged, { shouldValidate: true });
+    }
+  };
+
   return (
     <Box component="form" onSubmit={submit} noValidate>
       <Stack spacing={3}>
-        <Chip
-          icon={<Icon sx={{ color: `${mediaType.colour} !important` }} />}
-          label={mediaType.displayName}
-          variant="outlined"
-          sx={{ alignSelf: 'flex-start', fontWeight: 600 }}
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Chip
+            icon={<Icon sx={{ color: `${mediaType.colour} !important` }} />}
+            label={mediaType.displayName}
+            variant="outlined"
+            sx={{ fontWeight: 600 }}
+          />
+          {scanAvailable && (
+            <Tooltip title="Scan ISBN barcode">
+              <IconButton
+                onClick={() => setScanDialogOpen(true)}
+                size="small"
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  borderRadius: 2,
+                }}
+                aria-label="Scan ISBN barcode"
+              >
+                <QrCodeScannerOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+
+        <IsbnScanDialog
+          open={scanDialogOpen}
+          onClose={() => setScanDialogOpen(false)}
+          onFill={applyMetadataFill}
         />
 
         <Stack spacing={2}>
@@ -207,45 +288,7 @@ export function EntryForm({
               search source exists for this media type. */}
           <MetadataSearch
             mediaTypeId={mediaType.id}
-            onFill={(title, fields, genres) => {
-              setValue('title', toTitleCase(title), { shouldValidate: true });
-              // comicVineVolumeId rides along in `fields` from
-              // searchSeries (comicVineService.ts) purely to reach this
-              // handler — it's not a real metadata field (there's no
-              // schema entry for it), so it's captured into local state
-              // and never written to the form/entry.
-              const { comicVineVolumeId: volumeId, ...restFields } = fields;
-              if (volumeId) setComicVineVolumeId(volumeId);
-              setIssueFetchError(null);
-              for (const [key, value] of Object.entries(restFields)) {
-                // Bug fix: every auto-filled field was being run through
-                // toTitleCase and written as a string, including
-                // `runtime` (needs to be a number per entrySchemas.ts —
-                // writing it as a string failed Zod validation with
-                // "Invalid input", even though the value displayed
-                // looked correct) and `overview`/`posterPath` (prose and
-                // a URL fragment respectively, neither of which should
-                // be title-cased — toTitleCase is meant for short
-                // proper-noun-style fields like Director or Cast).
-                const fieldDef = mediaType.fields.find((f) => f.key === key);
-                const skipTitleCase =
-                  key === 'overview' || key === 'posterPath' || key === 'coverImagePath';
-                const nextValue: unknown =
-                  fieldDef?.type === 'number'
-                    ? Number(value)
-                    : skipTitleCase
-                      ? value
-                      : toTitleCase(value);
-                setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, {
-                  shouldValidate: true,
-                });
-              }
-              if (genres && genres.length > 0) {
-                const existing = getValues('genres') ?? [];
-                const merged = Array.from(new Set([...existing, ...genres]));
-                setValue('genres', merged, { shouldValidate: true });
-              }
-            }}
+            onFill={applyMetadataFill}
           />
           {showPoster && (
             <Box

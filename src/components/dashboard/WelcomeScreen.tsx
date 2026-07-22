@@ -99,9 +99,9 @@ export function WelcomeScreen({ onAddEntry, onOpenSettings }: WelcomeScreenProps
       <Typography variant="caption" color="text.secondary" maxWidth={360}>
         Already have data?{' '}
         <Link component="button" onClick={onOpenSettings} sx={{ verticalAlign: 'baseline' }}>
-          Import from Letterboxd
+          Import your library
         </Link>{' '}
-        or restore a{' '}
+        from a variety of sources, or restore a{' '}
         <Link component="button" onClick={onOpenSettings} sx={{ verticalAlign: 'baseline' }}>
           Google Drive backup
         </Link>{' '}

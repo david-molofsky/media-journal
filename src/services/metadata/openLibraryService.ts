@@ -86,3 +86,52 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     };
   });
 }
+
+interface OpenLibraryBookRecord {
+  title: string;
+  authors?: { name: string }[];
+  publishers?: { name: string }[];
+  subjects?: { name: string }[];
+  cover?: { medium?: string; large?: string };
+}
+
+/**
+ * Direct ISBN lookup for barcode scanning — one call, no title search
+ * involved. Uses Open Library's Books API (bibkeys) rather than the
+ * /isbn/{isbn}.json edition endpoint, since the Books API returns
+ * author names directly; the edition endpoint only returns author
+ * *keys*, which would need a second fetch per author to resolve to a
+ * name. Returns null if Open Library has no record for this ISBN
+ * (common for less common editions, or if a UPC was accidentally read
+ * as if it were an ISBN — see IsbnScanDialog.tsx).
+ */
+export async function lookupByIsbn(isbn: string): Promise<SearchResult | null> {
+  const params = new URLSearchParams({
+    bibkeys: `ISBN:${isbn}`,
+    format: 'json',
+    jscmd: 'data',
+  });
+  const res = await fetch(`${BASE}/api/books?${params.toString()}`);
+  if (!res.ok) throw new Error(`Open Library ISBN lookup failed: ${res.status}`);
+
+  const data = (await res.json()) as Record<string, OpenLibraryBookRecord>;
+  const record = data[`ISBN:${isbn}`];
+  if (!record) return null;
+
+  const author = record.authors?.[0]?.name ?? '';
+  const fields: Record<string, string> = {};
+  if (author) fields['author'] = author;
+
+  const genres =
+    ENABLE_OPENLIBRARY_GENRES && record.subjects?.length
+      ? record.subjects.slice(0, OPENLIBRARY_GENRE_LIMIT).map((s) => s.name)
+      : undefined;
+
+  return {
+    id: isbn,
+    title: record.title,
+    subtitle: author,
+    fields,
+    genres,
+  };
+}
