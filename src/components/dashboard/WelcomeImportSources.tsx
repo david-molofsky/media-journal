@@ -75,7 +75,7 @@ export function WelcomeImportSources() {
               '&:hover': { borderColor: 'primary.main' },
             }}
           >
-            <BrandIcon slug={source.icon} size={24} />
+            <BrandIcon slug={source.icon} size={32} />
             <Typography variant="body2" fontWeight={600}>
               {source.label}
             </Typography>
