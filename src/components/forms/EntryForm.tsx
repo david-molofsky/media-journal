@@ -29,9 +29,11 @@ import { TagInput } from './TagInput';
 import { GenreInput } from './GenreInput';
 import { MetadataSearch } from './MetadataSearch';
 import { IsbnScanDialog } from './IsbnScanDialog';
+import { UpcScanDialog } from './UpcScanDialog';
 import { AutocompleteField } from './AutocompleteField';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
+import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
 import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
@@ -124,6 +126,21 @@ export function EntryForm({
     if (!hasIsbnScan(mediaType.id)) return;
     (async () => {
       setScanAvailable(await isIsbnScanAvailable());
+    })();
+  }, [mediaType.id]);
+
+  // UPC barcode scanning (Film only, for now — see upcScanSupport.ts).
+  // Deliberately separate state/effect from the ISBN scan above rather
+  // than merged into one generic "scan" flag: the two never apply to
+  // the same media type today, but Comics UPC scanning (single issues)
+  // is a separate backlog item that would need both buttons available
+  // simultaneously on the Comic form once it lands.
+  const [upcScanAvailable, setUpcScanAvailable] = useState(false);
+  const [upcScanDialogOpen, setUpcScanDialogOpen] = useState(false);
+  useEffect(() => {
+    if (!hasUpcScan(mediaType.id)) return;
+    (async () => {
+      setUpcScanAvailable(await isUpcScanAvailable());
     })();
   }, [mediaType.id]);
 
@@ -268,11 +285,33 @@ export function EntryForm({
               </IconButton>
             </Tooltip>
           )}
+          {upcScanAvailable && (
+            <Tooltip title="Scan UPC barcode">
+              <IconButton
+                onClick={() => setUpcScanDialogOpen(true)}
+                size="small"
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  borderRadius: 2,
+                }}
+                aria-label="Scan UPC barcode"
+              >
+                <QrCodeScannerOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
 
         <IsbnScanDialog
           open={scanDialogOpen}
           onClose={() => setScanDialogOpen(false)}
+          onFill={applyMetadataFill}
+        />
+        <UpcScanDialog
+          open={upcScanDialogOpen}
+          onClose={() => setUpcScanDialogOpen(false)}
           onFill={applyMetadataFill}
         />
 
