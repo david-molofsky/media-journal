@@ -8,6 +8,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DevicesOutlinedIcon from '@mui/icons-material/DevicesOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import KeyboardArrowDownOutlinedIcon from '@mui/icons-material/KeyboardArrowDownOutlined';
+import { WelcomeImportSources } from './WelcomeImportSources';
 
 interface WelcomeScreenProps {
   onAddEntry: () => void;
@@ -96,12 +98,15 @@ export function WelcomeScreen({ onAddEntry, onOpenSettings }: WelcomeScreenProps
         ))}
       </Stack>
 
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <KeyboardArrowDownOutlinedIcon fontSize="small" />
+        Already have data? Scroll down to import
+      </Typography>
+
+      <WelcomeImportSources />
+
       <Typography variant="caption" color="text.secondary" maxWidth={360}>
-        Already have data?{' '}
-        <Link component="button" onClick={onOpenSettings} sx={{ verticalAlign: 'baseline' }}>
-          Import your library
-        </Link>{' '}
-        from a variety of sources, or restore a{' '}
+        Restoring from a backup instead? Find your{' '}
         <Link component="button" onClick={onOpenSettings} sx={{ verticalAlign: 'baseline' }}>
           Google Drive backup
         </Link>{' '}
