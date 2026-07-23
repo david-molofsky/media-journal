@@ -534,6 +534,47 @@ export async function getMostActiveMonth(
   );
 }
 
+/** Minimum rated-entry count a Source needs before it's eligible to
+ * be crowned "Favourite source" — mirrors Subscription Value's own
+ * MIN_WATCHES_FOR_RANKING threshold (see subscriptionValueService.ts),
+ * so a single 10/10 entry can't outrank a source with real, sustained
+ * use. Chosen in chat to match that existing precedent. */
+const MIN_ENTRIES_FOR_FAVOURITE_SOURCE = 3;
+
+/** The Source with the highest average rating within `year`, across
+ * every media type combined — unlike `getAverageRatingBySource`,
+ * which groups by media type, this flattens across types since
+ * "favourite source" is a single headline stat, not a per-type
+ * breakdown. Only Sources with at least
+ * `MIN_ENTRIES_FOR_FAVOURITE_SOURCE` rated entries are eligible;
+ * returns `null` if none clear that bar (including when there are no
+ * rated, sourced entries at all). */
+export async function getFavouriteSource(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<string | null> {
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
+  const sums: Record<string, { total: number; count: number }> = {};
+  for (const entry of entries) {
+    const source = sourceOf(entry);
+    if (!source) continue;
+    const bucket = sums[source] ?? { total: 0, count: 0 };
+    bucket.total += entry.rating ?? 0;
+    bucket.count += 1;
+    sums[source] = bucket;
+  }
+  const eligible = Object.entries(sums).filter(
+    ([, bucket]) => bucket.count >= MIN_ENTRIES_FOR_FAVOURITE_SOURCE,
+  );
+  if (eligible.length === 0) return null;
+  const best = eligible.reduce((best, current) =>
+    current[1].total / current[1].count > best[1].total / best[1].count ? current : best,
+  );
+  return best[0];
+}
+
 /** The day of the week (0 = Sunday … 6 = Saturday) with the most
  * completions within `year`, or `null` if the year has no entries.
  * Deliberately counts records, not `getEntryWeight` — this is about

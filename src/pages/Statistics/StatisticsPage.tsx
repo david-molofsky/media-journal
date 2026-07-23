@@ -13,14 +13,16 @@ import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
 import { YearSelector } from '@/components/common/YearSelector';
 import { MetricCard } from '@/components/statistics/MetricCard';
 import { InsightCard } from '@/components/statistics/InsightCard';
-import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
-import { WeeklyActivityChart } from '@/components/charts/WeeklyActivityChart';
-import { CumulativeWeeklyChart } from '@/components/charts/CumulativeWeeklyChart';
+import { TrendsTabs } from '@/components/statistics/TrendsTabs';
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
 import { GenreBarChart } from '@/components/charts/GenreBarChart';
 import { GenreShareByType } from '@/components/statistics/GenreShareByType';
 import { TopList, type TopListItem } from '@/components/statistics/TopList';
 import { SubscriptionValueCard } from '@/components/statistics/SubscriptionValueCard';
+import {
+  WatchedWishlistToggle,
+  type WatchedWishlistView,
+} from '@/components/statistics/WatchedWishlistToggle';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -28,21 +30,6 @@ import { ROUTES, editEntryPath } from '@/routes/paths';
 import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import type { MediaType } from '@/models';
-
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 /** Orders a grouped-by-media-type Source record (e.g.
  * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
@@ -90,6 +77,15 @@ function mergedSourceGroups(
 /**
  * Statistics — detailed analytics, trends, streaks and insights (PRD
  * section 5; UI & UX Specification section 8).
+ *
+ * Section order and grouping per the Statistics page redesign (see
+ * chat): Overview → Insights → Sources → Trends → Ratings → Top Rated
+ * → Genres. Sources sits directly under Insights (a product USP, kept
+ * high on the page rather than buried); Trends collapses three
+ * always-stacked charts into a tab switcher; Genres and Sources share
+ * a Watched/Wishlist toggle instead of stacking both views; "Highest
+ * rated" entries moved out of Ratings into their own Top Rated
+ * section, since they're a highlight reel, not a statistic.
  */
 export default function StatisticsPage() {
   const navigate = useNavigate();
@@ -99,6 +95,8 @@ export default function StatisticsPage() {
   const availableTags = useAvailableTags();
   const [year, setYear] = useState<number | null>(() => dayjs().year());
   const [filters, setFilters] = useState<StatsFilters>({});
+  const [sourcesView, setSourcesView] = useState<WatchedWishlistView>('watched');
+  const [genresView, setGenresView] = useState<WatchedWishlistView>('watched');
 
   const data = useStatisticsData(year, filters);
 
@@ -154,9 +152,12 @@ export default function StatisticsPage() {
   }
 
   const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
-  const favouriteDisplayName = data.favouriteMediaType
-    ? (mediaTypeById.get(data.favouriteMediaType)?.displayName ?? data.favouriteMediaType)
-    : '—';
+  const hasSources =
+    Object.keys(data.topSourcesByCount).length > 0 ||
+    Object.keys(data.wishlistSourceTotals).length > 0;
+  const hasGenres =
+    Object.keys(data.topGenresByCount).length > 0 ||
+    Object.keys(data.wishlistGenreTotals).length > 0;
 
   return (
     <Box>
@@ -181,6 +182,7 @@ export default function StatisticsPage() {
       />
 
       <Stack spacing={4}>
+        {/* Overview */}
         <Box>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
             Overview
@@ -197,221 +199,72 @@ export default function StatisticsPage() {
               label="Average rating"
               value={data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}
             />
-            <MetricCard
-              label="Longest streak"
-              value={`${data.longestStreak} day${data.longestStreak === 1 ? '' : 's'}`}
-            />
-            <MetricCard
-              label="Most active month"
-              value={
-                data.mostActiveMonth !== null
-                  ? (MONTH_NAMES[data.mostActiveMonth - 1] ?? '—')
-                  : '—'
-              }
-            />
-            <MetricCard label="Favourite media type" value={favouriteDisplayName} />
-            <MetricCard label="Rereads / rewatches" value={data.repeatConsumption} />
+            <MetricCard label="Favourite source" value={data.favouriteSource ?? '—'} />
           </Box>
         </Box>
 
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Trends
-          </Typography>
-          <Stack spacing={2}>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Monthly activity
-              </Typography>
-              <MonthlyActivityChart
-                monthlyBreakdown={data.monthlyBreakdown}
-                onSelectMonth={(month) =>
-                  goToLibrary(year === null ? { month } : { year, month })
-                }
-              />
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Weekly activity
-              </Typography>
-              <WeeklyActivityChart weeklyTotals={data.weeklyTotals} />
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Total media consumed
-              </Typography>
-              <CumulativeWeeklyChart weeklyTotals={data.weeklyTotals} year={year} />
-            </Box>
-          </Stack>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Ratings
-          </Typography>
-          <Stack spacing={2}>
-            <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
-            {Object.keys(data.averageRatingByMediaType).length > 0 && (
-              <Stack spacing={0.75}>
-                {Object.entries(data.averageRatingByMediaType)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([mediaType, average]) => (
-                    <Stack key={mediaType} direction="row" justifyContent="space-between">
-                      <Typography variant="body2">
-                        {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {average.toFixed(1)}
-                      </Typography>
-                    </Stack>
-                  ))}
-              </Stack>
-            )}
-            {data.highestRated.length > 0 && (
-              <Stack spacing={1.5}>
-                <Typography variant="body2" color="text.secondary">
-                  Highest rated
-                </Typography>
-                {data.highestRated.map((entry) => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    mediaType={mediaTypeById.get(entry.mediaType)}
-                    onOpen={() => navigate(editEntryPath(entry.id))}
-                  />
-                ))}
-              </Stack>
-            )}
-          </Stack>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Subscription Value
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Which services are earning their keep, based on what you&apos;ve watched and
-            rated.
-          </Typography>
-          <Stack spacing={2}>
-            <SubscriptionValueCard
-              title="Film, TV & Anime"
-              colour="#388E3C"
-              mediaTypeIds={['film', 'tv', 'anime']}
-            />
-            <SubscriptionValueCard
-              title="Podcasts"
-              colour="#5D4037"
-              mediaTypeIds={['podcast']}
-            />
-            <SubscriptionValueCard
-              title="Audiobooks"
-              colour="#7B1FA2"
-              mediaTypeIds={['audiobook']}
-            />
-            <SubscriptionValueCard
-              title="Reading sources"
-              colour="#1976D2"
-              mediaTypeIds={['book']}
-            />
-          </Stack>
-        </Box>
-
-        {(Object.keys(data.topGenresByCount).length > 0 ||
-          Object.keys(data.wishlistGenreTotals).length > 0) && (
+        {/* Insights */}
+        {data.insights.length > 0 && (
           <Box>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Genres
+              Insights
             </Typography>
-            <Stack spacing={2}>
-              {Object.keys(data.topGenresByCount).length > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {year === null ? 'Top genres overall' : 'Top genres this year'}
-                  </Typography>
-                  <GenreBarChart
-                    topGenresByCount={data.topGenresByCount}
-                    averageRatingByGenre={data.averageRatingByGenre}
-                    onSelectGenre={(genre) =>
-                      goToLibrary(year === null ? { genre } : { year, genre })
-                    }
-                  />
-                </Box>
-              )}
-
-              {data.topGenreShareByMediaType && mediaTypes && (
-                <GenreShareByType
-                  data={data.topGenreShareByMediaType}
-                  mediaTypes={mediaTypes}
-                />
-              )}
-
-              {Object.keys(data.wishlistGenreTotals).length > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Wishlist by genre (all time)
-                  </Typography>
-                  <TopList
-                    items={Object.entries(data.wishlistGenreTotals)
-                      .map(([name, count]) => ({ name, count }))
-                      .sort((a, b) => b.count - a.count)}
-                    onSelectItem={(genre) => goToLibrary({ genre, status: 'wishlist' })}
-                  />
-                </Box>
-              )}
+            <Stack spacing={1}>
+              {data.insights.map((insight) => (
+                <InsightCard key={insight} text={insight} />
+              ))}
             </Stack>
           </Box>
         )}
 
-        {(Object.keys(data.topSourcesByCount).length > 0 ||
-          Object.keys(data.wishlistSourceTotals).length > 0) && (
+        {/* Sources (incl. Subscription Value) */}
+        {hasSources && (
           <Box>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Sources
             </Typography>
-            <Stack spacing={2}>
-              {Object.keys(data.topSourcesByCount).length > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    {year === null ? 'Overall, by source' : 'This year, by source'}
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {mergedSourceGroups(
-                      data.topSourcesByCount,
-                      data.averageRatingBySource,
-                      mediaTypeById,
-                    ).map((group) => (
-                      <Box key={group.mediaTypeId}>
-                        <Typography
-                          variant="caption"
-                          fontWeight={700}
-                          color="primary.main"
-                          sx={{ display: 'block', mb: 0.5 }}
-                        >
-                          {group.displayName}
-                        </Typography>
-                        <TopList
-                          items={group.items}
-                          onSelectItem={(source) =>
-                            goToLibrary(
-                              year === null
-                                ? { source, mediaType: group.mediaTypeId }
-                                : { year, source, mediaType: group.mediaTypeId },
-                            )
-                          }
-                        />
-                      </Box>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
+            <WatchedWishlistToggle value={sourcesView} onChange={setSourcesView} />
 
-              {Object.keys(data.wishlistSourceTotals).length > 0 &&
-                (() => {
-                  const groups = sortedSourceGroups(
-                    data.wishlistSourceTotals,
+            {sourcesView === 'watched' &&
+              (Object.keys(data.topSourcesByCount).length > 0 ? (
+                <Stack spacing={1.5}>
+                  {mergedSourceGroups(
+                    data.topSourcesByCount,
+                    data.averageRatingBySource,
                     mediaTypeById,
-                  );
+                  ).map((group) => (
+                    <Box key={group.mediaTypeId}>
+                      <Typography
+                        variant="caption"
+                        fontWeight={700}
+                        color="primary.main"
+                        sx={{ display: 'block', mb: 0.5 }}
+                      >
+                        {group.displayName}
+                      </Typography>
+                      <TopList
+                        items={group.items}
+                        onSelectItem={(source) =>
+                          goToLibrary(
+                            year === null
+                              ? { source, mediaType: group.mediaTypeId }
+                              : { year, source, mediaType: group.mediaTypeId },
+                          )
+                        }
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No completed entries with a Source set yet.
+                </Typography>
+              ))}
+
+            {sourcesView === 'wishlist' &&
+              (Object.keys(data.wishlistSourceTotals).length > 0 ? (
+                (() => {
+                  const groups = sortedSourceGroups(data.wishlistSourceTotals, mediaTypeById);
                   // "Most saved on" is still a single all-time headline —
                   // computed across every group's sources, not per group.
                   const top = groups
@@ -419,9 +272,6 @@ export default function StatisticsPage() {
                     .sort(([, a], [, b]) => b - a)[0];
                   return (
                     <Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Wishlist by source (all time)
-                      </Typography>
                       <Stack spacing={1.5}>
                         {groups.map((group) => (
                           <Box key={group.mediaTypeId}>
@@ -461,20 +311,148 @@ export default function StatisticsPage() {
                       )}
                     </Box>
                   );
-                })()}
+                })()
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Nothing on the wishlist with a Source set yet.
+                </Typography>
+              ))}
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 0.5 }}>
+              Subscription Value
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Which services are earning their keep, based on what you&apos;ve watched and
+              rated.
+            </Typography>
+            <Stack spacing={2}>
+              <SubscriptionValueCard
+                title="Film, TV & Anime"
+                colour="#388E3C"
+                mediaTypeIds={['film', 'tv', 'anime']}
+              />
+              <SubscriptionValueCard
+                title="Podcasts"
+                colour="#5D4037"
+                mediaTypeIds={['podcast']}
+              />
+              <SubscriptionValueCard
+                title="Audiobooks"
+                colour="#7B1FA2"
+                mediaTypeIds={['audiobook']}
+              />
+              <SubscriptionValueCard
+                title="Reading sources"
+                colour="#1976D2"
+                mediaTypeIds={['book']}
+              />
             </Stack>
           </Box>
         )}
 
-        {data.insights.length > 0 && (
+        {/* Trends */}
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Trends
+          </Typography>
+          <TrendsTabs
+            monthlyBreakdown={data.monthlyBreakdown}
+            weeklyTotals={data.weeklyTotals}
+            year={year}
+            onSelectMonth={(month) =>
+              goToLibrary(year === null ? { month } : { year, month })
+            }
+          />
+        </Box>
+
+        {/* Ratings */}
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Ratings
+          </Typography>
+          <Stack spacing={2}>
+            <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
+            {Object.keys(data.averageRatingByMediaType).length > 0 && (
+              <Stack spacing={0.75}>
+                {Object.entries(data.averageRatingByMediaType)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([mediaType, average]) => (
+                    <Stack key={mediaType} direction="row" justifyContent="space-between">
+                      <Typography variant="body2">
+                        {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {average.toFixed(1)}
+                      </Typography>
+                    </Stack>
+                  ))}
+              </Stack>
+            )}
+          </Stack>
+        </Box>
+
+        {/* Top Rated */}
+        {data.highestRated.length > 0 && (
           <Box>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Insights
+              Top Rated
             </Typography>
-            <Stack spacing={1}>
-              {data.insights.map((insight) => (
-                <InsightCard key={insight} text={insight} />
+            <Stack spacing={1.5}>
+              {data.highestRated.map((entry) => (
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  mediaType={mediaTypeById.get(entry.mediaType)}
+                  onOpen={() => navigate(editEntryPath(entry.id))}
+                />
               ))}
+            </Stack>
+          </Box>
+        )}
+
+        {/* Genres */}
+        {hasGenres && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Genres
+            </Typography>
+            <WatchedWishlistToggle value={genresView} onChange={setGenresView} />
+            <Stack spacing={2}>
+              {genresView === 'watched' &&
+                (Object.keys(data.topGenresByCount).length > 0 ? (
+                  <GenreBarChart
+                    topGenresByCount={data.topGenresByCount}
+                    averageRatingByGenre={data.averageRatingByGenre}
+                    onSelectGenre={(genre) =>
+                      goToLibrary(year === null ? { genre } : { year, genre })
+                    }
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No completed entries with a Genre set yet.
+                  </Typography>
+                ))}
+
+              {genresView === 'wishlist' &&
+                (Object.keys(data.wishlistGenreTotals).length > 0 ? (
+                  <TopList
+                    items={Object.entries(data.wishlistGenreTotals)
+                      .map(([name, count]) => ({ name, count }))
+                      .sort((a, b) => b.count - a.count)}
+                    onSelectItem={(genre) => goToLibrary({ genre, status: 'wishlist' })}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Nothing on the wishlist with a Genre set yet.
+                  </Typography>
+                ))}
+
+              {data.topGenreShareByMediaType && mediaTypes && (
+                <GenreShareByType
+                  data={data.topGenreShareByMediaType}
+                  mediaTypes={mediaTypes}
+                />
+              )}
             </Stack>
           </Box>
         )}

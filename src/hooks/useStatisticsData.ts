@@ -7,10 +7,7 @@ import {
   getAverageRating,
   getAverageRatingByMediaType,
   getHighestRated,
-  getLongestStreak,
-  getFavouriteMediaType,
-  getMostActiveMonth,
-  getRepeatConsumption,
+  getFavouriteSource,
   getInsights,
   getTopSourcesByCount,
   getWishlistSourceTotals,
@@ -33,10 +30,7 @@ export interface StatisticsData {
   averageRating: number | null;
   averageRatingByMediaType: Record<string, number>;
   highestRated: MediaEntry[];
-  longestStreak: number;
-  favouriteMediaType: string | null;
-  mostActiveMonth: number | null;
-  repeatConsumption: number;
+  favouriteSource: string | null;
   insights: string[];
   topSourcesByCount: Record<string, Record<string, number>>;
   wishlistSourceTotals: Record<string, Record<string, number>>;
@@ -48,7 +42,15 @@ export interface StatisticsData {
 }
 
 /** Combines every statistics service call the Statistics screen needs
- * (Database Schema & Data Model, section 9) into one reactive query. */
+ * (Database Schema & Data Model, section 9) into one reactive query.
+ *
+ * Most active month, Longest streak, and Rewatches were dropped from
+ * this hook (and the Overview cards that used them) as part of the
+ * Statistics page redesign — see chat. `getLongestStreak` is still
+ * used independently by the Dashboard's Streak widget, and
+ * `getFavouriteMediaType`/`getRepeatConsumption` are still used
+ * internally by `getInsights` — only this hook's own top-level calls
+ * were trimmed. */
 export function useStatisticsData(year: number | null, filters?: StatsFilters): StatisticsData | undefined {
   return useLiveQuery(async () => {
     const [
@@ -59,10 +61,7 @@ export function useStatisticsData(year: number | null, filters?: StatsFilters): 
       averageRating,
       averageRatingByMediaType,
       highestRated,
-      longestStreak,
-      favouriteMediaType,
-      mostActiveMonth,
-      repeatConsumption,
+      favouriteSource,
       insights,
       topSourcesByCount,
       wishlistSourceTotals,
@@ -79,10 +78,7 @@ export function useStatisticsData(year: number | null, filters?: StatsFilters): 
       getAverageRating(year, filters),
       getAverageRatingByMediaType(year, filters),
       getHighestRated(year, 5, filters),
-      getLongestStreak(year, filters),
-      getFavouriteMediaType(year, filters),
-      getMostActiveMonth(year, filters),
-      getRepeatConsumption(year, filters),
+      getFavouriteSource(year, filters),
       getInsights(year, filters),
       getTopSourcesByCount(year, filters),
       // Wishlist breakdowns are deliberately excluded from the filter
@@ -104,10 +100,7 @@ export function useStatisticsData(year: number | null, filters?: StatsFilters): 
       averageRating,
       averageRatingByMediaType,
       highestRated,
-      longestStreak,
-      favouriteMediaType,
-      mostActiveMonth,
-      repeatConsumption,
+      favouriteSource,
       insights,
       topSourcesByCount,
       wishlistSourceTotals,
