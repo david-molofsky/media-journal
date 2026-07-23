@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Switch from '@mui/material/Switch';
@@ -12,6 +11,7 @@ import {
   setSubscriptionSourceFlag,
   isSubscriptionSource,
 } from '@/services/subscriptions/subscriptionSourcesService';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 /** Groups of media type ids shown together in this UI — matches the
  * grouping used by the Subscription Value cards on the Statistics
@@ -91,21 +91,13 @@ export function SubscriptionsSection() {
   const data = useSubscriptionSources();
 
   return (
-    <Stack spacing={2.5}>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <SubscriptionsOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Box>
-          <Typography variant="body1" fontWeight={500}>
-            Subscriptions
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Mark which Source values are paid subscriptions, so Statistics can tell them
-            apart from things like Theatrical or Physical Media.
-          </Typography>
-        </Box>
-      </Stack>
+    <CollapsibleSection title="Subscriptions" icon={SubscriptionsOutlinedIcon}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Mark which Source values are paid subscriptions, so Statistics can tell them apart
+        from things like Theatrical or Physical Media.
+      </Typography>
 
-      <Alert severity="info" sx={{ fontSize: 13 }}>
+      <Alert severity="info" sx={{ fontSize: 13, mb: 2 }}>
         We pre-selected the usual subscription services based on what&apos;s common for
         each type. Flip any toggle to change it, or add a source we missed.
       </Alert>
@@ -184,6 +176,6 @@ export function SubscriptionsSection() {
           </Stack>
         ))
       )}
-    </Stack>
+    </CollapsibleSection>
   );
 }

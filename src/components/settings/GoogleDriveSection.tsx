@@ -18,6 +18,7 @@ import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import GoogleIcon from '@mui/icons-material/Google';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import dayjs from 'dayjs';
@@ -52,7 +53,10 @@ export function GoogleDriveSection() {
   }, []);
 
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [status, setStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveExportFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -113,7 +117,10 @@ export function GoogleDriveSection() {
   const handleExport = () =>
     run(async () => {
       const fileName = await exportToGoogleDrive();
-      setStatus({ type: 'success', message: `Saved as "${fileName}" in your Media Journal Drive folder.` });
+      setStatus({
+        type: 'success',
+        message: `Saved as "${fileName}" in your Media Journal Drive folder.`,
+      });
     });
 
   const handleOpenImport = async () => {
@@ -147,14 +154,7 @@ export function GoogleDriveSection() {
   };
 
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-        <GoogleIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Typography variant="subtitle2" color="text.secondary">
-          Google Drive
-        </Typography>
-      </Stack>
-
+    <CollapsibleSection title="Google Drive" icon={GoogleIcon}>
       {!connected ? (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -173,13 +173,19 @@ export function GoogleDriveSection() {
       ) : (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Your library exports are saved to a <strong>Media Journal</strong> folder in your
-            Drive. Exporting today overwrites any previous export from today.
+            Your library exports are saved to a <strong>Media Journal</strong> folder in
+            your Drive. Exporting today overwrites any previous export from today.
           </Typography>
           <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
             <Button
               variant="contained"
-              startIcon={busy ? <CircularProgress size={16} color="inherit" /> : <CloudUploadOutlinedIcon />}
+              startIcon={
+                busy ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <CloudUploadOutlinedIcon />
+                )
+              }
               onClick={handleExport}
               disabled={busy}
             >
@@ -206,7 +212,12 @@ export function GoogleDriveSection() {
           </Stack>
 
           <Box sx={{ mt: 3, pt: 2.5, borderTop: 1, borderColor: 'divider' }}>
-            <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+            <Stack
+              direction="row"
+              alignItems="flex-start"
+              justifyContent="space-between"
+              spacing={2}
+            >
               <Box>
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   Automatic daily backup
@@ -233,9 +244,15 @@ export function GoogleDriveSection() {
               backups to overwrite each other unpredictably.
             </Alert>
 
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 1 }}
+            >
               Last automatic backup:{' '}
-              {lastAutoBackupAt ? dayjs(lastAutoBackupAt).format('D MMM YYYY, HH:mm') : 'never'}
+              {lastAutoBackupAt
+                ? dayjs(lastAutoBackupAt).format('D MMM YYYY, HH:mm')
+                : 'never'}
             </Typography>
           </Box>
         </>
@@ -248,7 +265,12 @@ export function GoogleDriveSection() {
       )}
 
       {/* Import file picker */}
-      <Dialog open={importOpen} onClose={() => setImportOpen(false)} fullWidth maxWidth="xs">
+      <Dialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Import from Google Drive</DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           {loadingFiles ? (
@@ -302,6 +324,6 @@ export function GoogleDriveSection() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </CollapsibleSection>
   );
 }

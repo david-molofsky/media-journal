@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -7,8 +6,12 @@ import Alert from '@mui/material/Alert';
 import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import dayjs from 'dayjs';
-import { exportLibrary, importLibrary } from '@/services/importExport/importExportService';
+import {
+  exportLibrary,
+  importLibrary,
+} from '@/services/importExport/importExportService';
 import { downloadJson } from '@/utils/downloadJson';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 /**
  * Import / Export — the application's backup mechanism (PRD section
@@ -16,9 +19,10 @@ import { downloadJson } from '@/utils/downloadJson';
  */
 export function ImportExportSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<
-    { type: 'success' | 'error'; message: string } | null
-  >(null);
+  const [status, setStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const handleExport = async () => {
@@ -58,13 +62,10 @@ export function ImportExportSection() {
   };
 
   return (
-    <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-        Import and export
-      </Typography>
+    <CollapsibleSection title="Import and export" icon={DownloadOutlinedIcon}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Export your library as a JSON file, or restore from a previous export. This is your
-        backup — there's no cloud copy in version 1.
+        Export your library as a JSON file, or restore from a previous export. This is
+        your backup — there's no cloud copy in version 1.
       </Typography>
       <Stack direction="row" spacing={2}>
         <Button
@@ -102,6 +103,6 @@ export function ImportExportSection() {
           {status.message}
         </Alert>
       )}
-    </Box>
+    </CollapsibleSection>
   );
 }

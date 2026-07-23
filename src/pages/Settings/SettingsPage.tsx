@@ -7,6 +7,9 @@ import ListItem from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
+import ImportExportOutlinedIcon from '@mui/icons-material/ImportExportOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
 import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
@@ -19,6 +22,7 @@ import { RegionSection } from '@/components/settings/RegionSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
 import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 export default function SettingsPage() {
   return (
@@ -30,14 +34,12 @@ export default function SettingsPage() {
       <Stack spacing={4} divider={<Divider />}>
         <GoogleDriveSection />
 
-        {/* General — dark mode + TV tracking grouped together */}
-        <Stack spacing={3}>
-          <Typography variant="subtitle2" color="text.secondary">
-            General
-          </Typography>
-          <DarkModeToggle />
-          <TvTrackingSection />
-        </Stack>
+        <CollapsibleSection title="General" icon={TuneOutlinedIcon}>
+          <Stack spacing={3}>
+            <DarkModeToggle />
+            <TvTrackingSection />
+          </Stack>
+        </CollapsibleSection>
 
         <RegionSection />
 
@@ -46,11 +48,13 @@ export default function SettingsPage() {
         {/* Import Data — CSV-based sources plus the two connected-account
             sources (MAL, Trakt), grouped together per the original
             scoping decision (see chat) rather than split apart. */}
-        <Stack spacing={3}>
-          <ImportSourcesSection />
-          <MalImportSection />
-          <TraktImportSection />
-        </Stack>
+        <CollapsibleSection title="Import data" icon={ImportExportOutlinedIcon}>
+          <Stack spacing={3}>
+            <ImportSourcesSection />
+            <MalImportSection />
+            <TraktImportSection />
+          </Stack>
+        </CollapsibleSection>
 
         <MediaTypeManager />
 
@@ -60,20 +64,14 @@ export default function SettingsPage() {
 
         <SubscriptionsSection />
 
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            About
-          </Typography>
+        <CollapsibleSection title="About" icon={InfoOutlinedIcon}>
           <Typography variant="body2" color="text.secondary">
             Media Journal v1.0 — a permanent, offline-first archive of everything you
             read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
-        </Box>
+        </CollapsibleSection>
 
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Sync
-          </Typography>
+        <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>
           <List disablePadding>
             <ListItem disablePadding sx={{ opacity: 0.5, py: 1 }}>
               <ListItemIcon sx={{ minWidth: 36 }}>
@@ -85,7 +83,7 @@ export default function SettingsPage() {
               />
             </ListItem>
           </List>
-        </Box>
+        </CollapsibleSection>
       </Stack>
     </Box>
   );

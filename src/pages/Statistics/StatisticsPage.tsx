@@ -285,6 +285,38 @@ export default function StatisticsPage() {
           </Stack>
         </Box>
 
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Subscription Value
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Which services are earning their keep, based on what you&apos;ve watched and
+            rated.
+          </Typography>
+          <Stack spacing={2}>
+            <SubscriptionValueCard
+              title="Film, TV & Anime"
+              colour="#388E3C"
+              mediaTypeIds={['film', 'tv', 'anime']}
+            />
+            <SubscriptionValueCard
+              title="Podcasts"
+              colour="#5D4037"
+              mediaTypeIds={['podcast']}
+            />
+            <SubscriptionValueCard
+              title="Audiobooks"
+              colour="#7B1FA2"
+              mediaTypeIds={['audiobook']}
+            />
+            <SubscriptionValueCard
+              title="Reading sources"
+              colour="#1976D2"
+              mediaTypeIds={['book']}
+            />
+          </Stack>
+        </Box>
+
         {(Object.keys(data.topGenresByCount).length > 0 ||
           Object.keys(data.wishlistGenreTotals).length > 0) && (
           <Box>
@@ -433,38 +465,6 @@ export default function StatisticsPage() {
             </Stack>
           </Box>
         )}
-
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Subscription Value
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Which services are earning their keep, based on what you&apos;ve watched and
-            rated.
-          </Typography>
-          <Stack spacing={2}>
-            <SubscriptionValueCard
-              title="Film, TV & Anime"
-              colour="#388E3C"
-              mediaTypeIds={['film', 'tv', 'anime']}
-            />
-            <SubscriptionValueCard
-              title="Podcasts"
-              colour="#5D4037"
-              mediaTypeIds={['podcast']}
-            />
-            <SubscriptionValueCard
-              title="Audiobooks"
-              colour="#7B1FA2"
-              mediaTypeIds={['audiobook']}
-            />
-            <SubscriptionValueCard
-              title="Reading sources"
-              colour="#1976D2"
-              mediaTypeIds={['book']}
-            />
-          </Stack>
-        </Box>
 
         {data.insights.length > 0 && (
           <Box>

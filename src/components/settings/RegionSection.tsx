@@ -1,12 +1,14 @@
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import PublicOutlinedIcon from '@mui/icons-material/PublicOutlined';
 import { useWatchProviderRegion } from '@/hooks/useWatchProviderRegion';
 import { setSetting } from '@/services/database/settingsService';
-import { WATCH_PROVIDER_REGIONS, type WatchProviderRegion } from '@/utils/watchProviderRegions';
+import {
+  WATCH_PROVIDER_REGIONS,
+  type WatchProviderRegion,
+} from '@/utils/watchProviderRegions';
+import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 
 /**
  * Manual region setting for TMDB/JustWatch streaming availability
@@ -25,18 +27,10 @@ export function RegionSection() {
   const selected = WATCH_PROVIDER_REGIONS.find((r) => r.code === region) ?? null;
 
   return (
-    <Stack spacing={1.5}>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <PublicOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-        <Box>
-          <Typography variant="body1" fontWeight={500}>
-            Region
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Used for streaming availability lookups (TMDB/JustWatch) only
-          </Typography>
-        </Box>
-      </Stack>
+    <CollapsibleSection title="Region" icon={PublicOutlinedIcon}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Used for streaming availability lookups (TMDB/JustWatch) only
+      </Typography>
 
       <Autocomplete
         size="small"
@@ -47,8 +41,10 @@ export function RegionSection() {
         onChange={(_, newValue) => {
           setSetting('watchProviderRegion', newValue?.code ?? 'GB');
         }}
-        renderInput={(params) => <TextField {...params} placeholder="Search countries…" />}
+        renderInput={(params) => (
+          <TextField {...params} placeholder="Search countries…" />
+        )}
       />
-    </Stack>
+    </CollapsibleSection>
   );
 }
