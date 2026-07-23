@@ -39,6 +39,7 @@ export const SUBSCRIPTION_VALUE_GROUPS: SubscriptionValueGroup[] = [
   { title: 'Podcasts', colour: '#5D4037', mediaTypeIds: ['podcast'] },
   { title: 'Audiobooks', colour: '#7B1FA2', mediaTypeIds: ['audiobook'] },
   { title: 'Reading sources', colour: '#1976D2', mediaTypeIds: ['book'] },
+  { title: 'Comics & Manga', colour: '#C62828', mediaTypeIds: ['comic', 'manga'] },
 ];
 
 export interface SubscriptionValueTopTitle {

@@ -81,7 +81,8 @@ function mergedSourceGroups(
  * section 5; UI & UX Specification section 8).
  *
  * Section order and grouping per the Statistics page redesign (see
- * chat): Overview → Insights → Sources → Trends → Ratings → Top Rated
+ * chat): Overview → Insights → Sources (Subscription Value, then the
+ * Watched/Wishlist Source breakdown) → Trends → Ratings → Top Rated
  * → Genres. Sources sits directly under Insights (a product USP, kept
  * high on the page rather than buried); Trends collapses three
  * always-stacked charts into a tab switcher; Genres and Sources share
@@ -228,6 +229,24 @@ export default function StatisticsPage() {
         {hasSources && (
           <Box>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Subscription Value
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Which services are earning their keep, based on what you&apos;ve watched and
+              rated.
+            </Typography>
+            <Stack spacing={2}>
+              {SUBSCRIPTION_VALUE_GROUPS.map((group) => (
+                <SubscriptionValueCard
+                  key={group.title}
+                  title={group.title}
+                  colour={group.colour}
+                  mediaTypeIds={group.mediaTypeIds}
+                />
+              ))}
+            </Stack>
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }} gutterBottom>
               Sources
             </Typography>
             <WatchedWishlistToggle value={sourcesView} onChange={setSourcesView} />
@@ -324,24 +343,6 @@ export default function StatisticsPage() {
                   Nothing on the wishlist with a Source set yet.
                 </Typography>
               ))}
-
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 0.5 }}>
-              Subscription Value
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Which services are earning their keep, based on what you&apos;ve watched and
-              rated.
-            </Typography>
-            <Stack spacing={2}>
-              {SUBSCRIPTION_VALUE_GROUPS.map((group) => (
-                <SubscriptionValueCard
-                  key={group.title}
-                  title={group.title}
-                  colour={group.colour}
-                  mediaTypeIds={group.mediaTypeIds}
-                />
-              ))}
-            </Stack>
           </Box>
         )}
 
