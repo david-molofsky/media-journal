@@ -85,6 +85,14 @@ export const SETTINGS_KEYS = {
    * every entry gets deleted — that case falls back to the plain
    * PagePlaceholder rather than re-showing onboarding. */
   hasSeenWelcome: 'hasSeenWelcome',
+  /** Per-media-type map of which `metadata.source` values count as a
+   * paid subscription, for the Statistics > Subscription Value
+   * feature (Settings > Subscriptions). Shape: `Record<mediaTypeId,
+   * Record<sourceValue, boolean>>`. Seeded on first read from
+   * DEFAULT_SUBSCRIPTION_SOURCES (subscriptionSourcesService.ts)
+   * rather than at install time, so it stays in sync if that default
+   * list is ever extended later. */
+  subscriptionSources: 'subscriptionSources',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

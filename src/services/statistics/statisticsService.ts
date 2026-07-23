@@ -43,7 +43,10 @@ export interface StatsFilters {
   ratingMax?: number;
 }
 
-function applyStatsFilters(entries: MediaEntry[], filters: StatsFilters | undefined): MediaEntry[] {
+function applyStatsFilters(
+  entries: MediaEntry[],
+  filters: StatsFilters | undefined,
+): MediaEntry[] {
   if (!filters) return entries;
   let result = entries;
   if (filters.mediaTypeIds && filters.mediaTypeIds.length > 0) {
@@ -59,7 +62,9 @@ function applyStatsFilters(entries: MediaEntry[], filters: StatsFilters | undefi
   if (filters.ratingMin !== undefined || filters.ratingMax !== undefined) {
     const min = filters.ratingMin ?? 0;
     const max = filters.ratingMax ?? 10;
-    result = result.filter((e) => e.rating !== undefined && e.rating >= min && e.rating <= max);
+    result = result.filter(
+      (e) => e.rating !== undefined && e.rating >= min && e.rating <= max,
+    );
   }
   return result;
 }
@@ -71,18 +76,23 @@ function applyStatsFilters(entries: MediaEntry[], filters: StatsFilters | undefi
  * regardless of scope (see chat). `filters` narrows further by Media
  * Type/Genre/Tags/Rating (Statistics filter bar) — applied after the
  * year/status scoping, same order as before this feature existed. */
-async function entriesForYear(year: number | null, filters?: StatsFilters): Promise<MediaEntry[]> {
+async function entriesForYear(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<MediaEntry[]> {
   const entries =
     year === null
       ? await db.mediaEntries.toArray()
       : await db.mediaEntries.where('completedYear').equals(year).toArray();
-  const completedOnly = entries.filter((entry) => !entry.status || entry.status === 'completed');
+  const completedOnly = entries.filter(
+    (entry) => !entry.status || entry.status === 'completed',
+  );
   return applyStatsFilters(completedOnly, filters);
 }
 
 /** Reads the TV tracking mode from the database (not reactive — used
  * only inside statistics service functions which are already async). */
-async function getTvTrackingMode(): Promise<TvTrackingMode> {
+export async function getTvTrackingMode(): Promise<TvTrackingMode> {
   const record = await db.appSettings.get('tvTrackingMode');
   return (record?.value as TvTrackingMode) ?? 'season';
 }
@@ -101,10 +111,14 @@ async function getTvTrackingMode(): Promise<TvTrackingMode> {
  * item, since a six-issue entry is still a single rating and a single
  * thing to revisit.
  */
-function getEntryWeight(entry: MediaEntry, tvMode: TvTrackingMode): number {
+export function getEntryWeight(entry: MediaEntry, tvMode: TvTrackingMode): number {
   if (entry.mediaType === 'comic') {
     const { issueStart, issueEnd } = entry.metadata;
-    if (typeof issueStart !== 'number' || typeof issueEnd !== 'number' || issueEnd < issueStart) {
+    if (
+      typeof issueStart !== 'number' ||
+      typeof issueEnd !== 'number' ||
+      issueEnd < issueStart
+    ) {
       return 1;
     }
     return comicIssueCount(issueStart, issueEnd);
@@ -128,13 +142,20 @@ export interface YearSummary {
   totalsByMediaType: Record<string, number>;
 }
 
-export async function getYearSummary(year: number | null, filters?: StatsFilters): Promise<YearSummary> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+export async function getYearSummary(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<YearSummary> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   const totalsByMediaType: Record<string, number> = {};
   let totalEntries = 0;
   for (const entry of entries) {
     const weight = getEntryWeight(entry, tvMode);
-    totalsByMediaType[entry.mediaType] = (totalsByMediaType[entry.mediaType] ?? 0) + weight;
+    totalsByMediaType[entry.mediaType] =
+      (totalsByMediaType[entry.mediaType] ?? 0) + weight;
     totalEntries += weight;
   }
   return { year, totalEntries, totalsByMediaType };
@@ -143,8 +164,14 @@ export async function getYearSummary(year: number | null, filters?: StatsFilters
 /** Entry counts for each calendar month (1–12) within `year`, weighted
  * by `getEntryWeight` so a multi-issue comic entry contributes its
  * full issue count rather than one. */
-export async function getMonthlyBreakdown(year: number | null, filters?: StatsFilters): Promise<Record<number, number>> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+export async function getMonthlyBreakdown(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<number, number>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   const breakdown: Record<number, number> = {};
   for (let month = 1; month <= 12; month += 1) {
     breakdown[month] = 0;
@@ -157,7 +184,10 @@ export async function getMonthlyBreakdown(year: number | null, filters?: StatsFi
 }
 
 /** Entry counts grouped by media type within `year`. */
-export async function getMediaTypeTotals(year: number | null, filters?: StatsFilters): Promise<Record<string, number>> {
+export async function getMediaTypeTotals(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
   const summary = await getYearSummary(year, filters);
   return summary.totalsByMediaType;
 }
@@ -165,7 +195,7 @@ export async function getMediaTypeTotals(year: number | null, filters?: StatsFil
 /** Extracts `metadata.source` from an entry, or `undefined` if unset —
  * shared by all three Source-based statistics below so "no source set"
  * is handled identically everywhere. */
-function sourceOf(entry: MediaEntry): string | undefined {
+export function sourceOf(entry: MediaEntry): string | undefined {
   const { source } = entry.metadata;
   return typeof source === 'string' && source.trim() ? source : undefined;
 }
@@ -181,8 +211,14 @@ function sourceOf(entry: MediaEntry): string | undefined {
  * not bucketed under an "Unknown" label — Source is optional, so most
  * historical entries won't have one, and lumping them together
  * wouldn't be meaningful. */
-export async function getTopSourcesByCount(year: number | null, filters?: StatsFilters): Promise<Record<string, Record<string, number>>> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+export async function getTopSourcesByCount(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<string, Record<string, number>>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   const totals: Record<string, Record<string, number>> = {};
   for (const entry of entries) {
     const source = sourceOf(entry);
@@ -202,7 +238,9 @@ export async function getTopSourcesByCount(year: number | null, filters?: StatsF
  * been read yet, so there's no meaningful "issue count consumed" to
  * weight by. Grouped by media type for the same reason as
  * `getTopSourcesByCount` above. */
-export async function getWishlistSourceTotals(): Promise<Record<string, Record<string, number>>> {
+export async function getWishlistSourceTotals(): Promise<
+  Record<string, Record<string, number>>
+> {
   const entries = await db.mediaEntries.where('status').equals('wishlist').toArray();
   const totals: Record<string, Record<string, number>> = {};
   for (const entry of entries) {
@@ -220,8 +258,13 @@ export async function getWishlistSourceTotals(): Promise<Record<string, Record<s
  * `getAverageRatingByMediaType` exactly, grouped by Source within each
  * media type instead. Grouped by media type for the same reason as
  * `getTopSourcesByCount` above. */
-export async function getAverageRatingBySource(year: number | null, filters?: StatsFilters): Promise<Record<string, Record<string, number>>> {
-  const entries = (await entriesForYear(year, filters)).filter((entry) => entry.rating !== undefined);
+export async function getAverageRatingBySource(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<string, Record<string, number>>> {
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
   const sums: Record<string, Record<string, { total: number; count: number }>> = {};
   for (const entry of entries) {
     const source = sourceOf(entry);
@@ -236,7 +279,10 @@ export async function getAverageRatingBySource(year: number | null, filters?: St
   const result: Record<string, Record<string, number>> = {};
   for (const [mediaType, sources] of Object.entries(sums)) {
     result[mediaType] = Object.fromEntries(
-      Object.entries(sources).map(([source, { total, count }]) => [source, total / count]),
+      Object.entries(sources).map(([source, { total, count }]) => [
+        source,
+        total / count,
+      ]),
     );
   }
   return result;
@@ -250,8 +296,14 @@ export async function getAverageRatingBySource(year: number | null, filters?: St
  * genres; each one it has gets the entry's full weight, same as how
  * Tags work — this is a "how much did I consume tagged X" count, not
  * a mutually-exclusive breakdown. */
-export async function getTopGenresByCount(year: number | null, filters?: StatsFilters): Promise<Record<string, number>> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+export async function getTopGenresByCount(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   const totals: Record<string, number> = {};
   for (const entry of entries) {
     const weight = getEntryWeight(entry, tvMode);
@@ -265,8 +317,13 @@ export async function getTopGenresByCount(year: number | null, filters?: StatsFi
 /** Average rating per Genre within `year`, ignoring unrated entries.
  * Flat, for the same reason as `getTopGenresByCount`. An entry with
  * multiple genres contributes its rating to each genre's average. */
-export async function getAverageRatingByGenre(year: number | null, filters?: StatsFilters): Promise<Record<string, number>> {
-  const entries = (await entriesForYear(year, filters)).filter((entry) => entry.rating !== undefined);
+export async function getAverageRatingByGenre(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
   const sums: Record<string, { total: number; count: number }> = {};
   for (const entry of entries) {
     for (const genre of entry.genres ?? []) {
@@ -325,7 +382,10 @@ export async function getTopGenreShareByMediaType(
   year: number | null,
   filters?: StatsFilters,
 ): Promise<TopGenreShareByMediaType | null> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   if (entries.length === 0) return null;
 
   const genreTotals: Record<string, number> = {};
@@ -382,7 +442,10 @@ export async function getRatingDistribution(
 
 /** Average rating within `year`, ignoring unrated entries. `null` if
  * no rated entries exist. */
-export async function getAverageRating(year: number | null, filters?: StatsFilters): Promise<number | null> {
+export async function getAverageRating(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<number | null> {
   const entries = (await entriesForYear(year, filters)).filter(
     (entry) => entry.rating !== undefined,
   );
@@ -397,7 +460,9 @@ export async function getAverageRatingByMediaType(
   year: number | null,
   filters?: StatsFilters,
 ): Promise<Record<string, number>> {
-  const entries = (await entriesForYear(year, filters)).filter((entry) => entry.rating !== undefined);
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
   const sums: Record<string, { total: number; count: number }> = {};
   for (const entry of entries) {
     const bucket = sums[entry.mediaType] ?? { total: 0, count: 0 };
@@ -406,7 +471,10 @@ export async function getAverageRatingByMediaType(
     sums[entry.mediaType] = bucket;
   }
   return Object.fromEntries(
-    Object.entries(sums).map(([mediaType, { total, count }]) => [mediaType, total / count]),
+    Object.entries(sums).map(([mediaType, { total, count }]) => [
+      mediaType,
+      total / count,
+    ]),
   );
 }
 
@@ -420,13 +488,20 @@ export async function getAverageRatingByMediaType(
  * mixing in absolute-date math that would only make sense for one
  * year. True ISO weeks aren't used — close enough for the activity
  * chart this powers without adding a date library plugin. */
-export async function getWeeklyTotals(year: number | null, filters?: StatsFilters): Promise<Record<number, number>> {
-  const [entries, tvMode] = await Promise.all([entriesForYear(year, filters), getTvTrackingMode()]);
+export async function getWeeklyTotals(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<Record<number, number>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
   const totals: Record<number, number> = {};
   for (const entry of entries) {
     const date = new Date(entry.completedDate ?? '');
     const startOfYear = new Date(Date.UTC(date.getFullYear(), 0, 1));
-    const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / 86_400_000) + 1;
+    const dayOfYear =
+      Math.floor((date.getTime() - startOfYear.getTime()) / 86_400_000) + 1;
     const week = Math.min(53, Math.max(1, Math.ceil(dayOfYear / 7)));
     totals[week] = (totals[week] ?? 0) + getEntryWeight(entry, tvMode);
   }
@@ -435,7 +510,10 @@ export async function getWeeklyTotals(year: number | null, filters?: StatsFilter
 
 /** The media type with the most entries within `year`, or `null` if
  * the year has no entries. */
-export async function getFavouriteMediaType(year: number | null, filters?: StatsFilters): Promise<string | null> {
+export async function getFavouriteMediaType(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<string | null> {
   const totals = await getMediaTypeTotals(year, filters);
   const entries = Object.entries(totals);
   if (entries.length === 0) return null;
@@ -444,11 +522,16 @@ export async function getFavouriteMediaType(year: number | null, filters?: Stats
 
 /** The calendar month (1–12) with the most completions within `year`,
  * or `null` if the year has no entries. */
-export async function getMostActiveMonth(year: number | null, filters?: StatsFilters): Promise<number | null> {
+export async function getMostActiveMonth(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<number | null> {
   const breakdown = await getMonthlyBreakdown(year, filters);
   const entries = Object.entries(breakdown).filter(([, count]) => count > 0);
   if (entries.length === 0) return null;
-  return Number(entries.reduce((best, current) => (current[1] > best[1] ? current : best))[0]);
+  return Number(
+    entries.reduce((best, current) => (current[1] > best[1] ? current : best))[0],
+  );
 }
 
 /** The day of the week (0 = Sunday … 6 = Saturday) with the most
@@ -457,7 +540,10 @@ export async function getMostActiveMonth(year: number | null, filters?: StatsFil
  * which day you tend to log entries, not how much volume you got
  * through, so a single six-issue comic shouldn't outweigh six
  * separate days of reading. */
-export async function getMostActiveWeekday(year: number | null, filters?: StatsFilters): Promise<number | null> {
+export async function getMostActiveWeekday(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<number | null> {
   const entries = await entriesForYear(year, filters);
   if (entries.length === 0) return null;
   const totals: Record<number, number> = {};
@@ -466,7 +552,9 @@ export async function getMostActiveWeekday(year: number | null, filters?: StatsF
     totals[day] = (totals[day] ?? 0) + 1;
   }
   return Number(
-    Object.entries(totals).reduce((best, current) => (current[1] > best[1] ? current : best))[0],
+    Object.entries(totals).reduce((best, current) =>
+      current[1] > best[1] ? current : best,
+    )[0],
   );
 }
 /** Most recently completed entries across all years, newest first. */
@@ -495,9 +583,9 @@ export async function getCurrentStreak(): Promise<number> {
 
   const today = dayjs().format('YYYY-MM-DD');
   const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
-  const distinctDays = Array.from(
-    new Set(entries.map((entry) => entry.completedDate)),
-  ).sort().reverse();
+  const distinctDays = Array.from(new Set(entries.map((entry) => entry.completedDate)))
+    .sort()
+    .reverse();
 
   const mostRecent = distinctDays[0];
   if (mostRecent !== today && mostRecent !== yesterday) return 0;
@@ -533,7 +621,10 @@ export async function getHighestRated(
  * completion within `year`. Multiple entries on the same day count
  * once; the streak resets on any gap of a full day or more.
  */
-export async function getLongestStreak(year: number | null, filters?: StatsFilters): Promise<number> {
+export async function getLongestStreak(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<number> {
   const entries = await entriesForYear(year, filters);
   if (entries.length === 0) return 0;
 
@@ -562,12 +653,17 @@ export async function getLongestStreak(year: number | null, filters?: StatsFilte
  * TODO (Milestone 6): implement alongside the Statistics screen's
  * "Trends" section (PRD section 5; UI & UX Specification section 8).
  */
-export async function getMonthlyTrend(_year: number | null): Promise<Record<number, number>> {
+export async function getMonthlyTrend(
+  _year: number | null,
+): Promise<Record<number, number>> {
   return getMonthlyBreakdown(_year);
 }
 
 /** Total re-read / re-watched entries within `year`. */
-export async function getRepeatConsumption(year: number | null, filters?: StatsFilters): Promise<number> {
+export async function getRepeatConsumption(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<number> {
   const entries = await entriesForYear(year, filters);
   return entries.filter((entry) => entry.repeatConsumption).length;
 }
@@ -589,21 +685,35 @@ export async function getRepeatConsumption(year: number | null, filters?: StatsF
  * decision, not something to infer here, so it's intentionally
  * omitted from both this function and the Statistics screen.
  */
-export async function getInsights(year: number | null, filters?: StatsFilters): Promise<string[]> {
-  const [totals, previousTotals, favourite, weekday, repeats, topGenre] = await Promise.all([
-    getMediaTypeTotals(year, filters),
-    year === null ? Promise.resolve({} as Record<string, number>) : getMediaTypeTotals(year - 1, filters),
-    getFavouriteMediaType(year, filters),
-    getMostActiveWeekday(year, filters),
-    getRepeatConsumption(year, filters),
-    getTopGenreShareByMediaType(year, filters),
-  ]);
+export async function getInsights(
+  year: number | null,
+  filters?: StatsFilters,
+): Promise<string[]> {
+  const [totals, previousTotals, favourite, weekday, repeats, topGenre] =
+    await Promise.all([
+      getMediaTypeTotals(year, filters),
+      year === null
+        ? Promise.resolve({} as Record<string, number>)
+        : getMediaTypeTotals(year - 1, filters),
+      getFavouriteMediaType(year, filters),
+      getMostActiveWeekday(year, filters),
+      getRepeatConsumption(year, filters),
+      getTopGenreShareByMediaType(year, filters),
+    ]);
 
   const totalEntries = Object.values(totals).reduce((sum, count) => sum + count, 0);
   if (totalEntries === 0) return [];
 
   const insights: string[] = [];
-  const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const WEEKDAY_NAMES = [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
   const scope = year === null ? 'overall' : 'this year';
 
   if (favourite && totals[favourite] !== undefined) {
@@ -630,7 +740,9 @@ export async function getInsights(year: number | null, filters?: StatsFilters): 
       const change = Math.round(((count - previousCount) / previousCount) * 100);
       if (Math.abs(change) < 10) continue;
       const direction = change > 0 ? 'more' : 'fewer';
-      insights.push(`You consumed ${Math.abs(change)}% ${direction} ${mediaType} than last year.`);
+      insights.push(
+        `You consumed ${Math.abs(change)}% ${direction} ${mediaType} than last year.`,
+      );
     }
   }
 

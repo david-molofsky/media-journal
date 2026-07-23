@@ -18,6 +18,7 @@ import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 import { RegionSection } from '@/components/settings/RegionSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
+import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
 
 export default function SettingsPage() {
   return (
@@ -57,13 +58,15 @@ export default function SettingsPage() {
 
         <ComicVineAutofillSection />
 
+        <SubscriptionsSection />
+
         <Box>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
             About
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Media Journal v1.0 — a permanent, offline-first archive of everything you read,
-            watch and listen to. Built with React, MUI and Dexie.
+            Media Journal v1.0 — a permanent, offline-first archive of everything you
+            read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
         </Box>
 

@@ -20,6 +20,7 @@ import { RatingDistributionChart } from '@/components/charts/RatingDistributionC
 import { GenreBarChart } from '@/components/charts/GenreBarChart';
 import { GenreShareByType } from '@/components/statistics/GenreShareByType';
 import { TopList, type TopListItem } from '@/components/statistics/TopList';
+import { SubscriptionValueCard } from '@/components/statistics/SubscriptionValueCard';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -29,8 +30,18 @@ import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import type { MediaType } from '@/models';
 
 const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /** Orders a grouped-by-media-type Source record (e.g.
@@ -52,7 +63,9 @@ function sortedSourceGroups(
     .sort((a, b) => {
       const orderA = TYPE_SORT_ORDER[a.mediaTypeId] ?? 99;
       const orderB = TYPE_SORT_ORDER[b.mediaTypeId] ?? 99;
-      return orderA !== orderB ? orderA - orderB : a.displayName.localeCompare(b.displayName);
+      return orderA !== orderB
+        ? orderA - orderB
+        : a.displayName.localeCompare(b.displayName);
     });
 }
 
@@ -107,7 +120,12 @@ export default function StatisticsPage() {
   if (data.totalEntries === 0) {
     return (
       <Box>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 3 }}
+        >
           <Typography variant="h6" component="h1" fontWeight={600}>
             Statistics
           </Typography>
@@ -142,7 +160,12 @@ export default function StatisticsPage() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
         <Typography variant="h6" component="h1" fontWeight={600}>
           Statistics
         </Typography>
@@ -174,7 +197,10 @@ export default function StatisticsPage() {
               label="Average rating"
               value={data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}
             />
-            <MetricCard label="Longest streak" value={`${data.longestStreak} day${data.longestStreak === 1 ? '' : 's'}`} />
+            <MetricCard
+              label="Longest streak"
+              value={`${data.longestStreak} day${data.longestStreak === 1 ? '' : 's'}`}
+            />
             <MetricCard
               label="Most active month"
               value={
@@ -199,7 +225,9 @@ export default function StatisticsPage() {
               </Typography>
               <MonthlyActivityChart
                 monthlyBreakdown={data.monthlyBreakdown}
-                onSelectMonth={(month) => goToLibrary(year === null ? { month } : { year, month })}
+                onSelectMonth={(month) =>
+                  goToLibrary(year === null ? { month } : { year, month })
+                }
               />
             </Box>
             <Box>
@@ -272,13 +300,18 @@ export default function StatisticsPage() {
                   <GenreBarChart
                     topGenresByCount={data.topGenresByCount}
                     averageRatingByGenre={data.averageRatingByGenre}
-                    onSelectGenre={(genre) => goToLibrary(year === null ? { genre } : { year, genre })}
+                    onSelectGenre={(genre) =>
+                      goToLibrary(year === null ? { genre } : { year, genre })
+                    }
                   />
                 </Box>
               )}
 
               {data.topGenreShareByMediaType && mediaTypes && (
-                <GenreShareByType data={data.topGenreShareByMediaType} mediaTypes={mediaTypes} />
+                <GenreShareByType
+                  data={data.topGenreShareByMediaType}
+                  mediaTypes={mediaTypes}
+                />
               )}
 
               {Object.keys(data.wishlistGenreTotals).length > 0 && (
@@ -311,9 +344,18 @@ export default function StatisticsPage() {
                     {year === null ? 'Overall, by source' : 'This year, by source'}
                   </Typography>
                   <Stack spacing={1.5}>
-                    {mergedSourceGroups(data.topSourcesByCount, data.averageRatingBySource, mediaTypeById).map((group) => (
+                    {mergedSourceGroups(
+                      data.topSourcesByCount,
+                      data.averageRatingBySource,
+                      mediaTypeById,
+                    ).map((group) => (
                       <Box key={group.mediaTypeId}>
-                        <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          color="primary.main"
+                          sx={{ display: 'block', mb: 0.5 }}
+                        >
                           {group.displayName}
                         </Typography>
                         <TopList
@@ -332,44 +374,97 @@ export default function StatisticsPage() {
                 </Box>
               )}
 
-              {Object.keys(data.wishlistSourceTotals).length > 0 && (() => {
-                const groups = sortedSourceGroups(data.wishlistSourceTotals, mediaTypeById);
-                // "Most saved on" is still a single all-time headline —
-                // computed across every group's sources, not per group.
-                const top = groups
-                  .flatMap((g) => g.sources)
-                  .sort(([, a], [, b]) => b - a)[0];
-                return (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Wishlist by source (all time)
-                    </Typography>
-                    <Stack spacing={1.5}>
-                      {groups.map((group) => (
-                        <Box key={group.mediaTypeId}>
-                          <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.5 }}>
-                            {group.displayName}
-                          </Typography>
-                          <TopList
-                            items={group.sources.map(([name, count]) => ({ name, count }))}
-                            onSelectItem={(source) =>
-                              goToLibrary({ source, mediaType: group.mediaTypeId, status: 'wishlist' })
-                            }
-                          />
-                        </Box>
-                      ))}
-                    </Stack>
-                    {top && (
-                      <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ display: 'block', mt: 1 }}>
-                        ★ Most saved on {top[0]}
+              {Object.keys(data.wishlistSourceTotals).length > 0 &&
+                (() => {
+                  const groups = sortedSourceGroups(
+                    data.wishlistSourceTotals,
+                    mediaTypeById,
+                  );
+                  // "Most saved on" is still a single all-time headline —
+                  // computed across every group's sources, not per group.
+                  const top = groups
+                    .flatMap((g) => g.sources)
+                    .sort(([, a], [, b]) => b - a)[0];
+                  return (
+                    <Box>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Wishlist by source (all time)
                       </Typography>
-                    )}
-                  </Box>
-                );
-              })()}
+                      <Stack spacing={1.5}>
+                        {groups.map((group) => (
+                          <Box key={group.mediaTypeId}>
+                            <Typography
+                              variant="caption"
+                              fontWeight={700}
+                              color="primary.main"
+                              sx={{ display: 'block', mb: 0.5 }}
+                            >
+                              {group.displayName}
+                            </Typography>
+                            <TopList
+                              items={group.sources.map(([name, count]) => ({
+                                name,
+                                count,
+                              }))}
+                              onSelectItem={(source) =>
+                                goToLibrary({
+                                  source,
+                                  mediaType: group.mediaTypeId,
+                                  status: 'wishlist',
+                                })
+                              }
+                            />
+                          </Box>
+                        ))}
+                      </Stack>
+                      {top && (
+                        <Typography
+                          variant="caption"
+                          color="primary.main"
+                          fontWeight={600}
+                          sx={{ display: 'block', mt: 1 }}
+                        >
+                          ★ Most saved on {top[0]}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })()}
             </Stack>
           </Box>
         )}
+
+        <Box>
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Subscription Value
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Which services are earning their keep, based on what you&apos;ve watched and
+            rated.
+          </Typography>
+          <Stack spacing={2}>
+            <SubscriptionValueCard
+              title="Film, TV & Anime"
+              colour="#388E3C"
+              mediaTypeIds={['film', 'tv', 'anime']}
+            />
+            <SubscriptionValueCard
+              title="Podcasts"
+              colour="#5D4037"
+              mediaTypeIds={['podcast']}
+            />
+            <SubscriptionValueCard
+              title="Audiobooks"
+              colour="#7B1FA2"
+              mediaTypeIds={['audiobook']}
+            />
+            <SubscriptionValueCard
+              title="Reading sources"
+              colour="#1976D2"
+              mediaTypeIds={['book']}
+            />
+          </Stack>
+        </Box>
 
         {data.insights.length > 0 && (
           <Box>
