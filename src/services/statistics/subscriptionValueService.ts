@@ -9,7 +9,6 @@ import {
   getSubscriptionSourceConfig,
   isSubscriptionSource,
 } from '@/services/subscriptions/subscriptionSourcesService';
-import type { MediaEntry } from '@/models';
 
 /** Minimum weighted watch count a source needs before it's allowed to
  * rank on its score alone — see `belowThreshold` below. Chosen in
@@ -36,10 +35,10 @@ export interface SubscriptionValueGroup {
  * themselves can never drift out of sync with each other. */
 export const SUBSCRIPTION_VALUE_GROUPS: SubscriptionValueGroup[] = [
   { title: 'Film, TV & Anime', colour: '#388E3C', mediaTypeIds: ['film', 'tv', 'anime'] },
-  { title: 'Podcasts', colour: '#5D4037', mediaTypeIds: ['podcast'] },
-  { title: 'Audiobooks', colour: '#7B1FA2', mediaTypeIds: ['audiobook'] },
-  { title: 'Reading sources', colour: '#1976D2', mediaTypeIds: ['book'] },
   { title: 'Comics & Manga', colour: '#C62828', mediaTypeIds: ['comic', 'manga'] },
+  { title: 'Reading sources', colour: '#1976D2', mediaTypeIds: ['book'] },
+  { title: 'Audiobooks', colour: '#7B1FA2', mediaTypeIds: ['audiobook'] },
+  { title: 'Podcasts', colour: '#5D4037', mediaTypeIds: ['podcast'] },
 ];
 
 export interface SubscriptionValueTopTitle {
@@ -97,8 +96,7 @@ export async function getSubscriptionValue(
   ]);
 
   const windowStart = dayjs().subtract(windowMonths, 'month');
-  const isSub = (entry: MediaEntry, source: string) =>
-    isSubscriptionSource(subsConfig, entry.mediaType, source);
+  const isSub = (source: string) => isSubscriptionSource(subsConfig, source);
 
   const watched = new Map<
     string,
@@ -115,7 +113,7 @@ export async function getSubscriptionValue(
       if (!entry.completedDate || !dayjs(entry.completedDate).isAfter(windowStart))
         continue;
       if (!source) continue;
-      if (!isSub(entry, source)) {
+      if (!isSub(source)) {
         excludedCount += 1;
         continue;
       }
@@ -134,7 +132,7 @@ export async function getSubscriptionValue(
         topTitlesBySource.set(source, list);
       }
     } else if (entry.status === 'in_progress' || entry.status === 'wishlist') {
-      if (!source || !isSub(entry, source)) continue;
+      if (!source || !isSub(source)) continue;
       queued.set(source, (queued.get(source) ?? 0) + 1);
     }
   }

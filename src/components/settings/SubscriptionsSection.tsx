@@ -4,6 +4,10 @@ import Typography from '@mui/material/Typography';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Alert from '@mui/material/Alert';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SubscriptionsOutlinedIcon from '@mui/icons-material/SubscriptionsOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import { useSubscriptionSources } from '@/hooks/useSubscriptionSources';
@@ -11,18 +15,8 @@ import {
   setSubscriptionSourceFlag,
   isSubscriptionSource,
 } from '@/services/subscriptions/subscriptionSourcesService';
+import { SUBSCRIPTION_VALUE_GROUPS } from '@/services/statistics/subscriptionValueService';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
-
-/** Groups of media type ids shown together in this UI — matches the
- * grouping used by the Subscription Value cards on the Statistics
- * page (Film/TV/Anime combined into one pool there; grouped here too
- * so a toggle's effect is obvious). */
-const GROUPS: { label: string; mediaTypeIds: string[] }[] = [
-  { label: 'Film, TV & Anime', mediaTypeIds: ['film', 'tv', 'anime'] },
-  { label: 'Podcasts', mediaTypeIds: ['podcast'] },
-  { label: 'Audiobooks', mediaTypeIds: ['audiobook'] },
-  { label: 'Books', mediaTypeIds: ['book'] },
-];
 
 function AddSourceRow({ onAdd }: { onAdd: (value: string) => void }) {
   const [value, setValue] = useState('');
@@ -86,9 +80,22 @@ function AddSourceRow({ onAdd }: { onAdd: (value: string) => void }) {
  * Value feature. Placed low on the Settings page, per David's
  * preference (see chat) — it's a one-time setup step most people
  * won't need to revisit often.
+ *
+ * Categories (`SUBSCRIPTION_VALUE_GROUPS` — shared with the
+ * Statistics page's Subscription Value cards, so the two can't drift
+ * apart) render as collapsible accordions, collapsed by default, to
+ * keep the settings page short. Each service is listed once per
+ * category (deduplicated across that category's media types) and the
+ * toggle is global — flipping "Disney+" on covers every entry logged
+ * with that Source, across Film, TV, and Anime alike, since the flag
+ * is no longer scoped to a single media type. See chat (Settings >
+ * Subscriptions redesign) and subscriptionSourcesService.ts.
  */
 export function SubscriptionsSection() {
   const data = useSubscriptionSources();
+  const [expanded, setExpanded] = useState<string | false>(
+    SUBSCRIPTION_VALUE_GROUPS[0]?.title ?? false,
+  );
 
   return (
     <CollapsibleSection title="Subscriptions" icon={SubscriptionsOutlinedIcon}>
@@ -98,8 +105,10 @@ export function SubscriptionsSection() {
       </Typography>
 
       <Alert severity="info" sx={{ fontSize: 13, mb: 2 }}>
-        We pre-selected the usual subscription services based on what&apos;s common for
-        each type. Flip any toggle to change it, or add a source we missed.
+        Each service is listed once and applies everywhere it&apos;s used — marking
+        Disney+ here covers it for Film, TV, and Anime entries alike. We pre-selected the
+        usual subscription services; flip any toggle to change it, or add a source we
+        missed.
       </Alert>
 
       {data === undefined ? (
@@ -107,74 +116,66 @@ export function SubscriptionsSection() {
           Loading…
         </Typography>
       ) : (
-        GROUPS.map((group) => (
-          <Stack key={group.label} spacing={1}>
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color="text.secondary"
-              sx={{ textTransform: 'uppercase', letterSpacing: 0.3 }}
+        SUBSCRIPTION_VALUE_GROUPS.map((group) => {
+          const sources = data.sourcesByGroup[group.title] ?? [];
+          const subscriptionCount = sources.filter((source) =>
+            isSubscriptionSource(data.config, source),
+          ).length;
+
+          return (
+            <Accordion
+              key={group.title}
+              expanded={expanded === group.title}
+              onChange={(_, isExpanded) => setExpanded(isExpanded ? group.title : false)}
+              disableGutters
+              sx={{ '&:before': { display: 'none' } }}
             >
-              {group.label}
-            </Typography>
-
-            {group.mediaTypeIds.flatMap((mediaTypeId) =>
-              (data.sourcesByMediaType[mediaTypeId] ?? []).map((source) => (
-                <Stack
-                  key={`${mediaTypeId}-${source}`}
-                  direction="row"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  sx={{
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1.5,
-                    pl: 1.5,
-                    pr: 0.5,
-                    py: 0.25,
-                  }}
-                >
-                  <Typography variant="body2">
-                    {source}
-                    {group.mediaTypeIds.length > 1 && (
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ ml: 1 }}
-                      >
-                        {mediaTypeId}
-                      </Typography>
-                    )}
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Stack>
+                  <Typography variant="body2" fontWeight={600}>
+                    {group.title}
                   </Typography>
-                  <Switch
-                    size="small"
-                    checked={isSubscriptionSource(data.config, mediaTypeId, source)}
-                    onChange={(_, checked) =>
-                      setSubscriptionSourceFlag(mediaTypeId, source, checked)
-                    }
-                    inputProps={{ 'aria-label': `Toggle ${source} as a subscription` }}
-                  />
+                  <Typography variant="caption" color="text.secondary">
+                    {sources.length} service{sources.length === 1 ? '' : 's'} ·{' '}
+                    {subscriptionCount === 0
+                      ? 'none marked as subscriptions'
+                      : `${subscriptionCount} marked as subscription${subscriptionCount === 1 ? '' : 's'}`}
+                  </Typography>
                 </Stack>
-              )),
-            )}
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={1}>
+                  {sources.map((source) => (
+                    <Stack
+                      key={source}
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1.5,
+                        pl: 1.5,
+                        pr: 0.5,
+                        py: 0.25,
+                      }}
+                    >
+                      <Typography variant="body2">{source}</Typography>
+                      <Switch
+                        size="small"
+                        checked={isSubscriptionSource(data.config, source)}
+                        onChange={(_, checked) => setSubscriptionSourceFlag(source, checked)}
+                        inputProps={{ 'aria-label': `Toggle ${source} as a subscription` }}
+                      />
+                    </Stack>
+                  ))}
 
-            <AddSourceRow
-              onAdd={(value) => {
-                // A manually-added source always applies to the first
-                // media type in the group — for single-type groups
-                // (Podcasts, Audiobooks, Books) that's the only
-                // sensible choice; for Film/TV/Anime it lands on Film,
-                // which is fine since Statistics matches on the exact
-                // string regardless of which of the three types it was
-                // logged under.
-                const targetMediaTypeId = group.mediaTypeIds[0];
-                if (targetMediaTypeId)
-                  setSubscriptionSourceFlag(targetMediaTypeId, value, true);
-              }}
-            />
-          </Stack>
-        ))
+                  <AddSourceRow onAdd={(value) => setSubscriptionSourceFlag(value, true)} />
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })
       )}
     </CollapsibleSection>
   );

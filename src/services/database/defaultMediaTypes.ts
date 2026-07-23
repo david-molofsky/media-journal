@@ -389,6 +389,25 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'totalVolumes', label: 'Total volumes', type: 'number', required: false },
       { key: 'malId', label: 'MyAnimeList ID', type: 'text', required: false },
       { key: 'coverImagePath', label: 'Cover image URL', type: 'text', required: false },
+      // Added so Manga entries can participate in Source-based
+      // Statistics (Sources, Subscription Value) — see chat. Mirrors
+      // Comic's options, plus a couple of manga-specific services.
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: [
+          'Physical',
+          'Marvel Unlimited',
+          'Kindle/Comixology',
+          'Hoopla',
+          'Libby',
+          'Digital',
+          'Shonen Jump',
+          'Webtoons',
+        ],
+      },
     ],
   },
 ];
