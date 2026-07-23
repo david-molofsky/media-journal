@@ -9,6 +9,7 @@ import { useAvailableYears } from '@/hooks/useAvailableYears';
 import { useAvailableGenres } from '@/hooks/useAvailableGenres';
 import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useStatisticsData, type StatsFilters } from '@/hooks/useStatisticsData';
+import { useFavouriteSubscription } from '@/hooks/useFavouriteSubscription';
 import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
 import { YearSelector } from '@/components/common/YearSelector';
 import { MetricCard } from '@/components/statistics/MetricCard';
@@ -19,6 +20,7 @@ import { GenreBarChart } from '@/components/charts/GenreBarChart';
 import { GenreShareByType } from '@/components/statistics/GenreShareByType';
 import { TopList, type TopListItem } from '@/components/statistics/TopList';
 import { SubscriptionValueCard } from '@/components/statistics/SubscriptionValueCard';
+import { SUBSCRIPTION_VALUE_GROUPS } from '@/services/statistics/subscriptionValueService';
 import {
   WatchedWishlistToggle,
   type WatchedWishlistView,
@@ -99,6 +101,7 @@ export default function StatisticsPage() {
   const [genresView, setGenresView] = useState<WatchedWishlistView>('watched');
 
   const data = useStatisticsData(year, filters);
+  const favouriteSubscription = useFavouriteSubscription();
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
     navigate(ROUTES.library, { state: filter });
@@ -200,6 +203,10 @@ export default function StatisticsPage() {
               value={data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}
             />
             <MetricCard label="Favourite source" value={data.favouriteSource ?? '—'} />
+            <MetricCard
+              label="Favourite subscription"
+              value={favouriteSubscription ?? '—'}
+            />
           </Box>
         </Box>
 
@@ -326,26 +333,14 @@ export default function StatisticsPage() {
               rated.
             </Typography>
             <Stack spacing={2}>
-              <SubscriptionValueCard
-                title="Film, TV & Anime"
-                colour="#388E3C"
-                mediaTypeIds={['film', 'tv', 'anime']}
-              />
-              <SubscriptionValueCard
-                title="Podcasts"
-                colour="#5D4037"
-                mediaTypeIds={['podcast']}
-              />
-              <SubscriptionValueCard
-                title="Audiobooks"
-                colour="#7B1FA2"
-                mediaTypeIds={['audiobook']}
-              />
-              <SubscriptionValueCard
-                title="Reading sources"
-                colour="#1976D2"
-                mediaTypeIds={['book']}
-              />
+              {SUBSCRIPTION_VALUE_GROUPS.map((group) => (
+                <SubscriptionValueCard
+                  key={group.title}
+                  title={group.title}
+                  colour={group.colour}
+                  mediaTypeIds={group.mediaTypeIds}
+                />
+              ))}
             </Stack>
           </Box>
         )}

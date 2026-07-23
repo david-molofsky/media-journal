@@ -24,6 +24,23 @@ const MIN_WATCHES_FOR_RANKING = 3;
 const USAGE_WEIGHT = 0.6;
 const RATING_WEIGHT = 0.4;
 
+export interface SubscriptionValueGroup {
+  title: string;
+  colour: string;
+  mediaTypeIds: string[];
+}
+
+/** The four Subscription Value groupings shown on the Statistics
+ * page's Sources section — shared with `getFavouriteSubscription`
+ * below so the "Favourite Subscription" Overview stat and the cards
+ * themselves can never drift out of sync with each other. */
+export const SUBSCRIPTION_VALUE_GROUPS: SubscriptionValueGroup[] = [
+  { title: 'Film, TV & Anime', colour: '#388E3C', mediaTypeIds: ['film', 'tv', 'anime'] },
+  { title: 'Podcasts', colour: '#5D4037', mediaTypeIds: ['podcast'] },
+  { title: 'Audiobooks', colour: '#7B1FA2', mediaTypeIds: ['audiobook'] },
+  { title: 'Reading sources', colour: '#1976D2', mediaTypeIds: ['book'] },
+];
+
 export interface SubscriptionValueTopTitle {
   title: string;
   rating: number;
@@ -153,4 +170,31 @@ export async function getSubscriptionValue(
   });
 
   return { rows, excludedCount };
+}
+
+/**
+ * The single highest-scoring source across every Subscription Value
+ * group (`SUBSCRIPTION_VALUE_GROUPS`) over a rolling `windowMonths`
+ * window — the "Favourite Subscription" Overview stat. Rows below
+ * `MIN_WATCHES_FOR_RANKING` are excluded from consideration, same as
+ * each individual card's own ranking. Returns `null` if no source
+ * across any group clears that bar.
+ */
+export async function getFavouriteSubscription(
+  windowMonths: number,
+): Promise<string | null> {
+  const results = await Promise.all(
+    SUBSCRIPTION_VALUE_GROUPS.map((group) =>
+      getSubscriptionValue(group.mediaTypeIds, windowMonths),
+    ),
+  );
+
+  const eligible = results
+    .flatMap((result) => result.rows)
+    .filter((row) => !row.belowThreshold);
+
+  if (eligible.length === 0) return null;
+
+  return eligible.reduce((best, current) => (current.score > best.score ? current : best))
+    .source;
 }
