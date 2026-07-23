@@ -18,7 +18,7 @@ import {
   getTopGenreShareByMediaType,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
-import type { TopGenreShareByMediaType, StatsFilters } from '@/services/statistics/statisticsService';
+import type { TopGenreShareByMediaType, StatsFilters, StatsYearScope } from '@/services/statistics/statisticsService';
 export type { StatsFilters };
 
 export interface StatisticsData {
@@ -51,7 +51,7 @@ export interface StatisticsData {
  * `getFavouriteMediaType`/`getRepeatConsumption` are still used
  * internally by `getInsights` — only this hook's own top-level calls
  * were trimmed. */
-export function useStatisticsData(year: number | null, filters?: StatsFilters): StatisticsData | undefined {
+export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters): StatisticsData | undefined {
   return useLiveQuery(async () => {
     const [
       summary,

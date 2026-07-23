@@ -1,9 +1,12 @@
-import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import {
   getEntryWeight,
   getTvTrackingMode,
   sourceOf,
+  applyStatsFilters,
+  isWithinYearScope,
+  type StatsFilters,
+  type StatsYearScope,
 } from '@/services/statistics/statisticsService';
 import {
   getSubscriptionSourceConfig,
@@ -29,7 +32,7 @@ export interface SubscriptionValueGroup {
   mediaTypeIds: string[];
 }
 
-/** The four Subscription Value groupings shown on the Statistics
+/** The five Subscription Value groupings shown on the Statistics
  * page's Sources section — shared with `getFavouriteSubscription`
  * below so the "Favourite Subscription" Overview stat and the cards
  * themselves can never drift out of sync with each other. */
@@ -41,6 +44,25 @@ export const SUBSCRIPTION_VALUE_GROUPS: SubscriptionValueGroup[] = [
   { title: 'Podcasts', colour: '#5D4037', mediaTypeIds: ['podcast'] },
 ];
 
+/** Intersects a Subscription Value group's own media types with the
+ * Statistics filter bar's Media Type filter, if one is set — e.g.
+ * "Film, TV & Anime" narrows to just `['film']` when the page is
+ * filtered down to Film only. No filter (empty/undefined) means no
+ * restriction, so the group's full media type list passes through
+ * unchanged. An empty result means none of the group's media types
+ * are in the current filter — the caller should skip that group
+ * entirely rather than call `getSubscriptionValue` with an empty
+ * list. See chat (Statistics page filters applying to Subscription
+ * Value). */
+export function effectiveGroupMediaTypeIds(
+  group: SubscriptionValueGroup,
+  filterMediaTypeIds: string[] | undefined,
+): string[] {
+  if (!filterMediaTypeIds || filterMediaTypeIds.length === 0) return group.mediaTypeIds;
+  const filterSet = new Set(filterMediaTypeIds);
+  return group.mediaTypeIds.filter((id) => filterSet.has(id));
+}
+
 export interface SubscriptionValueTopTitle {
   title: string;
   rating: number;
@@ -49,17 +71,19 @@ export interface SubscriptionValueTopTitle {
 export interface SubscriptionValueRow {
   source: string;
   /** Weighted count of Completed entries on this source within the
-   * selected window (same weighting as the rest of Statistics — a
-   * multi-episode TV entry in "episode" tracking mode counts its full
-   * episode span, same as Sources elsewhere on this page). */
+   * selected year scope (same weighting as the rest of Statistics —
+   * a multi-episode TV entry in "episode" tracking mode counts its
+   * full episode span, same as Sources elsewhere on this page). */
   watchedCount: number;
   /** Average rating of rated Completed entries on this source within
-   * the window, or `null` if none of them were rated. */
+   * the year scope, or `null` if none of them were rated. */
   avgRating: number | null;
   /** Count of Wishlist + In Progress entries on this source —
-   * deliberately not window-scoped, same reasoning as
+   * deliberately not scoped by `year`, same reasoning as
    * `getWishlistSourceTotals`: a backlog is a current-state question,
-   * not a "how much happened in the last N months" one. */
+   * not a "within this time scope" one. Still narrowed by the
+   * Genre/Tag/Rating/Media Type filter bar, same as everything else
+   * on the page. */
   queuedCount: number;
   /** 0–100 blended score — see `USAGE_WEIGHT`/`RATING_WEIGHT`. */
   score: number;
@@ -73,8 +97,8 @@ export interface SubscriptionValueRow {
 
 export interface SubscriptionValueResult {
   rows: SubscriptionValueRow[];
-  /** Count of Completed entries within the window, among the given
-   * media types, that have a Source set but aren't marked as a
+  /** Count of Completed entries within the year scope, among the
+   * given media types, that have a Source set but aren't marked as a
    * subscription (or aren't marked at all) — surfaced so the UI can
    * point people at Settings > Subscriptions rather than silently
    * dropping data. */
@@ -82,20 +106,32 @@ export interface SubscriptionValueResult {
 }
 
 /** Computes the Subscription Value ranking for one group of media
- * types (e.g. Film+TV+Anime, or Podcasts alone) over a rolling
- * `windowMonths`-month window ending today. See SubscriptionValueRow
- * for what each field means and why. */
+ * types (e.g. Film+TV+Anime, or Podcasts alone) within the Statistics
+ * page's `year` scope (a specific calendar year, `'last12'` for a
+ * rolling 12-month window, or `null` for All) and filter bar
+ * (`filters`) — see chat (Statistics page filters applying to
+ * Subscription Value). Callers pass the *effective* `mediaTypeIds`
+ * for a group — see `effectiveGroupMediaTypeIds` — not necessarily
+ * the group's full list, so a Media Type filter narrows which of a
+ * group's types are even queried. See SubscriptionValueRow for what
+ * each field means and why. */
 export async function getSubscriptionValue(
   mediaTypeIds: string[],
-  windowMonths: number,
+  year: StatsYearScope,
+  filters?: StatsFilters,
 ): Promise<SubscriptionValueResult> {
-  const [allEntries, tvMode, subsConfig] = await Promise.all([
+  const [rawEntries, tvMode, subsConfig] = await Promise.all([
     db.mediaEntries.where('mediaType').anyOf(mediaTypeIds).toArray(),
     getTvTrackingMode(),
     getSubscriptionSourceConfig(),
   ]);
 
-  const windowStart = dayjs().subtract(windowMonths, 'month');
+  // Genre/Tag/Rating (and Media Type, redundantly with the query
+  // above) narrow both watched and queued entries below; `year` only
+  // narrows watched (Completed) entries — see queuedCount's doc
+  // comment for why the backlog stays unscoped by time.
+  const allEntries = applyStatsFilters(rawEntries, filters);
+
   const isSub = (source: string) => isSubscriptionSource(subsConfig, source);
 
   const watched = new Map<
@@ -110,8 +146,7 @@ export async function getSubscriptionValue(
     const source = sourceOf(entry);
 
     if (!entry.status || entry.status === 'completed') {
-      if (!entry.completedDate || !dayjs(entry.completedDate).isAfter(windowStart))
-        continue;
+      if (!isWithinYearScope(entry.completedDate, year)) continue;
       if (!source) continue;
       if (!isSub(source)) {
         excludedCount += 1;
@@ -173,19 +208,26 @@ export async function getSubscriptionValue(
 
 /**
  * The single highest-scoring source across every Subscription Value
- * group (`SUBSCRIPTION_VALUE_GROUPS`) over a rolling `windowMonths`
- * window — the "Favourite Subscription" Overview stat. Rows below
- * `MIN_WATCHES_FOR_RANKING` are excluded from consideration, same as
- * each individual card's own ranking. Returns `null` if no source
- * across any group clears that bar.
+ * group (`SUBSCRIPTION_VALUE_GROUPS`) within the given `year` scope
+ * and filter bar — the "Favourite Subscription" Overview stat. Groups
+ * with no media types left after the Media Type filter (see
+ * `effectiveGroupMediaTypeIds`) are skipped entirely, same as the
+ * cards themselves. Rows below `MIN_WATCHES_FOR_RANKING` are excluded
+ * from consideration, same as each individual card's own ranking.
+ * Returns `null` if no source across any group clears that bar.
  */
 export async function getFavouriteSubscription(
-  windowMonths: number,
+  year: StatsYearScope,
+  filters?: StatsFilters,
 ): Promise<string | null> {
   const results = await Promise.all(
-    SUBSCRIPTION_VALUE_GROUPS.map((group) =>
-      getSubscriptionValue(group.mediaTypeIds, windowMonths),
-    ),
+    SUBSCRIPTION_VALUE_GROUPS.map((group) => {
+      const ids = effectiveGroupMediaTypeIds(group, filters?.mediaTypeIds);
+      if (ids.length === 0) {
+        return Promise.resolve<SubscriptionValueResult>({ rows: [], excludedCount: 0 });
+      }
+      return getSubscriptionValue(ids, year, filters);
+    }),
   );
 
   const eligible = results

@@ -11,7 +11,7 @@ import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useStatisticsData, type StatsFilters } from '@/hooks/useStatisticsData';
 import { useFavouriteSubscription } from '@/hooks/useFavouriteSubscription';
 import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
-import { YearSelector } from '@/components/common/YearSelector';
+import { StatsYearSelector } from '@/components/statistics/StatsYearSelector';
 import { MetricCard } from '@/components/statistics/MetricCard';
 import { InsightCard } from '@/components/statistics/InsightCard';
 import { TrendsTabs } from '@/components/statistics/TrendsTabs';
@@ -20,7 +20,11 @@ import { GenreBarChart } from '@/components/charts/GenreBarChart';
 import { GenreShareByType } from '@/components/statistics/GenreShareByType';
 import { TopList, type TopListItem } from '@/components/statistics/TopList';
 import { SubscriptionValueCard } from '@/components/statistics/SubscriptionValueCard';
-import { SUBSCRIPTION_VALUE_GROUPS } from '@/services/statistics/subscriptionValueService';
+import {
+  SUBSCRIPTION_VALUE_GROUPS,
+  effectiveGroupMediaTypeIds,
+} from '@/services/statistics/subscriptionValueService';
+import type { StatsYearScope } from '@/services/statistics/statisticsService';
 import {
   WatchedWishlistToggle,
   type WatchedWishlistView,
@@ -96,13 +100,13 @@ export default function StatisticsPage() {
   const availableYears = useAvailableYears();
   const availableGenres = useAvailableGenres();
   const availableTags = useAvailableTags();
-  const [year, setYear] = useState<number | null>(() => dayjs().year());
+  const [year, setYear] = useState<StatsYearScope>(() => dayjs().year());
   const [filters, setFilters] = useState<StatsFilters>({});
   const [sourcesView, setSourcesView] = useState<WatchedWishlistView>('watched');
   const [genresView, setGenresView] = useState<WatchedWishlistView>('watched');
 
   const data = useStatisticsData(year, filters);
-  const favouriteSubscription = useFavouriteSubscription();
+  const favouriteSubscription = useFavouriteSubscription(year, filters);
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
     navigate(ROUTES.library, { state: filter });
@@ -131,7 +135,7 @@ export default function StatisticsPage() {
           <Typography variant="h6" component="h1" fontWeight={600}>
             Statistics
           </Typography>
-          <YearSelector year={year} years={availableYears} onChange={setYear} />
+          <StatsYearSelector year={year} years={availableYears} onChange={setYear} />
         </Stack>
         <StatsFilterBar
           filters={filters}
@@ -174,7 +178,7 @@ export default function StatisticsPage() {
         <Typography variant="h6" component="h1" fontWeight={600}>
           Statistics
         </Typography>
-        <YearSelector year={year} years={availableYears} onChange={setYear} />
+        <StatsYearSelector year={year} years={availableYears} onChange={setYear} />
       </Stack>
 
       <StatsFilterBar
@@ -236,14 +240,27 @@ export default function StatisticsPage() {
               rated.
             </Typography>
             <Stack spacing={2}>
-              {SUBSCRIPTION_VALUE_GROUPS.map((group) => (
-                <SubscriptionValueCard
-                  key={group.title}
-                  title={group.title}
-                  colour={group.colour}
-                  mediaTypeIds={group.mediaTypeIds}
-                />
-              ))}
+              {SUBSCRIPTION_VALUE_GROUPS.map((group) => {
+                const effectiveIds = effectiveGroupMediaTypeIds(group, filters.mediaTypeIds);
+                // None of this group's media types survive the Media
+                // Type filter — hide the card entirely rather than
+                // show an empty/misleading one.
+                if (effectiveIds.length === 0) return null;
+                const excludedNames = group.mediaTypeIds
+                  .filter((id) => !effectiveIds.includes(id))
+                  .map((id) => mediaTypeById.get(id)?.displayName ?? id);
+                return (
+                  <SubscriptionValueCard
+                    key={group.title}
+                    title={group.title}
+                    colour={group.colour}
+                    mediaTypeIds={effectiveIds}
+                    year={year}
+                    filters={filters}
+                    excludedMediaTypeNames={excludedNames}
+                  />
+                );
+              })}
             </Stack>
 
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }} gutterBottom>
@@ -272,9 +289,9 @@ export default function StatisticsPage() {
                         items={group.items}
                         onSelectItem={(source) =>
                           goToLibrary(
-                            year === null
-                              ? { source, mediaType: group.mediaTypeId }
-                              : { year, source, mediaType: group.mediaTypeId },
+                            typeof year === 'number'
+                              ? { year, source, mediaType: group.mediaTypeId }
+                              : { source, mediaType: group.mediaTypeId },
                           )
                         }
                       />
@@ -356,7 +373,7 @@ export default function StatisticsPage() {
             weeklyTotals={data.weeklyTotals}
             year={year}
             onSelectMonth={(month) =>
-              goToLibrary(year === null ? { month } : { year, month })
+              goToLibrary(typeof year === 'number' ? { year, month } : { month })
             }
           />
         </Box>
@@ -420,7 +437,7 @@ export default function StatisticsPage() {
                     topGenresByCount={data.topGenresByCount}
                     averageRatingByGenre={data.averageRatingByGenre}
                     onSelectGenre={(genre) =>
-                      goToLibrary(year === null ? { genre } : { year, genre })
+                      goToLibrary(typeof year === 'number' ? { year, genre } : { genre })
                     }
                   />
                 ) : (

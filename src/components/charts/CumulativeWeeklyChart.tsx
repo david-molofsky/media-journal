@@ -10,13 +10,17 @@ import {
 } from 'recharts';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
+import type { StatsYearScope } from '@/services/statistics/statisticsService';
 
 interface CumulativeWeeklyChartProps {
   weeklyTotals: Record<number, number>;
-  /** `null` means All — every week 1–53 renders complete, since
-   * there's no "future" to truncate when this isn't one specific
-   * calendar year in progress. */
-  year: number | null;
+  /** `null` (All) or `'last12'` (Last 12 months) both render every
+   * week complete, since neither has a single "current partial year"
+   * to truncate against — a rolling 12-month window only ever
+   * contains weeks that have already happened. Only a specific
+   * calendar year that happens to be the current one truncates future
+   * weeks. */
+  year: StatsYearScope;
 }
 
 /**

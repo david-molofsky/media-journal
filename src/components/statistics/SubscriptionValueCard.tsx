@@ -4,15 +4,12 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Collapse from '@mui/material/Collapse';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import InventoryOutlinedIcon from '@mui/icons-material/InventoryOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useSubscriptionValue } from '@/hooks/useSubscriptionValue';
 import type { SubscriptionValueRow } from '@/services/statistics/subscriptionValueService';
-
-const WINDOW_OPTIONS = [3, 6, 12, 24] as const;
+import type { StatsFilters, StatsYearScope } from '@/services/statistics/statisticsService';
 
 function SubscriptionRow({
   row,
@@ -166,24 +163,34 @@ interface SubscriptionValueCardProps {
   title: string;
   colour: string;
   mediaTypeIds: string[];
-  defaultWindowMonths?: number;
+  year: StatsYearScope;
+  filters?: StatsFilters;
+  /** Display names of this group's media types that got dropped by
+   * the page's Media Type filter (e.g. "TV", "Anime" when the group
+   * is Film/TV/Anime but the page is filtered to Film only) — shown
+   * as a note so it's clear the score no longer reflects the full
+   * group. Omit or pass an empty array when nothing was excluded. */
+  excludedMediaTypeNames?: string[];
 }
 
 /**
  * One Statistics > Subscription Value card for a group of media types
- * (e.g. Film+TV+Anime combined, or Podcasts alone). Renders a
- * 3/6/12/24-month window toggle and the ranked source list from
- * `useSubscriptionValue` — see that hook and
+ * (e.g. Film+TV+Anime combined, or Podcasts alone), scoped by the
+ * Statistics page's Year selector and filter bar — no longer an
+ * independent per-card time window, see chat (Statistics page
+ * filters applying to Subscription Value). Renders the ranked source
+ * list from `useSubscriptionValue` — see that hook and
  * subscriptionValueService.ts for how the ranking itself works.
  */
 export function SubscriptionValueCard({
   title,
   colour,
   mediaTypeIds,
-  defaultWindowMonths = 12,
+  year,
+  filters,
+  excludedMediaTypeNames,
 }: SubscriptionValueCardProps) {
-  const [windowMonths, setWindowMonths] = useState<number>(defaultWindowMonths);
-  const data = useSubscriptionValue(mediaTypeIds, windowMonths);
+  const data = useSubscriptionValue(mediaTypeIds, year, filters);
 
   if (data === undefined) return null;
   if (data.rows.length === 0 && data.excludedCount === 0) return null;
@@ -193,7 +200,7 @@ export function SubscriptionValueCard({
 
   return (
     <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: excludedMediaTypeNames?.length ? 1 : 1.5 }}>
         <Box
           sx={{
             width: 10,
@@ -208,23 +215,16 @@ export function SubscriptionValueCard({
         </Typography>
       </Stack>
 
-      <ToggleButtonGroup
-        exclusive
-        size="small"
-        value={windowMonths}
-        onChange={(_, value) => value !== null && setWindowMonths(value)}
-        sx={{ mb: 2, width: '100%' }}
-      >
-        {WINDOW_OPTIONS.map((months) => (
-          <ToggleButton
-            key={months}
-            value={months}
-            sx={{ flex: 1, py: 0.5, fontSize: 12, textTransform: 'none' }}
-          >
-            {months}mo
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
+      {excludedMediaTypeNames && excludedMediaTypeNames.length > 0 && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: 'block', mb: 1.5, fontStyle: 'italic' }}
+        >
+          {excludedMediaTypeNames.join(' & ')} removed from calculations by the current
+          filter.
+        </Typography>
+      )}
 
       {data.rows.length === 0 ? (
         <Typography
@@ -232,7 +232,7 @@ export function SubscriptionValueCard({
           color="text.secondary"
           sx={{ mb: data.excludedCount > 0 ? 1.5 : 0 }}
         >
-          Nothing logged on a subscription source in this window.
+          Nothing logged on a subscription source for this scope.
         </Typography>
       ) : (
         <Stack spacing={1}>
@@ -265,7 +265,7 @@ export function SubscriptionValueCard({
           <InfoOutlinedIcon sx={{ fontSize: 16, color: 'text.secondary', mt: 0.2 }} />
           <Typography variant="caption" color="text.secondary">
             {data.excludedCount} entr{data.excludedCount === 1 ? 'y' : 'ies'} in this
-            window aren&apos;t shown here — their Source isn&apos;t marked as a
+            scope aren&apos;t shown here — their Source isn&apos;t marked as a
             subscription. Manage this in Settings &gt; Subscriptions.
           </Typography>
         </Stack>

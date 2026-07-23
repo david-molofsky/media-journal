@@ -1,16 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { getFavouriteSubscription } from '@/services/statistics/subscriptionValueService';
-
-/** Matches each SubscriptionValueCard's own `defaultWindowMonths`, so
- * the Overview stat and the cards it summarises start out looking at
- * the same window. */
-const DEFAULT_WINDOW_MONTHS = 12;
+import type { StatsFilters, StatsYearScope } from '@/services/statistics/statisticsService';
 
 /** Reactive "Favourite Subscription" Overview stat — the
- * highest-scoring source across all Subscription Value groups. Not
- * tied to the Statistics page's year selector or filter bar, same as
- * the Subscription Value cards themselves — see chat (Statistics page
- * redesign) and subscriptionValueService.ts. */
-export function useFavouriteSubscription(): string | null | undefined {
-  return useLiveQuery(() => getFavouriteSubscription(DEFAULT_WINDOW_MONTHS), []);
+ * highest-scoring source across all Subscription Value groups, scoped
+ * by the Statistics page's `year` selector and filter bar, same as
+ * every other stat on the page — see chat (Statistics page filters
+ * applying to Subscription Value) and subscriptionValueService.ts. */
+export function useFavouriteSubscription(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): string | null | undefined {
+  return useLiveQuery(
+    () => getFavouriteSubscription(year, filters),
+    [year, JSON.stringify(filters)],
+  );
 }

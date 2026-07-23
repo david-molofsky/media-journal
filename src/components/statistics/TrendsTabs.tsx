@@ -5,13 +5,14 @@ import Tab from '@mui/material/Tab';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { WeeklyActivityChart } from '@/components/charts/WeeklyActivityChart';
 import { CumulativeWeeklyChart } from '@/components/charts/CumulativeWeeklyChart';
+import type { StatsYearScope } from '@/services/statistics/statisticsService';
 
 type TrendsView = 'monthly' | 'weekly' | 'cumulative';
 
 interface TrendsTabsProps {
   monthlyBreakdown: Record<number, number>;
   weeklyTotals: Record<number, number>;
-  year: number | null;
+  year: StatsYearScope;
   onSelectMonth: (month: number) => void;
 }
 
