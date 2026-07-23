@@ -115,7 +115,7 @@ function SubscriptionRow({
                 {row.watchedCount}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                watched
+                completed
               </Typography>
             </Box>
             <Box>
@@ -241,7 +241,7 @@ export function SubscriptionValueCard({
           ))}
           {unranked.length > 0 && (
             <>
-              <Divider label="Fewer than 3 watches — score not yet reliable" />
+              <Divider label="Fewer than 3 completed — score not yet reliable" />
               {unranked.map((row) => (
                 <SubscriptionRow key={row.source} row={row} rank={null} />
               ))}
