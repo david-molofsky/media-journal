@@ -6,11 +6,8 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import TheatersOutlinedIcon from '@mui/icons-material/TheatersOutlined';
-import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
-import StarOutlineOutlinedIcon from '@mui/icons-material/StarOutlineOutlined';
-import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
-import type { SvgIconComponent } from '@mui/icons-material';
+import { BrandIcon } from '@/components/dashboard/BrandIcon';
+import type { BrandIconSlug } from '@/utils/brandIcons';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
 import { GoodreadsImportSection } from '@/components/settings/GoodreadsImportSection';
 import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
@@ -18,11 +15,30 @@ import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportS
 
 type ImportSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph';
 
-const ROWS: { key: ImportSource; label: string; meta: string; icon: SvgIconComponent }[] = [
-  { key: 'letterboxd', label: 'Letterboxd', meta: 'Diary export from letterboxd.com', icon: TheatersOutlinedIcon },
-  { key: 'goodreads', label: 'Goodreads', meta: 'Library export from goodreads.com', icon: AutoStoriesOutlinedIcon },
-  { key: 'imdb', label: 'IMDb', meta: 'Ratings export from imdb.com', icon: StarOutlineOutlinedIcon },
-  { key: 'storygraph', label: 'StoryGraph', meta: 'Library export from app.thestorygraph.com', icon: MenuBookOutlinedIcon },
+/** `slug` matches BrandIconSlug exactly for these four — real logos
+ * via BrandIcon (simple-icons), same as MyAnimeList/Trakt below them
+ * in Import data, rather than generic Material icons (see chat: "all
+ * 6 logos" standardisation). */
+const ROWS: { key: ImportSource; label: string; meta: string; slug: BrandIconSlug }[] = [
+  {
+    key: 'letterboxd',
+    label: 'Letterboxd',
+    meta: 'Diary export from letterboxd.com',
+    slug: 'letterboxd',
+  },
+  {
+    key: 'goodreads',
+    label: 'Goodreads',
+    meta: 'Library export from goodreads.com',
+    slug: 'goodreads',
+  },
+  { key: 'imdb', label: 'IMDb', meta: 'Ratings export from imdb.com', slug: 'imdb' },
+  {
+    key: 'storygraph',
+    label: 'StoryGraph',
+    meta: 'Library export from app.thestorygraph.com',
+    slug: 'storygraph',
+  },
 ];
 
 /**
@@ -50,8 +66,8 @@ export function ImportSourcesSection() {
             divider={i < ROWS.length - 1}
             sx={{ px: 1 }}
           >
-            <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
-              <row.icon />
+            <ListItemIcon sx={{ minWidth: 44 }}>
+              <BrandIcon slug={row.slug} size={28} />
             </ListItemIcon>
             <ListItemText primary={row.label} secondary={row.meta} />
             <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
@@ -67,7 +83,10 @@ export function ImportSourcesSection() {
         open={openSource === 'goodreads'}
         onCloseInstructions={() => setOpenSource(null)}
       />
-      <ImdbImportSection open={openSource === 'imdb'} onCloseInstructions={() => setOpenSource(null)} />
+      <ImdbImportSection
+        open={openSource === 'imdb'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
       <StoryGraphImportSection
         open={openSource === 'storygraph'}
         onCloseInstructions={() => setOpenSource(null)}
