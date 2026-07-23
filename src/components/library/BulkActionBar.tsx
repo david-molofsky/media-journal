@@ -96,18 +96,33 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
           gap: 1,
         }}
       >
-        <IconButton size="small" onClick={onClear} sx={{ color: 'inherit' }}>
+        <IconButton size="small" onClick={onClear} sx={{ color: 'inherit', flexShrink: 0 }}>
           <CloseIcon fontSize="small" />
         </IconButton>
-        <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
+        <Typography variant="body2" fontWeight={600} sx={{ flexShrink: 0 }}>
           {count} selected
         </Typography>
-        <Stack direction="row" spacing={1}>
+        {/* Scrolls horizontally instead of clipping when all 5 actions
+            don't fit the viewport width (e.g. on narrow phones) — see
+            chat. Hidden scrollbar keeps it looking like a normal
+            button row; a swipe reveals whatever's cut off. */}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
           <Button
             size="small"
             startIcon={<LocalOfferOutlinedIcon />}
             onClick={() => setTagOpen(true)}
-            sx={{ color: 'inherit' }}
+            sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Tag
           </Button>
@@ -115,7 +130,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             size="small"
             startIcon={<SourceOutlinedIcon />}
             onClick={() => setSourceOpen(true)}
-            sx={{ color: 'inherit' }}
+            sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Source
           </Button>
@@ -123,7 +138,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             size="small"
             startIcon={<StarOutlineIcon />}
             onClick={() => setRateOpen(true)}
-            sx={{ color: 'inherit' }}
+            sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Rate
           </Button>
@@ -131,7 +146,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             size="small"
             startIcon={<DownloadOutlinedIcon />}
             onClick={() => void backfill.start(selectedIds)}
-            sx={{ color: 'inherit' }}
+            sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Back-fill
           </Button>
@@ -139,7 +154,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             size="small"
             startIcon={<DeleteOutlineIcon />}
             onClick={() => setDeleteOpen(true)}
-            sx={{ color: 'inherit' }}
+            sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Delete
           </Button>
