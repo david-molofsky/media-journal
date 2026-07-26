@@ -8,18 +8,28 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
+import { useNumberSetting } from '@/hooks/useNumberSetting';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { createEntry } from '@/services/database/entryService';
 import { ROUTES } from '@/routes/paths';
+import { SETTINGS_KEYS } from '@/models';
 import type { MediaType } from '@/models';
+
+/** Mirrors MediaTypePicker's TIP_MAX_SHOWS — a save counts as one of
+ * the 5 shows just like an explicit dismissal (see chat). */
+const TIP_MAX_SHOWS = 5;
 
 export default function AddEntryPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
   const defaultStatus = useDefaultEntryStatus();
   const [selectedType, setSelectedType] = useState<MediaType | null>(null);
+  const [tipShownCount, setTipShownCount] = useNumberSetting(
+    SETTINGS_KEYS.addEntryTipShownCount,
+    0,
+  );
   const navigate = useNavigate();
 
   /**
@@ -69,6 +79,7 @@ export default function AddEntryPage() {
         submitLabel="Save Entry"
         onSubmit={async (values) => {
           await createEntry(values);
+          if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
           navigate(ROUTES.library);
         }}
       />

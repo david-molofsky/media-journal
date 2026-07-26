@@ -12,6 +12,16 @@ import type { MediaType } from '@/models';
  * referencing this list directly, so the app continues to work
  * correctly if the user edits or adds media types in Settings
  * (Milestone 7).
+ *
+ * Only Book, Audiobook, Film, TV and Comic ship `enabled: true` here —
+ * a deliberately small default set for a new install's Add Entry
+ * screen (see chat). Everyone else (Magazine, Video Games, Podcast,
+ * Art, Theatre, Sport, Anime, Manga) ships `enabled: false` and stays
+ * one Settings > Manage media types toggle away. Because `seed.ts`
+ * only writes this list when the `mediaTypes` table is empty, this
+ * only affects brand-new installs — every existing install already
+ * has its own rows in that table (all `enabled: true` from prior
+ * migrations) and is completely unaffected by this default.
  */
 export const defaultMediaTypes: MediaType[] = [
   {
@@ -190,7 +200,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Magazine Issues',
     icon: 'newspaper',
     colour: '#3949AB',
-    enabled: true,
+    enabled: false,
     // Deliberately mirrors 'comic' field-for-field, per David's instruction
     // that Magazine Issues should behave the same as Comic Issues.
     fields: [
@@ -211,7 +221,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Video Games',
     icon: 'sports_esports',
     colour: '#0097A7',
-    enabled: true,
+    enabled: false,
     fields: [
       {
         key: 'source',
@@ -227,7 +237,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Podcasts',
     icon: 'mic',
     colour: '#5D4037',
-    enabled: true,
+    enabled: false,
     fields: [
       {
         key: 'source',
@@ -243,7 +253,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Art',
     icon: 'palette',
     colour: '#F9A825',
-    enabled: true,
+    enabled: false,
     fields: [
       {
         key: 'source',
@@ -259,7 +269,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Theatre',
     icon: 'theater_comedy',
     colour: '#C2185B',
-    enabled: true,
+    enabled: false,
     fields: [
       {
         key: 'source',
@@ -275,7 +285,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Sports',
     icon: 'sports_soccer',
     colour: '#2E7D32',
-    enabled: true,
+    enabled: false,
     // Single sporting events (a match/game), not ongoing season/league
     // tracking. Genre is reused as "Sport" (e.g. Football, Tennis) so
     // it shares the app's existing Genre filter/suggestion mechanism
@@ -333,7 +343,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Anime',
     icon: 'live_tv',
     colour: '#5C6BC0',
-    enabled: true,
+    enabled: false,
     // Metadata for this type comes from MyAnimeList directly (once the
     // MAL import ships), not TMDB — `malId`/`coverImagePath` mirror the
     // `posterPath`/`coverImagePath` convention used for Film/TV/Comic
@@ -380,7 +390,7 @@ export const defaultMediaTypes: MediaType[] = [
     displayName: 'Manga',
     icon: 'remove_red_eye',
     colour: '#8E24AA',
-    enabled: true,
+    enabled: false,
     fields: [
       { key: 'author', label: 'Author', type: 'text', required: false },
       { key: 'chaptersRead', label: 'Chapters read', type: 'number', required: false },

@@ -85,6 +85,14 @@ export const SETTINGS_KEYS = {
    * every entry gets deleted — that case falls back to the plain
    * PagePlaceholder rather than re-showing onboarding. */
   hasSeenWelcome: 'hasSeenWelcome',
+  /** How many times the "want more media types?" tip card has been
+   * shown on the Add Entry media-type grid (WelcomeScreen's sibling
+   * nudge for a new, trimmed-down default media type list — see
+   * chat). Increments on both a successful entry save and an explicit
+   * dismissal of the card, capped at 5; the card stops rendering once
+   * this reaches 5. Device-local, same as `hasSeenWelcome` — a new
+   * device on an existing account sees it again. */
+  addEntryTipShownCount: 'addEntryTipShownCount',
   /** Per-media-type map of which `metadata.source` values count as a
    * paid subscription, for the Statistics > Subscription Value
    * feature (Settings > Subscriptions). Shape: `Record<mediaTypeId,
