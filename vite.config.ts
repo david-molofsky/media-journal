@@ -17,7 +17,7 @@ export default defineConfig({
         description:
           'A personal, offline-first archive for everything you read, watch and listen to.',
         theme_color: '#2E7D32',
-        background_color: '#FFFBFE',
+        background_color: '#121212',
         display: 'standalone',
         start_url: '/media-journal/',
         scope: '/media-journal/',
