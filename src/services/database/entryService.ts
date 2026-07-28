@@ -161,6 +161,42 @@ export async function bulkSetRating(ids: string[], rating: number): Promise<void
   await db.mediaEntries.bulkPut(updates);
 }
 
+/**
+ * Ensures every current Wishlist entry has an explicit `wishlistOrder`,
+ * assigning sequential values (0, 1, 2…) in "Newest added" order to any
+ * that don't yet — called once when Reorder mode is entered so the
+ * arrow-swap logic always has real numbers to work with. A no-op (no
+ * writes) if every Wishlist entry already has a value, so repeated
+ * calls are safe.
+ */
+export async function normalizeWishlistOrder(): Promise<void> {
+  const wishlist = await db.mediaEntries.where('status').equals('wishlist').toArray();
+  const missing = wishlist.filter((e) => e.wishlistOrder === undefined);
+  if (missing.length === 0) return;
+
+  const alreadyOrdered = wishlist.filter((e) => e.wishlistOrder !== undefined);
+  const nextStart = alreadyOrdered.length > 0
+    ? Math.max(...alreadyOrdered.map((e) => e.wishlistOrder!)) + 1
+    : 0;
+
+  const sortedMissing = [...missing].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const updates = sortedMissing.map((e, i) => ({ ...e, wishlistOrder: nextStart + i }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Swaps the saved `wishlistOrder` of two Wishlist entries — used by
+ * the Library's Reorder mode up/down arrows, which always move an
+ * entry one position at a time against its immediate neighbour in the
+ * currently displayed (unfiltered) "My Order" list. */
+export async function swapWishlistOrder(idA: string, idB: string): Promise<void> {
+  const [a, b] = await db.mediaEntries.bulkGet([idA, idB]);
+  if (!a || !b || a.wishlistOrder === undefined || b.wishlistOrder === undefined) return;
+  await db.mediaEntries.bulkPut([
+    { ...a, wishlistOrder: b.wishlistOrder, updatedAt: nowIso() },
+    { ...b, wishlistOrder: a.wishlistOrder, updatedAt: nowIso() },
+  ]);
+}
+
 export interface EntryListFilter {
   year?: number;
   month?: number;
@@ -189,7 +225,8 @@ export type EntrySortOrder =
   | 'ratingAsc'
   | 'createdAtDesc'
   | 'createdAtAsc'
-  | 'byType';
+  | 'byType'
+  | 'wishlistOrderAsc';
 
 export const TYPE_SORT_ORDER: Record<string, number> = {
   book: 0, audiobook: 1, comic: 2, film: 3, tv: 4,
@@ -279,6 +316,21 @@ function sortEntries(entries: MediaEntry[], sort: EntrySortOrder): MediaEntry[] 
         const orderB = TYPE_SORT_ORDER[b.mediaType] ?? 99;
         if (orderA !== orderB) return orderA - orderB;
         return a.title.localeCompare(b.title);
+      });
+    case 'wishlistOrderAsc':
+      // Entries without an explicit wishlistOrder yet (never reordered)
+      // sort after every explicitly-ordered entry, in "Newest added"
+      // order among themselves — matches the Wishlist's previous
+      // default so the list looks unchanged until the user actually
+      // starts reordering. normalizeWishlistOrder backfills real
+      // values the first time reorder mode is entered.
+      return sorted.sort((a, b) => {
+        if (a.wishlistOrder !== undefined && b.wishlistOrder !== undefined) {
+          return a.wishlistOrder - b.wishlistOrder;
+        }
+        if (a.wishlistOrder !== undefined) return -1;
+        if (b.wishlistOrder !== undefined) return 1;
+        return b.createdAt.localeCompare(a.createdAt);
       });
   }
 }

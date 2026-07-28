@@ -20,6 +20,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Tooltip from '@mui/material/Tooltip';
 import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -33,7 +34,13 @@ import { SeriesView } from '@/components/library/SeriesView';
 import { BulkActionBar } from '@/components/library/BulkActionBar';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { type EntrySortOrder, TYPE_SORT_ORDER, updateEntryStatus } from '@/services/database/entryService';
+import {
+  type EntrySortOrder,
+  TYPE_SORT_ORDER,
+  updateEntryStatus,
+  normalizeWishlistOrder,
+  swapWishlistOrder,
+} from '@/services/database/entryService';
 import { setSetting } from '@/services/database/settingsService';
 import { editEntryPath } from '@/routes/paths';
 import type { EntryStatus, MediaEntry, MediaType } from '@/models';
@@ -44,6 +51,7 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 const MONTH_OPTIONS: FilterChipOption[] = MONTH_NAMES.map((name, index) => ({ label: name, value: String(index + 1) }));
 
 const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
+  { label: 'My Order', value: 'wishlistOrderAsc' },
   { label: 'Newest completion date', value: 'completedDateDesc' },
   { label: 'Oldest completion date', value: 'completedDateAsc' },
   { label: 'Alphabetical', value: 'alphabetical' },
@@ -58,12 +66,12 @@ const DATE_SORTS: EntrySortOrder[] = ['completedDateDesc', 'completedDateAsc', '
 
 /** Wishlist entries have no completion date yet, so "Newest completion
  * date" (the default everywhere else) doesn't make sense there —
- * Wishlist defaults to "Newest added" instead. Applied whenever the
- * Library lands on or switches to a tab (see the Tabs onChange handler
- * below and the initial `sort` state), not as a one-time default that
- * then behaves like any other tab. */
+ * Wishlist defaults to "My Order" (manual reorder) instead. Applied
+ * whenever the Library lands on or switches to a tab (see the Tabs
+ * onChange handler below and the initial `sort` state), not as a
+ * one-time default that then behaves like any other tab. */
 function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
-  return status === 'wishlist' ? 'createdAtDesc' : 'completedDateDesc';
+  return status === 'wishlist' ? 'wishlistOrderAsc' : 'completedDateDesc';
 }
 
 const STATUS_TABS: { value: EntryStatus; label: string }[] = [
@@ -138,6 +146,11 @@ export default function LibraryPage() {
   const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [reorderMode, setReorderMode] = useState(false);
+
+  const hasActiveFilters = Boolean(
+    year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
+  );
 
   // Remember whichever tab is active so the bottom-nav Add button can
   // default a new entry to matching status (e.g. tapping Add while on
@@ -146,6 +159,13 @@ export default function LibraryPage() {
   useEffect(() => {
     void setSetting('lastLibraryStatusTab', statusTab);
   }, [statusTab]);
+
+  // Reorder mode only makes sense unfiltered, on the Wishlist tab, with
+  // "My Order" selected — derived rather than force-reset via effect,
+  // so toggling a filter simply hides the reorder UI (button still
+  // shows disabled) instead of needing to sync state back down.
+  const isReordering =
+    reorderMode && !hasActiveFilters && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
 
   // "Mark finished" dialog
   const [finishEntry, setFinishEntry] = useState<MediaEntry | null>(null);
@@ -177,9 +197,6 @@ export default function LibraryPage() {
   const tagOptions = useMemo(() => availableTags.map((t) => ({ label: t, value: t })), [availableTags]);
   const genreOptions = useMemo(() => availableGenres.map((g) => ({ label: g, value: g })), [availableGenres]);
   const sourceOptions = useMemo(() => availableSources.map((s) => ({ label: s, value: s })), [availableSources]);
-  const hasActiveFilters = Boolean(
-    year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
-  );
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
@@ -240,7 +257,7 @@ export default function LibraryPage() {
     status: statusTab,
   };
 
-  const renderCard = (entry: MediaEntry) => (
+  const renderCard = (entry: MediaEntry, index: number) => (
     <EntryCard
       key={entry.id}
       entry={entry}
@@ -250,6 +267,21 @@ export default function LibraryPage() {
       onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishEntry(entry); } : undefined}
       onStartTracking={entry.status === 'wishlist' ? () => updateEntryStatus(entry.id, 'in_progress') : undefined}
       onMoveToWishlist={entry.status === 'in_progress' ? () => updateEntryStatus(entry.id, 'wishlist') : undefined}
+      reorder={
+        isReordering
+          ? {
+              position: index + 1,
+              onMoveUp: (() => {
+                const prev = entries[index - 1];
+                return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
+              })(),
+              onMoveDown: (() => {
+                const next = entries[index + 1];
+                return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
+              })(),
+            }
+          : undefined
+      }
     />
   );
 
@@ -257,7 +289,7 @@ export default function LibraryPage() {
     <Box>
       <Tabs
         value={statusTab}
-        onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); }}
+        onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); setReorderMode(false); }}
         // Note: switching tabs deliberately does NOT clear filters —
         // matches existing single-select behavior (filters persisted
         // across tab changes already; unchanged by multi-select).
@@ -308,6 +340,24 @@ export default function LibraryPage() {
             <Button size="small" onClick={toggleSelectAll} sx={{ flexShrink: 0 }}>
               {allVisibleSelected ? 'Deselect all' : 'Select all'}
             </Button>
+          )}
+          {statusTab === 'wishlist' && sort === 'wishlistOrderAsc' && (
+            <Tooltip title={hasActiveFilters ? 'Clear filters to reorder' : ''}>
+              <span>
+                <Button
+                  size="small"
+                  variant={isReordering ? 'contained' : 'outlined'}
+                  disabled={hasActiveFilters}
+                  onClick={() => {
+                    if (!reorderMode) void normalizeWishlistOrder();
+                    setReorderMode((v) => !v);
+                  }}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {isReordering ? 'Done' : 'Reorder'}
+                </Button>
+              </span>
+            </Tooltip>
           )}
           <Button size="small" variant={selectionMode ? 'contained' : 'outlined'} onClick={() => { setSelectionMode((v) => !v); if (selectionMode) clearSelection(); }} sx={{ flexShrink: 0 }}>
             {selectionMode ? 'Done' : 'Select'}

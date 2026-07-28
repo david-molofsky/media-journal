@@ -7,9 +7,18 @@ import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import ReplayIcon from '@mui/icons-material/Replay';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import type { MediaEntry, MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+
+/** Position badge shown during Reorder mode — gold for the top 10 per
+ * David's emphasis on those slots being precisely settable, neutral
+ * grey beyond that. */
+const TOP10_BADGE = { bgcolor: '#D4A017', color: '#2A1E00', border: '#D4A017' } as const;
+const RANK_BADGE = { bgcolor: 'action.hover', color: 'text.secondary', border: 'divider' } as const;
 
 interface EntryCardProps {
   entry: MediaEntry;
@@ -19,6 +28,13 @@ interface EntryCardProps {
   onMarkFinished?: () => void;
   onStartTracking?: () => void;
   onMoveToWishlist?: () => void;
+  /** Reorder mode (Wishlist, "My Order" sort). When set, the card shows
+   * a position badge and up/down arrows instead of being tappable. */
+  reorder?: {
+    position: number;
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+  };
 }
 
 const STATUS_CONFIG = {
@@ -63,6 +79,7 @@ export function EntryCard({
   onMarkFinished,
   onStartTracking,
   onMoveToWishlist,
+  reorder,
 
 }: EntryCardProps) {
   // `Icon` is resolved from a module-level lookup table (utils/mediaTypeIcon.tsx)
@@ -91,71 +108,100 @@ export function EntryCard({
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden', ...(selected !== undefined && { outline: selected ? `2px solid ${colour}` : '2px solid transparent' }) }}>
-      <CardActionArea onClick={onOpen} sx={{ p: 2 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          {selected !== undefined && (
-            <Box sx={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${selected ? colour : '#ccc'}`, bgcolor: selected ? colour : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
-              {selected ? '✓' : ''}
-            </Box>
-          )}
-          <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: `${colour}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {/* eslint-disable-next-line react-hooks/static-components */}
-            <Icon sx={{ color: colour, fontSize: 22 }} />
-          </Box>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Typography variant="subtitle1" fontWeight={600} noWrap>{entry.title}</Typography>
-              {entry.repeatConsumption && (
-                <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} /></Tooltip>
+      <Stack direction="row" alignItems="stretch">
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <CardActionArea onClick={reorder ? undefined : onOpen} disabled={Boolean(reorder)} sx={{ p: 2 }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              {reorder && (
+                <Box
+                  sx={{
+                    width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700,
+                    bgcolor: reorder.position <= 10 ? TOP10_BADGE.bgcolor : RANK_BADGE.bgcolor,
+                    color: reorder.position <= 10 ? TOP10_BADGE.color : RANK_BADGE.color,
+                    border: `1px solid ${reorder.position <= 10 ? TOP10_BADGE.border : 'transparent'}`,
+                  }}
+                >
+                  {reorder.position}
+                </Box>
               )}
-            </Stack>
-            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
-              <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
-              {completedSource && (
-                <Box sx={{ flexShrink: 0, display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
-                  {completedSource}
+              {selected !== undefined && (
+                <Box sx={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${selected ? colour : '#ccc'}`, bgcolor: selected ? colour : 'transparent', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
+                  {selected ? '✓' : ''}
+                </Box>
+              )}
+              <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: `${colour}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {/* eslint-disable-next-line react-hooks/static-components */}
+                <Icon sx={{ color: colour, fontSize: 22 }} />
+              </Box>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="subtitle1" fontWeight={600} noWrap>{entry.title}</Typography>
+                  {entry.repeatConsumption && (
+                    <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} /></Tooltip>
+                  )}
+                </Stack>
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
+                  {completedSource && (
+                    <Box sx={{ flexShrink: 0, display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                      {completedSource}
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+              {entry.rating !== undefined && (
+                <Box sx={{ flexShrink: 0, bgcolor: colour, color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 20, px: 1.25, py: 0.4, lineHeight: 1.4 }}>
+                  {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
                 </Box>
               )}
             </Stack>
-          </Box>
-          {entry.rating !== undefined && (
-            <Box sx={{ flexShrink: 0, bgcolor: colour, color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 20, px: 1.25, py: 0.4, lineHeight: 1.4 }}>
-              {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
-            </Box>
-          )}
-        </Stack>
-      </CardActionArea>
+          </CardActionArea>
 
-      {statusCfg && (
-        <Box sx={{ px: 2, pb: 1.5 }}>
-          <Stack direction="row" spacing={1} sx={{ mb: hasActions ? 1 : 0 }}>
-            <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
-              {statusCfg.label}
-            </Box>
-            {source && (
-              <Box sx={{ display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
-                {source}
-              </Box>
-            )}
-          </Stack>
-          {hasActions && (
-            <>
-              <Divider sx={{ mb: 1 }} />
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {onMarkFinished && (
-                  <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); onMarkFinished(); }}>✓ Mark finished</Button>
-                )}
-                {onStartTracking && (
-                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onStartTracking(); }}>▶ Start tracking</Button>
-                )}
-                {onMoveToWishlist && (
-                  <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onMoveToWishlist(); }}>★ Move to wishlist</Button>
+          {statusCfg && (
+            <Box sx={{ px: 2, pb: 1.5 }}>
+              <Stack direction="row" spacing={1} sx={{ mb: hasActions ? 1 : 0 }}>
+                <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                  {statusCfg.label}
+                </Box>
+                {source && (
+                  <Box sx={{ display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                    {source}
+                  </Box>
                 )}
               </Stack>
-            </>
+              {hasActions && (
+                <>
+                  <Divider sx={{ mb: 1 }} />
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {onMarkFinished && (
+                      <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); onMarkFinished(); }}>✓ Mark finished</Button>
+                    )}
+                    {onStartTracking && (
+                      <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onStartTracking(); }}>▶ Start tracking</Button>
+                    )}
+                    {onMoveToWishlist && (
+                      <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onMoveToWishlist(); }}>★ Move to wishlist</Button>
+                    )}
+                  </Stack>
+                </>
+              )}
+            </Box>
           )}
         </Box>
-      )}
+
+        {reorder && (
+          <Stack justifyContent="center" alignItems="center" spacing={0.25} sx={{ px: 1, borderLeft: 1, borderColor: 'divider' }}>
+            <IconButton size="small" disabled={!reorder.onMoveUp} onClick={reorder.onMoveUp}>
+              <KeyboardArrowUpIcon fontSize="small" />
+            </IconButton>
+            <IconButton size="small" disabled={!reorder.onMoveDown} onClick={reorder.onMoveDown}>
+              <KeyboardArrowDownIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        )}
+      </Stack>
     </Card>
   );
 }

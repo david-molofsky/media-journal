@@ -39,6 +39,15 @@ export interface MediaEntry {
    * by entryService.
    */
   completedYear?: number;
+  /**
+   * Manual sort position within the Wishlist, lower = earlier. Only
+   * meaningful while status === 'wishlist'; set lazily the first time
+   * "My Order" is used for a given entry (backfilled from its
+   * "Newest added" position), then maintained by swapping adjacent
+   * values as the user taps the reorder arrows. Left stored-but-unused
+   * if the entry later moves off the Wishlist.
+   */
+  wishlistOrder?: number;
   createdAt: string;
   updatedAt: string;
 }

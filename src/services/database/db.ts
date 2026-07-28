@@ -932,6 +932,53 @@ export class MediaJournalDatabase extends Dexie {
           }
         }
       });
+
+    /**
+     * Version 21: adds British streaming services (BBC iPlayer, ITVX,
+     * Channel 4/All 4, Channel 5/My5, Sky/NOW, BritBox) to the Source
+     * options for Film, TV, and Anime on existing installs — fresh
+     * installs already get them via seed.ts/defaultMediaTypes.ts.
+     *
+     * `source` is a freeSolo autocomplete field (AutocompleteField.tsx),
+     * so users could already type these values manually; this just adds
+     * them to the suggestion list. Guarded per-option with `existingKeys`
+     * (same pattern as version 17/20) so re-running this, or a user who's
+     * already added one of these themselves, doesn't create duplicates.
+     * No `mediaEntries` changes — existing entries' `metadata.source`
+     * values are untouched either way.
+     */
+    this.version(21)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+        const britishServices = [
+          'BBC iPlayer',
+          'ITVX',
+          'Channel 4 (All 4)',
+          'Channel 5 (My5)',
+          'Sky/NOW',
+          'BritBox',
+        ];
+
+        for (const typeId of ['film', 'tv', 'anime']) {
+          const mediaType = await table.get(typeId);
+          if (!mediaType) continue;
+          const fields = mediaType.fields.map((field) => {
+            if (field.key !== 'source' || field.type !== 'autocomplete') return field;
+            const existingOptions = new Set(field.options ?? []);
+            const toAdd = britishServices.filter((s) => !existingOptions.has(s));
+            if (toAdd.length === 0) return field;
+            return { ...field, options: [...(field.options ?? []), ...toAdd] };
+          });
+          await table.put({ ...mediaType, fields });
+        }
+      });
   }
 }
 
