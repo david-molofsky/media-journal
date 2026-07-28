@@ -44,6 +44,16 @@ export function useStoryGraphImportFlow() {
     );
   };
 
+  /** Tick/untick a single 'ready' row — the "tick box" feature (see
+   * chat), mirrors the identical handler in useGoodreadsImportFlow. */
+  const setIncluded = (index: number, value: boolean) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, included: value } : r)));
+  };
+
+  const setAllIncluded = (value: boolean) => {
+    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
+  };
+
   const applyAll = async () => {
     setPhase('importing');
     setProgress({ done: 0, total: rows.length });
@@ -66,5 +76,5 @@ export function useStoryGraphImportFlow() {
     setSummary({ imported: 0, skipped: 0 });
   };
 
-  return { phase, rows, progress, summary, start, setCompletedDate, skipEntry, applyAll, reset };
+  return { phase, rows, progress, summary, start, setCompletedDate, skipEntry, setIncluded, setAllIncluded, applyAll, reset };
 }

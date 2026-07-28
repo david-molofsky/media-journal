@@ -28,6 +28,8 @@ interface GoodreadsImportDialogProps {
   onConfirmShelves: () => void;
   onSetCompletedDate: (index: number, date: string) => void;
   onSkip: (index: number) => void;
+  onSetIncluded: (index: number, value: boolean) => void;
+  onSetAllIncluded: (value: boolean) => void;
   onApply: () => void;
   onClose: () => void;
 }
@@ -67,6 +69,8 @@ export function GoodreadsImportDialog({
   onConfirmShelves,
   onSetCompletedDate,
   onSkip,
+  onSetIncluded,
+  onSetAllIncluded,
   onApply,
   onClose,
 }: GoodreadsImportDialogProps) {
@@ -74,8 +78,9 @@ export function GoodreadsImportDialog({
   const needsDateCount = rows.filter((r) => r.status === 'needs_date').length;
   const duplicateCount = rows.filter((r) => r.status === 'duplicate').length;
   const toImportCount = rows.filter(
-    (r) => r.status === 'ready' || (r.status === 'needs_date' && r.completedDate),
+    (r) => (r.status === 'ready' && r.included) || (r.status === 'needs_date' && r.completedDate),
   ).length;
+  const allReadyIncluded = readyCount === 0 || rows.every((r) => r.status !== 'ready' || r.included);
 
   return (
     <Dialog open={open} onClose={phase === 'importing' ? undefined : onClose} fullWidth maxWidth="xs">
@@ -120,10 +125,17 @@ export function GoodreadsImportDialog({
 
         {phase === 'review' && (
           <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
-              {readyCount} ready to import. {needsDateCount} need a date.
-              {duplicateCount > 0 ? ` ${duplicateCount} already in your library.` : ''}
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="body2" color="text.secondary">
+                {readyCount} ready to import. {needsDateCount} need a date.
+                {duplicateCount > 0 ? ` ${duplicateCount} already in your library.` : ''}
+              </Typography>
+              {readyCount > 0 && (
+                <Button size="small" onClick={() => onSetAllIncluded(!allReadyIncluded)} sx={{ flexShrink: 0 }}>
+                  {allReadyIncluded ? 'Deselect all' : 'Select all'}
+                </Button>
+              )}
+            </Stack>
 
             {rows.map((state, index) => {
               const { row } = state;
@@ -152,10 +164,14 @@ export function GoodreadsImportDialog({
                     direction="row"
                     alignItems="center"
                     spacing={1}
-                    sx={{ opacity: 0.7 }}
                   >
+                    <Checkbox
+                      size="small"
+                      checked={state.included}
+                      onChange={(e) => onSetIncluded(index, e.target.checked)}
+                    />
                     <CheckCircleOutlineIcon fontSize="small" color="success" />
-                    <Typography variant="body2" sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ flex: 1, opacity: state.included ? 1 : 0.5 }}>
                       {row.title}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">

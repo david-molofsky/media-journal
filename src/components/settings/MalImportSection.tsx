@@ -28,9 +28,10 @@ interface MalImportSectionProps {
  * Settings > MyAnimeList. Initial connection happens via a full-page
  * redirect (beginMalAuth → MalCallbackPage handles the return trip and
  * first import). Once connected, "Sync now" re-runs the same
- * classify/review/apply flow in place — a dialog opens only if the
- * review step is actually needed (some entries missing a date);
- * otherwise it goes straight to importing.
+ * classify/review/apply flow in place — the review dialog now always
+ * opens (previously only when some entries were missing a date), so
+ * every synced entry gets a chance to be reviewed/unticked via the
+ * "tick box" feature (see chat), not just ones needing a date.
  */
 export function MalImportSection({ variant = 'row' }: MalImportSectionProps) {
   const connected = useMalConnected();
@@ -67,6 +68,8 @@ export function MalImportSection({ variant = 'row' }: MalImportSectionProps) {
             rows={flow.rows}
             onSetCompletedDate={flow.setCompletedDate}
             onSkip={flow.skipRow}
+            onSetIncluded={flow.setIncluded}
+            onSetAllIncluded={flow.setAllIncluded}
             onConfirm={() => void flow.confirmReview()}
           />
         )}

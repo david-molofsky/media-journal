@@ -7,12 +7,14 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import { completeTraktAuth } from '@/services/metadata/traktService';
-import { runTraktImport, type TraktImportSummary, type TraktImportProgress } from '@/services/importExport/traktImportService';
+import { useTraktImportFlow } from '@/hooks/useTraktImportFlow';
+import { TraktReviewPanel } from '@/components/settings/TraktReviewPanel';
+import type { TraktFetchProgress } from '@/services/importExport/traktImportService';
 import { ROUTES } from '@/routes/paths';
 
-type Phase = 'connecting' | 'importing' | 'done' | 'error';
+type ConnectPhase = 'connecting' | 'connect_error';
 
-const PHASE_LABEL: Record<TraktImportProgress['phase'], string> = {
+const FETCH_PHASE_LABEL: Record<TraktFetchProgress['phase'], string> = {
   movies: 'movies',
   shows: 'shows',
   watchlist: 'watchlist',
@@ -20,17 +22,17 @@ const PHASE_LABEL: Record<TraktImportProgress['phase'], string> = {
 
 /**
  * Lands here after Trakt redirects back through
- * public/oauth-callback.html. Completes the token exchange, then runs
- * the full movies + shows + watchlist import with a live progress
- * readout — same shape as MalCallbackPage.
+ * public/oauth-callback.html. Completes the token exchange, then hands
+ * off to useTraktImportFlow for the fetch → review → apply sequence —
+ * same shape as MalCallbackPage. `connectPhase` only covers the token
+ * exchange itself; everything after that is flow.phase.
  */
 export default function TraktCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [phase, setPhase] = useState<Phase>('connecting');
-  const [progress, setProgress] = useState<TraktImportProgress>({ phase: 'movies', done: 0, total: 0 });
-  const [summary, setSummary] = useState<TraktImportSummary | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [connectPhase, setConnectPhase] = useState<ConnectPhase>('connecting');
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const flow = useTraktImportFlow();
 
   useEffect(() => {
     (async () => {
@@ -39,25 +41,22 @@ export default function TraktCallbackPage() {
       const oauthError = searchParams.get('error');
 
       if (oauthError) {
-        setError(`Trakt declined the connection (${oauthError}).`);
-        setPhase('error');
+        setConnectError(`Trakt declined the connection (${oauthError}).`);
+        setConnectPhase('connect_error');
         return;
       }
       if (!code || !state) {
-        setError('Missing authorisation details from Trakt — please try connecting again.');
-        setPhase('error');
+        setConnectError('Missing authorisation details from Trakt — please try connecting again.');
+        setConnectPhase('connect_error');
         return;
       }
 
       try {
         await completeTraktAuth(code, state);
-        setPhase('importing');
-        const result = await runTraktImport((p) => setProgress(p));
-        setSummary(result);
-        setPhase('done');
+        void flow.start();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong connecting to Trakt.');
-        setPhase('error');
+        setConnectError(e instanceof Error ? e.message : 'Something went wrong connecting to Trakt.');
+        setConnectPhase('connect_error');
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,8 +64,8 @@ export default function TraktCallbackPage() {
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
-      <Stack spacing={2} alignItems="center" sx={{ maxWidth: 320, textAlign: 'center' }}>
-        {phase === 'connecting' && (
+      <Stack spacing={2} alignItems="center" sx={{ maxWidth: 420, textAlign: 'center', width: '100%' }}>
+        {connectPhase === 'connecting' && flow.phase === 'idle' && (
           <>
             <CircularProgress size={32} />
             <Typography variant="body2" color="text.secondary">
@@ -75,20 +74,10 @@ export default function TraktCallbackPage() {
           </>
         )}
 
-        {phase === 'importing' && (
-          <>
-            <CircularProgress size={32} />
-            <Typography variant="body2" color="text.secondary">
-              Importing your {PHASE_LABEL[progress.phase]}…
-              {progress.total > 0 ? ` ${progress.done} of ${progress.total}` : ''}
-            </Typography>
-          </>
-        )}
-
-        {phase === 'error' && (
+        {connectPhase === 'connect_error' && (
           <>
             <Alert severity="error" variant="outlined">
-              {error}
+              {connectError}
             </Alert>
             <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
               Back to Settings
@@ -96,17 +85,64 @@ export default function TraktCallbackPage() {
           </>
         )}
 
-        {phase === 'done' && summary && (
+        {flow.phase === 'fetching' && (
+          <>
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary">
+              Fetching your {FETCH_PHASE_LABEL[flow.fetchProgress.phase]}…
+              {flow.fetchProgress.total > 0 ? ` ${flow.fetchProgress.done} of ${flow.fetchProgress.total}` : ''}
+            </Typography>
+          </>
+        )}
+
+        {flow.phase === 'error' && (
+          <>
+            <Alert severity="error" variant="outlined">
+              {flow.error}
+            </Alert>
+            <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
+              Back to Settings
+            </Button>
+          </>
+        )}
+
+        {flow.phase === 'review' && (
+          <Box sx={{ width: '100%', textAlign: 'left' }}>
+            <Typography variant="h6" fontWeight={600} sx={{ mb: 2, textAlign: 'center' }}>
+              Review before importing
+            </Typography>
+            <TraktReviewPanel
+              data={flow.data}
+              onToggleMovie={flow.toggleMovieIncluded}
+              onToggleWatchlist={flow.toggleWatchlistIncluded}
+              onToggleSeason={flow.toggleSeason}
+              onSetAllIncluded={flow.setAllIncluded}
+              onConfirm={() => void flow.applyAll()}
+            />
+          </Box>
+        )}
+
+        {flow.phase === 'importing' && (
+          <>
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary">
+              Importing…
+              {flow.applyProgress.total > 0 ? ` ${flow.applyProgress.done} of ${flow.applyProgress.total}` : ''}
+            </Typography>
+          </>
+        )}
+
+        {flow.phase === 'done' && (
           <>
             <Alert severity="success" variant="outlined" sx={{ textAlign: 'left' }}>
-              Imported {summary.moviesImported} movies
-              {summary.moviesSkipped > 0 ? ` (${summary.moviesSkipped} already imported)` : ''}
-              {summary.moviesErrored > 0 ? ` (${summary.moviesErrored} failed)` : ''},{' '}
-              {summary.seasonsImported} TV seasons
-              {summary.showsErrored > 0 ? ` (${summary.showsErrored} shows failed)` : ''}, and{' '}
-              {summary.watchlistImported} watchlist
-              {summary.watchlistSkipped > 0 ? ` (${summary.watchlistSkipped} already imported)` : ''}
-              {summary.watchlistErrored > 0 ? ` (${summary.watchlistErrored} failed)` : ''}.
+              Imported {flow.summary.moviesImported} movies
+              {flow.summary.moviesSkipped > 0 ? ` (${flow.summary.moviesSkipped} already imported)` : ''}
+              {flow.summary.moviesErrored > 0 ? ` (${flow.summary.moviesErrored} failed)` : ''},{' '}
+              {flow.summary.seasonsImported} TV seasons
+              {flow.summary.showsErrored > 0 ? ` (${flow.summary.showsErrored} shows failed)` : ''}, and{' '}
+              {flow.summary.watchlistImported} watchlist
+              {flow.summary.watchlistSkipped > 0 ? ` (${flow.summary.watchlistSkipped} already imported)` : ''}
+              {flow.summary.watchlistErrored > 0 ? ` (${flow.summary.watchlistErrored} failed)` : ''}.
             </Alert>
             <Button variant="contained" onClick={() => navigate(ROUTES.settings)}>
               Done

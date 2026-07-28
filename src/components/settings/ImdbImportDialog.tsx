@@ -28,10 +28,13 @@ interface ImdbImportDialogProps {
   showIndex: number;
   selections: Map<string, Set<number>>;
   skippedShowIds: Set<string>;
+  excludedMovies: Set<string>;
   importProgress: { done: number; total: number };
   summary: { filmsImported: number; seasonsImported: number; skipped: SkippedRow[]; seasonsMissingDate: number };
   onBeginShowPrompts: () => void;
   onToggleSeason: (showId: string, seasonNumber: number) => void;
+  onToggleMovieIncluded: (imdbId: string) => void;
+  onSetAllMoviesIncluded: (value: boolean) => void;
   onFinishShow: (showId: string, skip: boolean) => void;
   onClose: () => void;
 }
@@ -53,8 +56,10 @@ function groupSkippedByReason(skipped: SkippedRow[]): { reason: SkipReason; coun
  * "Import from IMDb" dialog.
  *
  *   matching     — sequential per-row TMDB /find lookups, progress bar.
- *   review       — counts (films ready / shows needing input / skipped)
- *                  before anything commits, expandable skip breakdown.
+ *   review       — every matched movie itemized with a checkbox (the
+ *                  "tick box" feature — see chat; previously just a
+ *                  count with no way to exclude one), Select
+ *                  all/Deselect all, plus expandable skip breakdown.
  *   show_prompt  — one show at a time: IMDb evidence (series rating +
  *                  episodes rated per season) next to unchecked season
  *                  checkboxes, progress dots for position in the list.
@@ -72,15 +77,20 @@ export function ImdbImportDialog({
   showIndex,
   selections,
   skippedShowIds,
+  excludedMovies,
   importProgress,
   summary,
   onBeginShowPrompts,
   onToggleSeason,
+  onToggleMovieIncluded,
+  onSetAllMoviesIncluded,
   onFinishShow,
   onClose,
 }: ImdbImportDialogProps) {
   const currentShow = showGroups[showIndex];
   const isLastShow = showIndex >= showGroups.length - 1;
+  const includedMovieCount = movies.filter((m) => !excludedMovies.has(m.row.imdbId)).length;
+  const allMoviesIncluded = excludedMovies.size === 0;
 
   return (
     <Dialog
@@ -113,12 +123,45 @@ export function ImdbImportDialog({
 
         {phase === 'review' && (
           <Stack spacing={1.5}>
-            <Typography variant="body2" color="text.secondary">
-              {movies.length} {movies.length === 1 ? 'film is' : 'films are'} ready to import.
-              {showGroups.length > 0
-                ? ` ${showGroups.length} ${showGroups.length === 1 ? 'show needs' : 'shows need'} a quick season check.`
-                : ''}
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="body2" color="text.secondary">
+                {includedMovieCount} of {movies.length} {movies.length === 1 ? 'film' : 'films'} selected.
+                {showGroups.length > 0
+                  ? ` ${showGroups.length} ${showGroups.length === 1 ? 'show needs' : 'shows need'} a quick season check.`
+                  : ''}
+              </Typography>
+              {movies.length > 0 && (
+                <Button size="small" onClick={() => onSetAllMoviesIncluded(!allMoviesIncluded)} sx={{ flexShrink: 0 }}>
+                  {allMoviesIncluded ? 'Deselect all' : 'Select all'}
+                </Button>
+              )}
+            </Stack>
+
+            {movies.length > 0 && (
+              <Stack spacing={0.5} sx={{ maxHeight: 280, overflowY: 'auto' }}>
+                {movies.map((movie) => {
+                  const included = !excludedMovies.has(movie.row.imdbId);
+                  return (
+                    <FormControlLabel
+                      key={movie.row.imdbId}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={included}
+                          onChange={() => onToggleMovieIncluded(movie.row.imdbId)}
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" sx={{ opacity: included ? 1 : 0.5 }}>
+                          {movie.row.title}
+                        </Typography>
+                      }
+                    />
+                  );
+                })}
+              </Stack>
+            )}
+
             {skipped.length > 0 && (
               <Accordion variant="outlined" disableGutters>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -241,8 +284,12 @@ export function ImdbImportDialog({
         {phase === 'review' && (
           <>
             <Button onClick={onClose}>Cancel</Button>
-            <Button variant="contained" onClick={onBeginShowPrompts}>
-              {showGroups.length > 0 ? 'Continue' : `Import ${movies.length}`}
+            <Button
+              variant="contained"
+              onClick={onBeginShowPrompts}
+              disabled={showGroups.length === 0 && includedMovieCount === 0}
+            >
+              {showGroups.length > 0 ? 'Continue' : `Import ${includedMovieCount}`}
             </Button>
           </>
         )}

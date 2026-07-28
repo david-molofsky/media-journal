@@ -100,6 +100,11 @@ export interface MalRowState {
    * start_date as a suggestion when finish_date is missing (status:
    * 'needs_date') — editable in the review UI either way. */
   completedDate?: string;
+  /** Tick state for the review screen's "tick box" feature (see chat)
+   * — meaningful for 'ready' rows, which previously weren't itemized
+   * or reviewable at all (just summarised in one line). Defaults to
+   * true. */
+  included: boolean;
 }
 
 function classifyEntry(
@@ -109,17 +114,17 @@ function classifyEntry(
 ): MalRowState {
   const malId = String(entry.node.id);
   if (existingIds.has(malId)) {
-    return { entry, mediaType, status: 'duplicate', resolvedStatus: 'completed' };
+    return { entry, mediaType, status: 'duplicate', resolvedStatus: 'completed', included: false };
   }
 
   const resolvedStatus = statusForMalStatus(entry.list_status.status);
   if (resolvedStatus !== 'completed') {
-    return { entry, mediaType, status: 'ready', resolvedStatus };
+    return { entry, mediaType, status: 'ready', resolvedStatus, included: true };
   }
 
   const finishDate = entry.list_status.finish_date;
   if (finishDate) {
-    return { entry, mediaType, status: 'ready', resolvedStatus, completedDate: finishDate };
+    return { entry, mediaType, status: 'ready', resolvedStatus, completedDate: finishDate, included: true };
   }
 
   // Completed with no finish_date — needs the person to confirm or
@@ -131,6 +136,7 @@ function classifyEntry(
     status: 'needs_date',
     resolvedStatus,
     completedDate: entry.list_status.start_date || undefined,
+    included: true,
   };
 }
 
@@ -171,6 +177,7 @@ export async function fetchAndClassifyMal(
 export async function applyMalRow(state: MalRowState): Promise<'imported' | 'skipped'> {
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
   if (state.resolvedStatus === 'completed' && !state.completedDate) return 'skipped';
+  if (state.status === 'ready' && !state.included) return 'skipped';
 
   const { entry, mediaType, resolvedStatus, completedDate } = state;
   const rewatchCount =

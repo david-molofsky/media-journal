@@ -49,6 +49,13 @@ export function useImdbImportFlow() {
   // through each show's card. All unchecked by default (see chat).
   const [selections, setSelections] = useState<Map<string, Set<number>>>(new Map());
   const [skippedShowIds, setSkippedShowIds] = useState<Set<string>>(new Set());
+  // imdbId -> excluded from import, via the review screen's per-movie
+  // checkboxes (the "tick box" feature — see chat). Empty by default,
+  // meaning every matched movie starts ticked/included; this only
+  // tracks the ones a person explicitly unticked, rather than an
+  // "included" set that would need pre-populating with every movie's
+  // id up front.
+  const [excludedMovies, setExcludedMovies] = useState<Set<string>>(new Set());
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [summary, setSummary] = useState<Summary>({
     filmsImported: 0,
@@ -90,11 +97,12 @@ export function useImdbImportFlow() {
   const runImport = async (skippedOverride?: Set<string>) => {
     const effectiveSkipped = skippedOverride ?? skippedShowIds;
     setPhase('importing');
-    const totalSteps = movies.length + showGroups.length;
+    const includedMovies = movies.filter((m) => !excludedMovies.has(m.row.imdbId));
+    const totalSteps = includedMovies.length + showGroups.length;
     setImportProgress({ done: 0, total: totalSteps });
 
-    const filmsImported = await applyMovies(movies);
-    let done = movies.length;
+    const filmsImported = await applyMovies(includedMovies);
+    let done = includedMovies.length;
     setImportProgress({ done, total: totalSteps });
 
     let seasonsImported = 0;
@@ -134,6 +142,21 @@ export function useImdbImportFlow() {
     });
   };
 
+  const toggleMovieIncluded = (imdbId: string) => {
+    setExcludedMovies((prev) => {
+      const next = new Set(prev);
+      if (next.has(imdbId)) next.delete(imdbId);
+      else next.add(imdbId);
+      return next;
+    });
+  };
+
+  /** Select all/Deselect all for the movie list — shows keep their own
+   * per-season checkboxes on the show_prompt cards, untouched by this. */
+  const setAllMoviesIncluded = (value: boolean) => {
+    setExcludedMovies(value ? new Set() : new Set(movies.map((m) => m.row.imdbId)));
+  };
+
   /** Handles both the "Next"/"Import" button (skip=false) and "Skip
    * this show" button (skip=true) — on the last card either one
    * triggers the actual import, computing the final skip set inline
@@ -159,6 +182,7 @@ export function useImdbImportFlow() {
     setShowIndex(0);
     setSelections(new Map());
     setSkippedShowIds(new Set());
+    setExcludedMovies(new Set());
     setImportProgress({ done: 0, total: 0 });
     setSummary({ filmsImported: 0, seasonsImported: 0, skipped: [], seasonsMissingDate: 0 });
   };
@@ -172,11 +196,14 @@ export function useImdbImportFlow() {
     showIndex,
     selections,
     skippedShowIds,
+    excludedMovies,
     importProgress,
     summary,
     start,
     beginShowPrompts,
     toggleSeason,
+    toggleMovieIncluded,
+    setAllMoviesIncluded,
     finishShow,
     reset,
   };

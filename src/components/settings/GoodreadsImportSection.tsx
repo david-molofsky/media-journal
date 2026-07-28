@@ -72,6 +72,8 @@ export function GoodreadsImportSection({ open, onCloseInstructions }: GoodreadsI
         onConfirmShelves={() => void flow.confirmShelves()}
         onSetCompletedDate={flow.setCompletedDate}
         onSkip={flow.skipEntry}
+        onSetIncluded={flow.setIncluded}
+        onSetAllIncluded={flow.setAllIncluded}
         onApply={() => void flow.applyAll()}
         onClose={flow.reset}
       />

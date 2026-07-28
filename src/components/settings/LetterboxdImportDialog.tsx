@@ -25,6 +25,8 @@ interface LetterboxdImportDialogProps {
   onPickCandidate: (index: number, tmdbId: string) => void;
   onSkip: (index: number) => void;
   onSetImportAnyway: (index: number, value: boolean) => void;
+  onSetIncluded: (index: number, value: boolean) => void;
+  onSetAllIncluded: (value: boolean) => void;
   onApply: () => void;
   onClose: () => void;
 }
@@ -35,10 +37,13 @@ interface LetterboxdImportDialogProps {
  * BackfillDialog / useBackfillFlow, which this deliberately mirrors:
  *
  *   matching  — sequential per-row TMDB search progress.
- *   review    — auto-matched and duplicate rows shown locked-in;
- *               ambiguous rows let the person pick a candidate or
- *               skip; "no match" rows default to importing under the
- *               raw Letterboxd title, with a checkbox to opt out.
+ *   review    — auto-matched rows are now tickable (the "tick box"
+ *               feature — previously locked in with no way to opt
+ *               out short of skipping the whole import); duplicate
+ *               rows stay locked-in as before; ambiguous rows let the
+ *               person pick a candidate or skip; "no match" rows
+ *               default to importing under the raw Letterboxd title,
+ *               with a checkbox to opt out.
  *   importing — sequential per-row entry-creation progress.
  *   done      — short summary.
  *   empty     — the file had no readable diary rows.
@@ -52,6 +57,8 @@ export function LetterboxdImportDialog({
   onPickCandidate,
   onSkip,
   onSetImportAnyway,
+  onSetIncluded,
+  onSetAllIncluded,
   onApply,
   onClose,
 }: LetterboxdImportDialogProps) {
@@ -60,10 +67,11 @@ export function LetterboxdImportDialog({
   const duplicateCount = matches.filter((m) => m.status === 'duplicate').length;
   const toImportCount = matches.filter(
     (m) =>
-      m.status === 'auto' ||
+      (m.status === 'auto' && m.included) ||
       (m.status === 'ambiguous' && m.selectedId) ||
       (m.status === 'none' && m.importAnyway),
   ).length;
+  const allAutoIncluded = autoCount === 0 || matches.every((m) => m.status !== 'auto' || m.included);
 
   return (
     <Dialog open={open} onClose={phase === 'importing' ? undefined : onClose} fullWidth maxWidth="xs">
@@ -87,10 +95,17 @@ export function LetterboxdImportDialog({
 
         {phase === 'review' && (
           <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
-              {autoCount} matched automatically. {needsInputCount} need your input.
-              {duplicateCount > 0 ? ` ${duplicateCount} already in your library.` : ''}
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography variant="body2" color="text.secondary">
+                {autoCount} matched automatically. {needsInputCount} need your input.
+                {duplicateCount > 0 ? ` ${duplicateCount} already in your library.` : ''}
+              </Typography>
+              {autoCount > 0 && (
+                <Button size="small" onClick={() => onSetAllIncluded(!allAutoIncluded)} sx={{ flexShrink: 0 }}>
+                  {allAutoIncluded ? 'Deselect all' : 'Select all'}
+                </Button>
+              )}
+            </Stack>
 
             {matches.map((match, index) => {
               if (match.status === 'duplicate') {
@@ -117,10 +132,14 @@ export function LetterboxdImportDialog({
                     direction="row"
                     alignItems="center"
                     spacing={1}
-                    sx={{ opacity: 0.7 }}
                   >
+                    <Checkbox
+                      size="small"
+                      checked={match.included}
+                      onChange={(e) => onSetIncluded(index, e.target.checked)}
+                    />
                     <CheckCircleOutlineIcon fontSize="small" color="success" />
-                    <Typography variant="body2" sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ flex: 1, opacity: match.included ? 1 : 0.5 }}>
                       {match.row.name}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">matched</Typography>

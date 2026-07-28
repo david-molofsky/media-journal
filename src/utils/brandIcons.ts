@@ -15,6 +15,7 @@ import {
   siMyanimelist,
   siTrakt,
   siGoogledrive,
+  siNetflix,
 } from 'simple-icons/icons';
 
 export interface BrandIconData {
@@ -34,6 +35,11 @@ export const BRAND_ICONS = {
   myanimelist: siMyanimelist,
   trakt: siTrakt,
   googledrive: siGoogledrive,
+  netflix: siNetflix,
+  // Amazon Prime Video has no simple-icons entry (checked — only
+  // primefaces/primeng/primereact/primevue exist, all unrelated). Its
+  // box variant uses a plain Material icon in the brand's blue instead
+  // of BrandIcon — see AmazonPrimeVideoImportSection.tsx.
 } satisfies Record<string, BrandIconData>;
 
 export type BrandIconSlug = keyof typeof BRAND_ICONS;

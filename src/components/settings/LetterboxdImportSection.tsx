@@ -68,6 +68,8 @@ export function LetterboxdImportSection({ open, onCloseInstructions }: Letterbox
         onPickCandidate={flow.pickCandidate}
         onSkip={flow.skipEntry}
         onSetImportAnyway={flow.setImportAnyway}
+        onSetIncluded={flow.setIncluded}
+        onSetAllIncluded={flow.setAllIncluded}
         onApply={() => void flow.applyAll()}
         onClose={flow.reset}
       />

@@ -40,6 +40,7 @@ export function useLetterboxdImportFlow() {
       row,
       candidates: [],
       status: 'duplicate' as const,
+      included: false,
     }));
 
     // Sequential, one TMDB call at a time — mirrors useBackfillFlow, so
@@ -73,6 +74,21 @@ export function useLetterboxdImportFlow() {
     setMatches((prev) => prev.map((m, i) => (i === index ? { ...m, importAnyway: value } : m)));
   };
 
+  /** Tick/untick a single 'auto'-matched row — the "tick box" feature
+   * (see chat): previously auto-matched rows had no way to be excluded
+   * short of skipping the whole import. */
+  const setIncluded = (index: number, value: boolean) => {
+    setMatches((prev) => prev.map((m, i) => (i === index ? { ...m, included: value } : m)));
+  };
+
+  /** Ticks/unticks every 'auto'-matched row at once. Ambiguous/none
+   * rows keep their own per-row controls (pick/skip, import-anyway)
+   * rather than being touched by this — they're not "ticked" in the
+   * same sense until a choice has been made. */
+  const setAllIncluded = (value: boolean) => {
+    setMatches((prev) => prev.map((m) => (m.status === 'auto' ? { ...m, included: value } : m)));
+  };
+
   const applyAll = async () => {
     setPhase('importing');
     setProgress({ done: 0, total: matches.length });
@@ -104,6 +120,8 @@ export function useLetterboxdImportFlow() {
     pickCandidate,
     skipEntry,
     setImportAnyway,
+    setIncluded,
+    setAllIncluded,
     applyAll,
     reset,
   };

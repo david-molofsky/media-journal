@@ -67,6 +67,8 @@ export function StoryGraphImportSection({ open, onCloseInstructions }: StoryGrap
         summary={flow.summary}
         onSetCompletedDate={flow.setCompletedDate}
         onSkip={flow.skipEntry}
+        onSetIncluded={flow.setIncluded}
+        onSetAllIncluded={flow.setAllIncluded}
         onApply={() => void flow.applyAll()}
         onClose={flow.reset}
       />

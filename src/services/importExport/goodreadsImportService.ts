@@ -132,6 +132,12 @@ export interface GoodreadsRowState {
   /** Editable in the review UI when status === 'needs_date'; otherwise
    * mirrors row.completedDate. */
   completedDate?: string;
+  /** Tick state for the review screen's "tick box" feature (see chat)
+   * — meaningful for 'ready' rows, which previously had no way to opt
+   * out short of skipping the whole import. Defaults to true.
+   * 'needs_date' rows already have their own opt-out (the Skip
+   * button), so this field is unused for them. */
+  included: boolean;
 }
 
 /** Existing (mediaType, title, status, completedDate) keys already in
@@ -161,12 +167,12 @@ export async function classifyRows(rows: GoodreadsRow[]): Promise<GoodreadsRowSt
   const existingKeys = await loadExistingKeys();
   return rows.map((row) => {
     if (row.status === 'completed' && !row.completedDate) {
-      return { row, status: 'needs_date' };
+      return { row, status: 'needs_date', included: true };
     }
     if (existingKeys.has(dedupeKey(row))) {
-      return { row, status: 'duplicate' };
+      return { row, status: 'duplicate', included: false };
     }
-    return { row, status: 'ready', completedDate: row.completedDate };
+    return { row, status: 'ready', completedDate: row.completedDate, included: true };
   });
 }
 
@@ -186,6 +192,7 @@ export async function applyRow(state: GoodreadsRowState): Promise<'imported' | '
 
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
   if (row.status === 'completed' && !state.completedDate) return 'skipped';
+  if (state.status === 'ready' && !state.included) return 'skipped';
 
   await createEntry({
     title: toTitleCase(row.title),

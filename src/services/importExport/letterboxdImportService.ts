@@ -79,6 +79,12 @@ export interface LetterboxdMatchState {
    * no watch history is silently dropped; the person can opt out per
    * row on the review screen. */
   importAnyway?: boolean;
+  /** Tick state for the review screen's "tick box" feature (see chat)
+   * — meaningful for 'auto' status rows, which previously had no way
+   * to opt out short of skipping the whole import. Defaults to true.
+   * 'ambiguous' rows use pickCandidate/skipEntry instead, and 'none'
+   * rows use importAnyway — both already had an opt-out before this. */
+  included: boolean;
 }
 
 /** Existing (title, completedDate) pairs already in the library, used
@@ -131,7 +137,7 @@ export async function matchRow(
   }
 
   if (results.length === 0) {
-    return { row, candidates: [], status: 'none', importAnyway: true };
+    return { row, candidates: [], status: 'none', importAnyway: true, included: true };
   }
 
   const exactTitleMatches = results.filter(
@@ -143,11 +149,11 @@ export async function matchRow(
 
   if (yearMatches.length === 1) {
     const match = yearMatches[0];
-    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id };
+    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id, included: true };
   }
   if (yearMatches.length === 0 && exactTitleMatches.length === 1) {
     const match = exactTitleMatches[0];
-    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id };
+    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id, included: true };
   }
 
   // Ambiguous — pre-select the best guess (prefer a year match among
@@ -160,6 +166,7 @@ export async function matchRow(
     candidates: topCandidates,
     status: 'ambiguous',
     selectedId: (bestGuess ?? topCandidates[0])?.id,
+    included: true,
   };
 }
 
@@ -193,6 +200,7 @@ export async function applyRow(state: LetterboxdMatchState): Promise<'imported' 
 
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
   if (state.status === 'none' && !state.importAnyway) return 'skipped';
+  if (state.status === 'auto' && !state.included) return 'skipped';
 
   let title = toTitleCase(row.name);
   let metadata: EntryMetadata = { source: 'Letterboxd' };

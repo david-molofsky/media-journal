@@ -46,12 +46,14 @@ export function useMalImportFlow() {
     setPhase('fetching');
     const classified = await fetchAndClassifyMal((p) => setFetchProgress(p));
     setRows(classified);
-    const needsReview = classified.some((r) => r.status === 'needs_date');
-    if (needsReview) {
-      setPhase('review');
-    } else {
-      await runImport(classified);
-    }
+    // Always land on review now — previously this skipped straight to
+    // import when nothing needed a date, but that meant 'ready' rows
+    // were never reviewable/tickable at all on a clean sync (see
+    // chat: the "tick box" feature). One extra tap on a clean sync is
+    // the same cost every other import source in this app already
+    // has, so this isn't really a regression relative to the rest of
+    // MJ — MAL (and Trakt) were the outliers by skipping it.
+    setPhase('review');
   };
 
   const setCompletedDate = (index: number, date: string) => {
@@ -60,6 +62,18 @@ export function useMalImportFlow() {
 
   const skipRow = (index: number) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, status: 'skipped', completedDate: undefined } : r)));
+  };
+
+  /** Tick/untick a single 'ready' row — the "tick box" feature (see
+   * chat). Previously 'ready' rows were never itemized at all when no
+   * row needed a date, since the review step was skipped entirely in
+   * that case (straight to import) — see the updated `start` below. */
+  const setIncluded = (index: number, value: boolean) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, included: value } : r)));
+  };
+
+  const setAllIncluded = (value: boolean) => {
+    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
   };
 
   const confirmReview = () => runImport(rows);
@@ -81,6 +95,8 @@ export function useMalImportFlow() {
     start,
     setCompletedDate,
     skipRow,
+    setIncluded,
+    setAllIncluded,
     confirmReview,
     reset,
   };

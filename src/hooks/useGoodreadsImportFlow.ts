@@ -77,6 +77,16 @@ export function useGoodreadsImportFlow() {
     );
   };
 
+  /** Tick/untick a single 'ready' row — the "tick box" feature (see
+   * chat). 'needs_date' rows use skipEntry/setCompletedDate instead. */
+  const setIncluded = (index: number, value: boolean) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, included: value } : r)));
+  };
+
+  const setAllIncluded = (value: boolean) => {
+    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
+  };
+
   const applyAll = async () => {
     setPhase('importing');
     setProgress({ done: 0, total: rows.length });
@@ -113,6 +123,8 @@ export function useGoodreadsImportFlow() {
     confirmShelves,
     setCompletedDate,
     skipEntry,
+    setIncluded,
+    setAllIncluded,
     applyAll,
     reset,
   };

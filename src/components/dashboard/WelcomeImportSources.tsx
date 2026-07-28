@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined';
 import { BrandIcon } from './BrandIcon';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
 import { GoodreadsImportSection } from '@/components/settings/GoodreadsImportSection';
@@ -8,9 +9,11 @@ import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
 import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
+import { NetflixImportSection } from '@/components/settings/NetflixImportSection';
+import { AmazonPrimeImportSection } from '@/components/settings/AmazonPrimeImportSection';
 import type { BrandIconSlug } from '@/utils/brandIcons';
 
-type CsvSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph';
+type CsvSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph' | 'netflix' | 'amazonPrime';
 
 const CSV_BOXES: { key: CsvSource; label: string; meta: string; icon: BrandIconSlug }[] = [
   { key: 'letterboxd', label: 'Letterboxd', meta: 'diary.csv', icon: 'letterboxd' },
@@ -19,19 +22,38 @@ const CSV_BOXES: { key: CsvSource; label: string; meta: string; icon: BrandIconS
   { key: 'storygraph', label: 'StoryGraph', meta: 'library export', icon: 'storygraph' },
 ];
 
+const tileSx = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 0.75,
+  bgcolor: 'action.hover',
+  border: '1px solid',
+  borderColor: 'divider',
+  borderRadius: 2,
+  py: 2,
+  px: 1,
+  cursor: 'pointer',
+  font: 'inherit',
+  color: 'inherit',
+  '&:hover': { borderColor: 'primary.main' },
+} as const;
+
 /**
  * Welcome screen (below the fold) — Version B from chat: no jump-link
- * sentence, the section speaks for itself once scrolled to. All six
- * sources render as one uniform box grid. Tapping a CSV box skips
- * straight to that source's instructions dialog (bypasses the
- * intermediate row-list step ImportSourcesSection uses in Settings);
- * MyAnimeList and Trakt use their 'box' variant (see
- * MalImportSection.tsx / TraktImportSection.tsx) — same underlying
- * hooks/dialogs as Settings' row variant, just a matching tap-card
- * trigger instead of a full row. Google Drive stays out of this grid
- * (backup/restore, not "library import" — same reasoning
- * ImportSourcesSection already applies) and keeps its own text link
- * elsewhere on the welcome screen.
+ * sentence, the section speaks for itself once scrolled to. Netflix
+ * and Amazon Prime Video sit in the top 2 grid positions (see chat —
+ * both new import sources, most people's most-used services), pushing
+ * the original six down a row. Tapping a box skips straight to that
+ * source's instructions dialog (bypasses the intermediate row-list
+ * step ImportSourcesSection uses in Settings); MyAnimeList and Trakt
+ * use their 'box' variant (see MalImportSection.tsx /
+ * TraktImportSection.tsx) — same underlying hooks/dialogs as Settings'
+ * row variant, just a matching tap-card trigger instead of a full row.
+ * Google Drive stays out of this grid (backup/restore, not "library
+ * import" — same reasoning ImportSourcesSection already applies) and
+ * keeps its own text link elsewhere on the welcome screen.
  */
 export function WelcomeImportSources() {
   const [openSource, setOpenSource] = useState<CsvSource | null>(null);
@@ -49,29 +71,27 @@ export function WelcomeImportSources() {
           gap: 1.25,
         }}
       >
+        <Box component="button" type="button" onClick={() => setOpenSource('netflix')} sx={tileSx}>
+          <BrandIcon slug="netflix" size={32} />
+          <Typography variant="body2" fontWeight={600}>Netflix</Typography>
+          <Typography variant="caption" color="text.secondary">viewing history</Typography>
+        </Box>
+
+        <Box component="button" type="button" onClick={() => setOpenSource('amazonPrime')} sx={tileSx}>
+          <Box sx={{ width: 32, height: 32, borderRadius: 1.5, bgcolor: '#00A8E1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <LocalMoviesOutlinedIcon sx={{ fontSize: 19, color: '#0b1a24' }} />
+          </Box>
+          <Typography variant="body2" fontWeight={600}>Amazon Prime</Typography>
+          <Typography variant="caption" color="text.secondary">3rd-party export tool</Typography>
+        </Box>
+
         {CSV_BOXES.map((source) => (
           <Box
             key={source.key}
             component="button"
             type="button"
             onClick={() => setOpenSource(source.key)}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 0.75,
-              bgcolor: 'action.hover',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 2,
-              py: 2,
-              px: 1,
-              cursor: 'pointer',
-              font: 'inherit',
-              color: 'inherit',
-              '&:hover': { borderColor: 'primary.main' },
-            }}
+            sx={tileSx}
           >
             <BrandIcon slug={source.icon} size={32} />
             <Typography variant="body2" fontWeight={600}>
@@ -87,6 +107,14 @@ export function WelcomeImportSources() {
         <TraktImportSection variant="box" />
       </Box>
 
+      <NetflixImportSection
+        open={openSource === 'netflix'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
+      <AmazonPrimeImportSection
+        open={openSource === 'amazonPrime'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
       <LetterboxdImportSection
         open={openSource === 'letterboxd'}
         onCloseInstructions={() => setOpenSource(null)}

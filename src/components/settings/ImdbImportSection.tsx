@@ -69,10 +69,13 @@ export function ImdbImportSection({ open, onCloseInstructions }: ImdbImportSecti
         showIndex={flow.showIndex}
         selections={flow.selections}
         skippedShowIds={flow.skippedShowIds}
+        excludedMovies={flow.excludedMovies}
         importProgress={flow.importProgress}
         summary={flow.summary}
         onBeginShowPrompts={() => void flow.beginShowPrompts()}
         onToggleSeason={flow.toggleSeason}
+        onToggleMovieIncluded={flow.toggleMovieIncluded}
+        onSetAllMoviesIncluded={flow.setAllMoviesIncluded}
         onFinishShow={(showId, skip) => void flow.finishShow(showId, skip)}
         onClose={flow.reset}
       />
