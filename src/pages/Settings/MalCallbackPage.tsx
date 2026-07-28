@@ -103,6 +103,8 @@ export default function MalCallbackPage() {
           rows={flow.rows}
           onSetCompletedDate={flow.setCompletedDate}
           onSkip={flow.skipRow}
+          onSetIncluded={flow.setIncluded}
+          onSetAllIncluded={flow.setAllIncluded}
           onConfirm={() => void flow.confirmReview()}
         />
       </Box>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import dayjs from 'dayjs';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -8,6 +9,8 @@ import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
+import Popover from '@mui/material/Popover';
+import TextField from '@mui/material/TextField';
 import ReplayIcon from '@mui/icons-material/Replay';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -32,8 +35,12 @@ interface EntryCardProps {
    * a position badge and up/down arrows instead of being tappable. */
   reorder?: {
     position: number;
+    maxPosition: number;
     onMoveUp?: () => void;
     onMoveDown?: () => void;
+    /** Tap-the-position-number jump — a 1-based target position,
+     * clamped by the caller. */
+    onJumpToPosition: (newPosition: number) => void;
   };
 }
 
@@ -82,6 +89,25 @@ export function EntryCard({
   reorder,
 
 }: EntryCardProps) {
+  const [jumpAnchor, setJumpAnchor] = useState<HTMLElement | null>(null);
+  const [jumpValue, setJumpValue] = useState('');
+
+  const openJumpPopover = (e: React.MouseEvent<HTMLElement>) => {
+    if (!reorder) return;
+    setJumpValue(String(reorder.position));
+    setJumpAnchor(e.currentTarget);
+  };
+  const closeJumpPopover = () => setJumpAnchor(null);
+  const confirmJump = () => {
+    if (!reorder) return;
+    const parsed = Number(jumpValue);
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      const clamped = Math.max(1, Math.min(Math.round(parsed), reorder.maxPosition));
+      reorder.onJumpToPosition(clamped);
+    }
+    closeJumpPopover();
+  };
+
   // `Icon` is resolved from a module-level lookup table (utils/mediaTypeIcon.tsx)
   // keyed by a stable string — it doesn't change between renders for the same
   // media type. The react-compiler lint rule can't see that statically, so we
@@ -114,10 +140,11 @@ export function EntryCard({
             <Stack direction="row" spacing={2} alignItems="center">
               {reorder && (
                 <Box
+                  onClick={(e) => { e.stopPropagation(); openJumpPopover(e); }}
                   sx={{
                     width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 700,
+                    fontSize: 12, fontWeight: 700, cursor: 'pointer',
                     bgcolor: reorder.position <= 10 ? TOP10_BADGE.bgcolor : RANK_BADGE.bgcolor,
                     color: reorder.position <= 10 ? TOP10_BADGE.color : RANK_BADGE.color,
                     border: `1px solid ${reorder.position <= 10 ? TOP10_BADGE.border : 'transparent'}`,
@@ -202,6 +229,36 @@ export function EntryCard({
           </Stack>
         )}
       </Stack>
+
+      {reorder && (
+        <Popover
+          open={Boolean(jumpAnchor)}
+          anchorEl={jumpAnchor}
+          onClose={closeJumpPopover}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <Box sx={{ p: 2, width: 200 }} onClick={(e) => e.stopPropagation()}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+              Move "{entry.title}" to position:
+            </Typography>
+            <TextField
+              autoFocus
+              size="small"
+              type="number"
+              fullWidth
+              value={jumpValue}
+              onChange={(e) => setJumpValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') confirmJump(); }}
+              slotProps={{ htmlInput: { min: 1, max: reorder.maxPosition, style: { textAlign: 'center' } } }}
+              sx={{ mb: 1.5 }}
+            />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button size="small" onClick={closeJumpPopover}>Cancel</Button>
+              <Button size="small" variant="contained" onClick={confirmJump}>Move</Button>
+            </Stack>
+          </Box>
+        </Popover>
+      )}
     </Card>
   );
 }

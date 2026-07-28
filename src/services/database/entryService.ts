@@ -197,6 +197,34 @@ export async function swapWishlistOrder(idA: string, idB: string): Promise<void>
   ]);
 }
 
+/** Moves a Wishlist entry directly to `newPosition` (1-based, clamped
+ * to the list bounds) — the "tap the position number, type a new
+ * position" jump, as opposed to swapWishlistOrder's single-step nudge.
+ * Renumbers every entry in the Wishlist sequentially afterward, so
+ * everything between the old and new position shifts by one to make
+ * room, in whichever direction the move goes. O(n) writes (bulkPut
+ * over the whole Wishlist) rather than a 1-2 row swap — an accepted
+ * tradeoff for an arbitrary jump versus a single-step nudge (see
+ * chat). */
+export async function jumpWishlistOrder(id: string, newPosition: number): Promise<void> {
+  const wishlist = await db.mediaEntries.where('status').equals('wishlist').toArray();
+  const ordered = wishlist
+    .filter((e) => e.wishlistOrder !== undefined)
+    .sort((a, b) => a.wishlistOrder! - b.wishlistOrder!);
+
+  const currentIndex = ordered.findIndex((e) => e.id === id);
+  if (currentIndex === -1) return;
+  const moved = ordered[currentIndex];
+  if (!moved) return;
+
+  ordered.splice(currentIndex, 1);
+  const clampedIndex = Math.max(0, Math.min(newPosition - 1, ordered.length));
+  ordered.splice(clampedIndex, 0, moved);
+
+  const updates = ordered.map((e, i) => ({ ...e, wishlistOrder: i, updatedAt: nowIso() }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
 export interface EntryListFilter {
   year?: number;
   month?: number;

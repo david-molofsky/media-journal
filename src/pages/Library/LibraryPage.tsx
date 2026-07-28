@@ -40,6 +40,7 @@ import {
   updateEntryStatus,
   normalizeWishlistOrder,
   swapWishlistOrder,
+  jumpWishlistOrder,
 } from '@/services/database/entryService';
 import { setSetting } from '@/services/database/settingsService';
 import { editEntryPath } from '@/routes/paths';
@@ -271,6 +272,7 @@ export default function LibraryPage() {
         isReordering
           ? {
               position: index + 1,
+              maxPosition: entries.length,
               onMoveUp: (() => {
                 const prev = entries[index - 1];
                 return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
@@ -279,6 +281,7 @@ export default function LibraryPage() {
                 const next = entries[index + 1];
                 return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
               })(),
+              onJumpToPosition: (newPosition) => void jumpWishlistOrder(entry.id, newPosition),
             }
           : undefined
       }
