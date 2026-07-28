@@ -19,7 +19,6 @@ import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -33,7 +32,6 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
   updateEntry,
   deleteEntry,
-  duplicateEntry,
   listEntries,
 } from '@/services/database/entryService';
 import { convertMetadata } from '@/utils/entryConversion';
@@ -158,11 +156,6 @@ export default function EditEntryPage() {
     navigate(ROUTES.library, { state: incomingFilters });
   };
 
-  const handleDuplicate = async () => {
-    const copy = await duplicateEntry(entry.id);
-    navigate(editEntryPath(copy.id));
-  };
-
   // Bug fix (kept from the original Book<->Audiobook feature): only
   // offer conversion targets that are currently enabled in Settings >
   // Manage Media Types — `mediaTypes` is already the enabled-only list
@@ -234,13 +227,6 @@ export default function EditEntryPage() {
           <Stack spacing={2}>
             <Divider />
             <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                startIcon={<ContentCopyIcon />}
-                onClick={handleDuplicate}
-                color="inherit"
-              >
-                Duplicate Entry
-              </Button>
               {convertCandidates.length > 0 && (
                 <Button
                   startIcon={<SwapHorizIcon />}

@@ -290,8 +290,8 @@ export default function StatisticsPage() {
                         onSelectItem={(source) =>
                           goToLibrary(
                             typeof year === 'number'
-                              ? { year, source, mediaType: group.mediaTypeId }
-                              : { source, mediaType: group.mediaTypeId },
+                              ? { year, sources: [source], mediaTypeIds: [group.mediaTypeId] }
+                              : { sources: [source], mediaTypeIds: [group.mediaTypeId] },
                           )
                         }
                       />
@@ -333,8 +333,8 @@ export default function StatisticsPage() {
                               }))}
                               onSelectItem={(source) =>
                                 goToLibrary({
-                                  source,
-                                  mediaType: group.mediaTypeId,
+                                  sources: [source],
+                                  mediaTypeIds: [group.mediaTypeId],
                                   status: 'wishlist',
                                 })
                               }
@@ -437,7 +437,7 @@ export default function StatisticsPage() {
                     topGenresByCount={data.topGenresByCount}
                     averageRatingByGenre={data.averageRatingByGenre}
                     onSelectGenre={(genre) =>
-                      goToLibrary(typeof year === 'number' ? { year, genre } : { genre })
+                      goToLibrary(typeof year === 'number' ? { year, genres: [genre] } : { genres: [genre] })
                     }
                   />
                 ) : (
@@ -452,7 +452,7 @@ export default function StatisticsPage() {
                     items={Object.entries(data.wishlistGenreTotals)
                       .map(([name, count]) => ({ name, count }))
                       .sort((a, b) => b.count - a.count)}
-                    onSelectItem={(genre) => goToLibrary({ genre, status: 'wishlist' })}
+                    onSelectItem={(genre) => goToLibrary({ genres: [genre], status: 'wishlist' })}
                   />
                 ) : (
                   <Typography variant="body2" color="text.secondary">

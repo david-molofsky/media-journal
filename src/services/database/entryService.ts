@@ -164,15 +164,18 @@ export async function bulkSetRating(ids: string[], rating: number): Promise<void
 export interface EntryListFilter {
   year?: number;
   month?: number;
-  mediaType?: string;
+  /** OR-matched: an entry passes if its mediaType is any of these. */
+  mediaTypeIds?: string[];
   searchText?: string;
-  tag?: string;
-  /** Filters to entries whose `genres` array includes this value.
-   * Cross-media-type, same shape as Tag. */
-  genre?: string;
-  /** Filters to entries whose `metadata.source` matches exactly (e.g.
-   * "Netflix", "Audible"). Cross-media-type, like Tag. */
-  source?: string;
+  /** OR-matched against `tags` — an entry passes if it has any of these. */
+  tags?: string[];
+  /** OR-matched against `genres` — an entry passes if it has any of
+   * these. Cross-media-type, same shape as Tags. */
+  genres?: string[];
+  /** OR-matched against `metadata.source` — an entry passes if its
+   * source is any of these (e.g. "Netflix", "Audible"). Cross-media-type,
+   * like Tags. */
+  sources?: string[];
   /** Defaults to 'completed' when not provided so existing callers
    * (Dashboard, Statistics) see only finished entries. */
   status?: EntryStatus;
@@ -222,8 +225,9 @@ export async function listEntries(
         new Date(e.completedDate).getMonth() + 1 === filter.month,
     );
   }
-  if (filter.mediaType) {
-    entries = entries.filter((e) => e.mediaType === filter.mediaType);
+  if (filter.mediaTypeIds && filter.mediaTypeIds.length > 0) {
+    const ids = filter.mediaTypeIds;
+    entries = entries.filter((e) => ids.includes(e.mediaType));
   }
   if (filter.searchText) {
     const needle = filter.searchText.trim().toLowerCase();
@@ -236,14 +240,17 @@ export async function listEntries(
       });
     }
   }
-  if (filter.tag !== undefined) {
-    entries = entries.filter((e) => (e.tags ?? []).includes(filter.tag!));
+  if (filter.tags && filter.tags.length > 0) {
+    const tags = filter.tags;
+    entries = entries.filter((e) => (e.tags ?? []).some((t) => tags.includes(t)));
   }
-  if (filter.genre !== undefined) {
-    entries = entries.filter((e) => (e.genres ?? []).includes(filter.genre!));
+  if (filter.genres && filter.genres.length > 0) {
+    const genres = filter.genres;
+    entries = entries.filter((e) => (e.genres ?? []).some((g) => genres.includes(g)));
   }
-  if (filter.source !== undefined) {
-    entries = entries.filter((e) => e.metadata.source === filter.source);
+  if (filter.sources && filter.sources.length > 0) {
+    const sources = filter.sources;
+    entries = entries.filter((e) => typeof e.metadata.source === 'string' && sources.includes(e.metadata.source));
   }
 
   return sortEntries(entries, sort);

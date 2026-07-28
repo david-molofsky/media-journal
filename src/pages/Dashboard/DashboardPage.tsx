@@ -92,7 +92,9 @@ export default function DashboardPage() {
                     percentOfYear={percentOfYear}
                     onClick={() =>
                       goToLibrary(
-                        year === null ? { mediaType: mediaType.id } : { year, mediaType: mediaType.id },
+                        year === null
+                          ? { mediaTypeIds: [mediaType.id] }
+                          : { year, mediaTypeIds: [mediaType.id] },
                       )
                     }
                   />

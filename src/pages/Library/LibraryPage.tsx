@@ -27,6 +27,7 @@ import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useAvailableGenres } from '@/hooks/useAvailableGenres';
 import { useAvailableSources } from '@/hooks/useAvailableSources';
 import { FilterChip, type FilterChipOption } from '@/components/library/FilterChip';
+import { MultiFilterChip } from '@/components/library/MultiFilterChip';
 import { EntryCard } from '@/components/library/EntryCard';
 import { SeriesView } from '@/components/library/SeriesView';
 import { BulkActionBar } from '@/components/library/BulkActionBar';
@@ -74,10 +75,10 @@ const STATUS_TABS: { value: EntryStatus; label: string }[] = [
 export interface LibraryFilterRequest {
   year?: number;
   month?: number;
-  mediaType?: string;
-  tag?: string;
-  genre?: string;
-  source?: string;
+  mediaTypeIds?: string[];
+  tags?: string[];
+  genres?: string[];
+  sources?: string[];
   searchText?: string;
   status?: EntryStatus;
 }
@@ -129,10 +130,10 @@ export default function LibraryPage() {
   const [searchText, setSearchText] = useState(incoming?.searchText ?? '');
   const [year, setYear] = useState<string | undefined>(incoming?.year ? String(incoming.year) : undefined);
   const [month, setMonth] = useState<string | undefined>(incoming?.month ? String(incoming.month) : undefined);
-  const [mediaTypeId, setMediaTypeId] = useState<string | undefined>(incoming?.mediaType);
-  const [tag, setTag] = useState<string | undefined>(incoming?.tag);
-  const [genre, setGenre] = useState<string | undefined>(incoming?.genre);
-  const [source, setSource] = useState<string | undefined>(incoming?.source);
+  const [mediaTypeIds, setMediaTypeIds] = useState<string[]>(incoming?.mediaTypeIds ?? []);
+  const [tags, setTags] = useState<string[]>(incoming?.tags ?? []);
+  const [genres, setGenres] = useState<string[]>(incoming?.genres ?? []);
+  const [sources, setSources] = useState<string[]>(incoming?.sources ?? []);
   const [sort, setSort] = useState<EntrySortOrder>(defaultSortForStatus(incoming?.status ?? 'completed'));
   const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -156,13 +157,13 @@ export default function LibraryPage() {
   const filter = useMemo(() => ({
     year: year ? Number(year) : undefined,
     month: month ? Number(month) : undefined,
-    mediaType: mediaTypeId,
+    mediaTypeIds,
     searchText,
-    tag,
-    genre,
-    source,
+    tags,
+    genres,
+    sources,
     status: statusTab,
-  }), [year, month, mediaTypeId, searchText, tag, genre, source, statusTab]);
+  }), [year, month, mediaTypeIds, searchText, tags, genres, sources, statusTab]);
 
   const entries = useMediaEntries(filter, sort);
 
@@ -176,7 +177,9 @@ export default function LibraryPage() {
   const tagOptions = useMemo(() => availableTags.map((t) => ({ label: t, value: t })), [availableTags]);
   const genreOptions = useMemo(() => availableGenres.map((g) => ({ label: g, value: g })), [availableGenres]);
   const sourceOptions = useMemo(() => availableSources.map((s) => ({ label: s, value: s })), [availableSources]);
-  const hasActiveFilters = Boolean(year || month || mediaTypeId || tag || genre || source || searchText);
+  const hasActiveFilters = Boolean(
+    year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
+  );
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
@@ -229,10 +232,10 @@ export default function LibraryPage() {
   const currentFilterState: LibraryFilterRequest = {
     year: year ? Number(year) : undefined,
     month: month ? Number(month) : undefined,
-    mediaType: mediaTypeId,
-    tag,
-    genre,
-    source,
+    mediaTypeIds,
+    tags,
+    genres,
+    sources,
     searchText,
     status: statusTab,
   };
@@ -255,6 +258,9 @@ export default function LibraryPage() {
       <Tabs
         value={statusTab}
         onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); }}
+        // Note: switching tabs deliberately does NOT clear filters —
+        // matches existing single-select behavior (filters persisted
+        // across tab changes already; unchanged by multi-select).
         sx={{ mb: 2, mx: -2, px: 2, borderBottom: 1, borderColor: 'divider' }}
         variant="fullWidth"
       >
@@ -311,10 +317,10 @@ export default function LibraryPage() {
         <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
           <FilterChip label="Year" value={year} options={yearOptions} onChange={setYear} />
           <FilterChip label="Month" value={month} options={MONTH_OPTIONS} onChange={setMonth} />
-          <FilterChip label="Type" value={mediaTypeId} options={mediaTypeOptions} onChange={setMediaTypeId} />
-          {sourceOptions.length > 0 && <FilterChip label="Source" value={source} options={sourceOptions} onChange={setSource} />}
-          {genreOptions.length > 0 && <FilterChip label="Genre" value={genre} options={genreOptions} onChange={setGenre} />}
-          {tagOptions.length > 0 && <FilterChip label="Tag" value={tag} options={tagOptions} onChange={setTag} />}
+          <MultiFilterChip label="Type" values={mediaTypeIds} options={mediaTypeOptions} onChange={setMediaTypeIds} />
+          {sourceOptions.length > 0 && <MultiFilterChip label="Source" values={sources} options={sourceOptions} onChange={setSources} />}
+          {genreOptions.length > 0 && <MultiFilterChip label="Genre" values={genres} options={genreOptions} onChange={setGenres} />}
+          {tagOptions.length > 0 && <MultiFilterChip label="Tag" values={tags} options={tagOptions} onChange={setTags} />}
         </Stack>
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
