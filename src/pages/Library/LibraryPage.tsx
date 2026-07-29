@@ -153,6 +153,39 @@ export default function LibraryPage() {
     year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
   );
 
+  // Picks up `incoming` on every navigation to this route, not just the
+  // first mount. Needed because SeriesView navigates here via
+  // `navigate(ROUTES.library, { state })` while already mounted on this
+  // same route (Series is a view mode on this page, not a separate
+  // route) — React Router doesn't remount for a same-path navigation,
+  // so the `useState` initializers below never saw the new state and
+  // tapping a series silently did nothing: no search applied, view mode
+  // stuck on 'series', no flat list of entries to open.
+  //
+  // Adjusted during render (rather than in a useEffect, which would
+  // call setState synchronously and trip the React Compiler's
+  // set-state-in-effect constraint) — the standard React pattern for
+  // resetting state when something like a navigation key changes.
+  const [handledLocationKey, setHandledLocationKey] = useState(location.key);
+  if (location.key !== handledLocationKey) {
+    setHandledLocationKey(location.key);
+    if (incoming) {
+      setSearchText(incoming.searchText ?? '');
+      setYear(incoming.year ? String(incoming.year) : undefined);
+      setMonth(incoming.month ? String(incoming.month) : undefined);
+      setMediaTypeIds(incoming.mediaTypeIds ?? []);
+      setTags(incoming.tags ?? []);
+      setGenres(incoming.genres ?? []);
+      setSources(incoming.sources ?? []);
+      setStatusTab(incoming.status ?? 'completed');
+      setSort(defaultSortForStatus(incoming.status ?? 'completed'));
+      // Arriving via a filter always means "show me a matching entries
+      // list", regardless of which view (e.g. Series) was showing
+      // before the tap that navigated here.
+      setViewMode('entries');
+    }
+  }
+
   // Remember whichever tab is active so the bottom-nav Add button can
   // default a new entry to matching status (e.g. tapping Add while on
   // Wishlist starts a new entry already set to Wishlist). Persisted

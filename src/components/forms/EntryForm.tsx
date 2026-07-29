@@ -358,6 +358,14 @@ export function EntryForm({
             fullWidth
             autoFocus={!hasMetadataSearch(mediaType.id)}
             {...register('title')}
+            // MUI normally shrinks the label by detecting a native
+            // `input`/`change` DOM event. Search autofill sets this
+            // field via RHF's setValue(), which writes the DOM value
+            // directly without dispatching one — so MUI never noticed
+            // and the label sat resting on top of the filled-in title.
+            // Watching the field and driving shrink explicitly covers
+            // both that path and normal typing.
+            slotProps={{ inputLabel: { shrink: Boolean(watch('title')) } }}
             onBlur={(event) => {
               setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
             }}
