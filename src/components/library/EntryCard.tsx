@@ -145,6 +145,13 @@ export function EntryCard({
                     width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    // Overrides pointer-events:none inherited from the
+                    // parent CardActionArea (disabled during Reorder
+                    // mode to stop the card itself from navigating) —
+                    // without this, taps on the badge never reached
+                    // its onClick at all, so the jump-to-position
+                    // popover could never open.
+                    pointerEvents: 'auto',
                     bgcolor: reorder.position <= 10 ? TOP10_BADGE.bgcolor : RANK_BADGE.bgcolor,
                     color: reorder.position <= 10 ? TOP10_BADGE.color : RANK_BADGE.color,
                     border: `1px solid ${reorder.position <= 10 ? TOP10_BADGE.border : 'transparent'}`,
