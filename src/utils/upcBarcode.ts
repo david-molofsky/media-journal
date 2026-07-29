@@ -5,18 +5,20 @@
  * same normalisation, so this lives in one place rather than being
  * duplicated per dialog.
  *
- * Some BarcodeDetector implementations report a UPC-A code under
- * format "upc_a" directly; others report it as a 13-digit "ean_13"
- * value with a leading zero (UPC-A is a strict subset of EAN-13).
- * Anything else returns null — both dialogs only open from forms where
- * a UPC is the expected barcode type, so no ISBN-style prefix
- * filtering is needed, but a barcode of the wrong length shouldn't be
- * sent to a lookup as if it were a valid UPC.
+ * Validates by digit shape (12 digits, or 13 digits with a leading
+ * zero — UPC-A is a strict subset of EAN-13) rather than trusting
+ * `barcode.format`. Real-world BarcodeDetector implementations report
+ * that field inconsistently across Android OEMs/WebView vendors — a
+ * previous version gated on an exact `format === 'upc_a'`/`'ean_13'`
+ * string match, which silently rejected correctly-scanned codes on
+ * devices that labelled the symbology differently. The `formats`
+ * filter passed to `new BarcodeDetector(...)` already restricts what
+ * gets detected in the first place, so re-deriving validity from the
+ * digits themselves here is safe and far more portable.
  */
 export function toUpc12(barcode: { rawValue: string; format: string }): string | null {
-  if (barcode.format === 'upc_a' && barcode.rawValue.length === 12) return barcode.rawValue;
-  if (barcode.format === 'ean_13' && barcode.rawValue.length === 13 && barcode.rawValue.startsWith('0')) {
-    return barcode.rawValue.slice(1);
-  }
+  const raw = barcode.rawValue;
+  if (/^\d{12}$/.test(raw)) return raw;
+  if (/^0\d{12}$/.test(raw)) return raw.slice(1);
   return null;
 }

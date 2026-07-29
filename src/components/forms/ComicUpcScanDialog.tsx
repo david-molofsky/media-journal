@@ -131,6 +131,14 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
           const barcodes = await detectorRef.current.detect(videoRef.current);
           for (const barcode of barcodes) {
             const upc = toUpc12(barcode);
+            // Diagnostic aid for real-device UPC scan issues — safe to
+            // leave in permanently, this only logs while the scan
+            // dialog is actively open and scanning.
+            console.debug('[ComicUpcScanDialog] detected barcode', {
+              format: barcode.format,
+              rawValue: barcode.rawValue,
+              accepted: Boolean(upc),
+            });
             if (upc) {
               void handleDetected(upc);
               break;
