@@ -51,6 +51,7 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetector | null>(null);
+  const detectorAltRef = useRef<BarcodeDetector | null>(null);
   const intervalRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<ScanPhase>('scanning');
@@ -123,13 +124,20 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-      detectorRef.current ??= new BarcodeDetector({ formats: ['upc_a', 'ean_13'] });
+      // Two separate single-format detectors rather than one detector
+      // constructed with `formats: ['upc_a', 'ean_13']` — see
+      // UpcScanDialog.tsx for the full explanation.
+      detectorRef.current ??= new BarcodeDetector({ formats: ['upc_a'] });
+      detectorAltRef.current ??= new BarcodeDetector({ formats: ['ean_13'] });
 
       intervalRef.current = window.setInterval(async () => {
-        if (!videoRef.current || !detectorRef.current) return;
+        if (!videoRef.current || !detectorRef.current || !detectorAltRef.current) return;
         try {
-          const barcodes = await detectorRef.current.detect(videoRef.current);
-          for (const barcode of barcodes) {
+          const [upcBarcodes, eanBarcodes] = await Promise.all([
+            detectorRef.current.detect(videoRef.current),
+            detectorAltRef.current.detect(videoRef.current),
+          ]);
+          for (const barcode of [...upcBarcodes, ...eanBarcodes]) {
             const upc = toUpc12(barcode);
             // Diagnostic aid for real-device UPC scan issues — safe to
             // leave in permanently, this only logs while the scan
