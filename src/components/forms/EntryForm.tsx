@@ -26,6 +26,7 @@ import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
+import { EntryDatePicker } from './EntryDatePicker';
 import { GenreInput } from './GenreInput';
 import { MetadataSearch } from './MetadataSearch';
 import { IsbnScanDialog } from './IsbnScanDialog';
@@ -583,25 +584,35 @@ export function EntryForm({
               Dates
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Started"
-                type="date"
-                fullWidth
-                slotProps={{ inputLabel: { shrink: true } }}
-                {...register('startedDate')}
-                error={Boolean(errors.startedDate)}
-                helperText={errors.startedDate?.message}
+              <Controller
+                name="startedDate"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <EntryDatePicker
+                    label="Started"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={Boolean(fieldState.error)}
+                    helperText={fieldState.error?.message}
+                  />
+                )}
               />
               {status !== 'in_progress' && (
-                <TextField
-                  label="Completed"
-                  type="date"
-                  required
-                  fullWidth
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  {...register('completedDate')}
-                  error={Boolean(errors.completedDate)}
-                  helperText={errors.completedDate?.message}
+                <Controller
+                  name="completedDate"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <EntryDatePicker
+                      label="Completed"
+                      required
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      error={Boolean(fieldState.error)}
+                      helperText={fieldState.error?.message}
+                    />
+                  )}
                 />
               )}
             </Stack>

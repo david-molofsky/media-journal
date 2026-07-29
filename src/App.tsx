@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { HashRouter } from 'react-router-dom';
 import { createAppTheme } from '@/theme';
 import { useColorMode } from '@/hooks/useColorMode';
@@ -22,11 +24,13 @@ export default function App() {
   return (
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      <ErrorBoundary>
-        <HashRouter>
-          <AppRoutes />
-        </HashRouter>
-      </ErrorBoundary>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <ErrorBoundary>
+          <HashRouter>
+            <AppRoutes />
+          </HashRouter>
+        </ErrorBoundary>
+      </LocalizationProvider>
     </ThemeProvider>
   );
 }

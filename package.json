@@ -19,6 +19,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@mui/icons-material": "^7.3.11",
     "@mui/material": "^7.3.11",
+    "@mui/x-date-pickers": "^9.10.1",
     "dayjs": "^1.11.21",
     "dexie": "^4.4.4",
     "dexie-react-hooks": "^4.4.0",
