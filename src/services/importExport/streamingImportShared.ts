@@ -2,6 +2,7 @@ import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { searchFilms, searchTV, getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import type { EntryMetadata } from '@/models';
 
@@ -167,7 +168,7 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
           status: 'completed',
           completedDate: item.date,
           repeatConsumption: false,
-          tags: [],
+          tags: [importedFromTag(source)],
           genres: [],
           metadata: { source },
         });
@@ -185,7 +186,7 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
         status: 'completed',
         completedDate: item.date,
         repeatConsumption: false,
-        tags: [],
+        tags: [importedFromTag(source)],
         genres: genres ?? [],
         metadata: buildFilmMetadata(fields, source),
       });
@@ -210,7 +211,7 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
           status: 'completed',
           completedDate: evidence.latestDate,
           repeatConsumption: false,
-          tags: [],
+          tags: [importedFromTag(source)],
           genres: genres ?? [],
           metadata: buildTvMetadata(fields, seasonNumber, source),
         });

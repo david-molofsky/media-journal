@@ -20,7 +20,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import Tooltip from '@mui/material/Tooltip';
 import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -194,12 +193,11 @@ export default function LibraryPage() {
     void setSetting('lastLibraryStatusTab', statusTab);
   }, [statusTab]);
 
-  // Reorder mode only makes sense unfiltered, on the Wishlist tab, with
-  // "My Order" selected — derived rather than force-reset via effect,
-  // so toggling a filter simply hides the reorder UI (button still
-  // shows disabled) instead of needing to sync state back down.
-  const isReordering =
-    reorderMode && !hasActiveFilters && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
+  // Reorder mode now works while filtered/searched (arrows are gated
+  // separately, per-card, since swapping visually-adjacent filtered
+  // items isn't meaningful against true full-list order — see
+  // renderCard below). Still requires Wishlist tab + "My Order" sort.
+  const isReordering = reorderMode && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
 
   // "Mark finished" dialog
   const [finishEntry, setFinishEntry] = useState<MediaEntry | null>(null);
@@ -225,6 +223,19 @@ export default function LibraryPage() {
   const completedEntries = useMediaEntries({ status: 'completed' }, 'completedDateDesc');
   const inProgressEntries = useMediaEntries({ status: 'in_progress' }, 'createdAtDesc');
   const wishlistEntries = useMediaEntries({ status: 'wishlist' }, 'createdAtDesc');
+
+  // Always the *full*, unfiltered Wishlist in true order — used to
+  // resolve each entry's real full-list position for the reorder
+  // badge, regardless of whatever filter/search is currently narrowing
+  // `entries`. Position numbers must stay meaningful (e.g. "12" means
+  // 12th overall) even while filtered, per the search-while-reordering
+  // spec — computing them from the filtered array's own index would
+  // silently give the wrong number.
+  const wishlistOrderedEntries = useMediaEntries({ status: 'wishlist' }, 'wishlistOrderAsc');
+  const wishlistPositionById = useMemo(
+    () => new Map((wishlistOrderedEntries ?? []).map((e, i) => [e.id, i + 1])),
+    [wishlistOrderedEntries],
+  );
 
   const yearOptions = useMemo(() => (availableYears ?? []).map((y) => ({ label: String(y), value: String(y) })), [availableYears]);
   const mediaTypeOptions = useMemo(() => (mediaTypes ?? []).map((t) => ({ label: t.displayName, value: t.id })), [mediaTypes]);
@@ -304,16 +315,26 @@ export default function LibraryPage() {
       reorder={
         isReordering
           ? {
-              position: index + 1,
-              maxPosition: entries.length,
-              onMoveUp: (() => {
-                const prev = entries[index - 1];
-                return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
-              })(),
-              onMoveDown: (() => {
-                const next = entries[index + 1];
-                return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
-              })(),
+              position: wishlistPositionById.get(entry.id) ?? index + 1,
+              maxPosition: wishlistOrderedEntries?.length ?? entries.length,
+              // Swapping only makes sense against true full-list
+              // adjacency — while any filter/search narrows the
+              // visible list, visually-adjacent cards aren't
+              // necessarily true neighbours, so the arrows are
+              // disabled (jump-to-position, which always targets the
+              // real full-list position, stays available below).
+              onMoveUp: hasActiveFilters
+                ? undefined
+                : (() => {
+                    const prev = entries[index - 1];
+                    return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
+                  })(),
+              onMoveDown: hasActiveFilters
+                ? undefined
+                : (() => {
+                    const next = entries[index + 1];
+                    return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
+                  })(),
               onJumpToPosition: (newPosition) => void jumpWishlistOrder(entry.id, newPosition),
             }
           : undefined
@@ -378,22 +399,17 @@ export default function LibraryPage() {
             </Button>
           )}
           {statusTab === 'wishlist' && sort === 'wishlistOrderAsc' && (
-            <Tooltip title={hasActiveFilters ? 'Clear filters to reorder' : ''}>
-              <span>
-                <Button
-                  size="small"
-                  variant={isReordering ? 'contained' : 'outlined'}
-                  disabled={hasActiveFilters}
-                  onClick={() => {
-                    if (!reorderMode) void normalizeWishlistOrder();
-                    setReorderMode((v) => !v);
-                  }}
-                  sx={{ flexShrink: 0 }}
-                >
-                  {isReordering ? 'Done' : 'Reorder'}
-                </Button>
-              </span>
-            </Tooltip>
+            <Button
+              size="small"
+              variant={isReordering ? 'contained' : 'outlined'}
+              onClick={() => {
+                if (!reorderMode) void normalizeWishlistOrder();
+                setReorderMode((v) => !v);
+              }}
+              sx={{ flexShrink: 0 }}
+            >
+              {isReordering ? 'Done' : 'Reorder'}
+            </Button>
           )}
           <Button size="small" variant={selectionMode ? 'contained' : 'outlined'} onClick={() => { setSelectionMode((v) => !v); if (selectionMode) clearSelection(); }} sx={{ flexShrink: 0 }}>
             {selectionMode ? 'Done' : 'Select'}

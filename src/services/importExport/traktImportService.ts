@@ -1,6 +1,7 @@
 import { createEntry } from '@/services/database/entryService';
 import { getFilmDetails, getTVShowSummary } from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import { db } from '@/services/database/db';
 import {
   fetchMovieHistory,
@@ -267,7 +268,7 @@ export async function applyTraktImport(
         completedDate: movie.completedDate,
         rating: movie.rating,
         repeatConsumption: false,
-        tags: [],
+        tags: [importedFromTag('Trakt')],
         genres: genres ?? [],
         metadata: buildFilmMetadata(fields),
       });
@@ -307,7 +308,7 @@ export async function applyTraktImport(
         mediaType: item.mediaType,
         status: 'wishlist',
         repeatConsumption: false,
-        tags: [],
+        tags: [importedFromTag('Trakt')],
         genres: [],
         metadata: { source: 'Trakt' },
       });

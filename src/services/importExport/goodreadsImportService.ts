@@ -3,6 +3,7 @@ import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { parseCsv } from '@/utils/csvParser';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { EntryMetadata, EntryStatus } from '@/models';
 
 /**
@@ -201,7 +202,7 @@ export async function applyRow(state: GoodreadsRowState): Promise<'imported' | '
     completedDate: row.status === 'completed' ? state.completedDate : undefined,
     rating: row.rating,
     repeatConsumption: row.repeatConsumption,
-    tags: row.tags,
+    tags: Array.from(new Set([...row.tags, importedFromTag('Goodreads')])),
     genres: [],
     metadata: buildMetadata(row),
   });

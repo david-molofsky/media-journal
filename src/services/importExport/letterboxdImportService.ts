@@ -3,6 +3,7 @@ import { createEntry } from '@/services/database/entryService';
 import { searchFilms, getFilmDetails } from '@/services/metadata/tmdbService';
 import { parseCsv } from '@/utils/csvParser';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import type { EntryMetadata } from '@/models';
 
@@ -221,7 +222,7 @@ export async function applyRow(state: LetterboxdMatchState): Promise<'imported' 
     completedDate: row.watchedDate,
     rating: row.rating,
     repeatConsumption: row.rewatch,
-    tags: row.tags,
+    tags: Array.from(new Set([...row.tags, importedFromTag('Letterboxd')])),
     genres,
     metadata,
   });

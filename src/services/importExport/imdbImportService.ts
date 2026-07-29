@@ -4,6 +4,7 @@ import { createEntry } from '@/services/database/entryService';
 import { findByImdbId, getFilmDetails, getTVDetails, getTVShowSummary } from '@/services/metadata/tmdbService';
 import { parseCsv } from '@/utils/csvParser';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { EntryMetadata } from '@/models';
 
 /**
@@ -265,7 +266,7 @@ export async function applyMovies(movies: MovieMatch[]): Promise<number> {
       completedDate: row.dateRated,
       rating: row.rating,
       repeatConsumption: false,
-      tags: [],
+      tags: [importedFromTag('IMDb')],
       genres: genres ?? [],
       metadata: buildFilmMetadata(fields),
     });
@@ -329,7 +330,7 @@ export async function applyShowSeasons(
       // person to fill in manually if they want one.
       rating: undefined,
       repeatConsumption: false,
-      tags: [],
+      tags: [importedFromTag(source)],
       genres: genres ?? [],
       metadata: buildTvMetadata(fields, seasonNumber, source),
     });

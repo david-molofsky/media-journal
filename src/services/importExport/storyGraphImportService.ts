@@ -3,6 +3,7 @@ import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { parseCsv } from '@/utils/csvParser';
 import { toTitleCase } from '@/utils/toTitleCase';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { EntryMetadata, EntryStatus } from '@/models';
 
 /**
@@ -247,7 +248,7 @@ export async function applyRow(state: StoryGraphRowState): Promise<'imported' | 
     rating: row.rating,
     notes: row.notes,
     repeatConsumption: row.repeatConsumption,
-    tags: row.tags,
+    tags: Array.from(new Set([...row.tags, importedFromTag('StoryGraph')])),
     genres: [],
     metadata: buildMetadata(row),
   });

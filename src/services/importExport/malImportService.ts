@@ -1,6 +1,7 @@
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { fetchMalList, type MalListEntry } from '@/services/metadata/malService';
+import { importedFromTag } from '@/utils/importedFromTag';
 import type { EntryMetadata, EntryStatus } from '@/models';
 
 /**
@@ -192,7 +193,7 @@ export async function applyMalRow(state: MalRowState): Promise<'imported' | 'ski
       startedDate: entry.list_status.start_date || undefined,
       rating: entry.list_status.score > 0 ? entry.list_status.score : undefined,
       repeatConsumption: (rewatchCount ?? 0) > 0,
-      tags: buildTags(rewatchCount, mediaType),
+      tags: [...buildTags(rewatchCount, mediaType), importedFromTag('MyAnimeList')],
       genres: entry.node.genres?.map((g) => g.name) ?? [],
       metadata: mediaType === 'anime' ? buildAnimeMetadata(entry) : buildMangaMetadata(entry),
     });
