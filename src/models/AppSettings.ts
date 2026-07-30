@@ -101,6 +101,33 @@ export const SETTINGS_KEYS = {
    * rather than at install time, so it stays in sync if that default
    * list is ever extended later. */
   subscriptionSources: 'subscriptionSources',
+  /** Per-year, per-media-type consumption targets (Dashboard > Goals).
+   * Shape: `Record<year, Record<mediaTypeId, number>>` — see
+   * goalsService.ts. Registered here (rather than goalsService.ts
+   * using a raw string key) so it's recognised as a "known" setting by
+   * importLibrary's restore filter; before this it was written to
+   * appSettings under the same key but wasn't in this list, so it
+   * exported fine but silently failed to come back on import (see
+   * chat — same root cause as wishlistOrder below). */
+  yearlyGoals: 'yearly_goals',
+  /** Audiobookshelf connection (Settings > Import data). `absAuthMethod`
+   * is 'password' or 'token' — whichever the person picked when
+   * connecting; `absToken` is always what's actually sent on every
+   * request (for password auth, the JWT returned by /login; for token
+   * auth, the pasted admin token directly). The password itself is
+   * never stored. */
+  absServerUrl: 'absServerUrl',
+  absAuthMethod: 'absAuthMethod',
+  absToken: 'absToken',
+  /** Jellyfin connection — same shape as Audiobookshelf's, see above. */
+  jellyfinServerUrl: 'jellyfinServerUrl',
+  jellyfinAuthMethod: 'jellyfinAuthMethod',
+  jellyfinToken: 'jellyfinToken',
+  jellyfinUserId: 'jellyfinUserId',
+  /** Plex connection. No auth-method choice — a manually-pasted
+   * X-Plex-Token is the only supported path (see chat). */
+  plexServerUrl: 'plexServerUrl',
+  plexToken: 'plexToken',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

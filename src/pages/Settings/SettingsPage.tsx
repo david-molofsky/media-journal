@@ -21,6 +21,9 @@ import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 import { RegionSection } from '@/components/settings/RegionSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
+import { AudiobookshelfImportSection } from '@/components/settings/AudiobookshelfImportSection';
+import { JellyfinImportSection } from '@/components/settings/JellyfinImportSection';
+import { PlexImportSection } from '@/components/settings/PlexImportSection';
 import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
@@ -54,6 +57,9 @@ export default function SettingsPage() {
             <ImportSourcesSection />
             <MalImportSection />
             <TraktImportSection />
+            <AudiobookshelfImportSection />
+            <JellyfinImportSection />
+            <PlexImportSection />
           </Stack>
         </CollapsibleSection>
 
