@@ -43,7 +43,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
 
   const params = new URLSearchParams({
     title: query,
-    limit: '6',
+    limit: '15',
     fields: `key,title,author_name,series,first_publish_year,editions${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
 

@@ -188,7 +188,7 @@ export async function searchFilms(query: string): Promise<SearchResult[]> {
     `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=1`,
   );
 
-  return data.results.slice(0, 6).map((movie) => ({
+  return data.results.slice(0, 15).map((movie) => ({
     id: String(movie.id),
     title: movie.title,
     subtitle: movie.release_date ? movie.release_date.slice(0, 4) : '',
@@ -303,7 +303,7 @@ export async function searchTV(query: string): Promise<SearchResult[]> {
     `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=1`,
   );
 
-  return data.results.slice(0, 6).map((show) => ({
+  return data.results.slice(0, 15).map((show) => ({
     id: String(show.id),
     title: show.name,
     subtitle: show.first_air_date ? show.first_air_date.slice(0, 4) : '',

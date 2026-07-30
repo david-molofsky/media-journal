@@ -67,12 +67,12 @@ export async function searchSeries(query: string): Promise<SearchResult[]> {
   if (!query.trim()) return [];
 
   const data = await comicVineGet<{ results: ComicVineVolumeSearchResult[] }>(
-    `/search/?resources=volume&query=${encodeURIComponent(query)}&field_list=id,name,publisher,start_year&limit=8`,
+    `/search/?resources=volume&query=${encodeURIComponent(query)}&field_list=id,name,publisher,start_year&limit=15`,
   );
 
   const autofillPublisher = await getSetting('autofillComicPublisher', true);
 
-  return data.results.slice(0, 8).map((volume) => {
+  return data.results.slice(0, 15).map((volume) => {
     const fields: Record<string, string> = {
       series: volume.name,
       comicVineVolumeId: String(volume.id),
