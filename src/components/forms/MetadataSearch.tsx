@@ -99,22 +99,38 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   const [fetching, setFetching] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against out-of-order responses: typing further input after a
+  // search has already fired starts a second in-flight request, and
+  // network timing doesn't guarantee the first one resolves first. A
+  // slow response to an earlier, less-specific query landing after a
+  // newer, more-specific one previously overwrote it — the classic
+  // symptom being "results don't get more accurate as I keep typing".
+  // Only the response matching the most recently *fired* request is
+  // applied; anything older is silently dropped.
+  const requestIdRef = useRef(0);
 
   const handleInputChange = useCallback(
     (_: React.SyntheticEvent, value: string) => {
       setInputValue(value);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (!value.trim() || !searchFn) { setOptions([]); return; }
+      if (!value.trim() || !searchFn) {
+        requestIdRef.current += 1; // invalidate any still-pending request too
+        setOptions([]);
+        return;
+      }
 
       debounceRef.current = setTimeout(async () => {
+        const requestId = ++requestIdRef.current;
         setSearching(true);
         try {
           const results = await searchFn(value);
+          if (requestIdRef.current !== requestId) return; // superseded — drop it
           setOptions(results);
         } catch {
+          if (requestIdRef.current !== requestId) return;
           setOptions([]);
         } finally {
-          setSearching(false);
+          if (requestIdRef.current === requestId) setSearching(false);
         }
       }, 350);
     },
@@ -123,6 +139,7 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
 
   const handleChange = async (_: React.SyntheticEvent, value: SearchResult | null) => {
     if (!value) return;
+    requestIdRef.current += 1; // invalidate any still-pending search
     setFetching(true);
     const idKey = getSourceIdKey(mediaTypeId);
     try {
@@ -165,6 +182,15 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
         getOptionLabel={(option) => option.title}
         isOptionEqualToValue={(a, b) => a.id === b.id}
         filterOptions={(x) => x} // server-side filtering only
+        slotProps={{
+          listbox: {
+            sx: {
+              maxHeight: 320,
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+            },
+          },
+        }}
         renderInput={(params) => (
           <TextField
             {...params}
