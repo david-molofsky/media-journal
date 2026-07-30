@@ -7,8 +7,41 @@
  */
 
 import type { MediaEntry } from '@/models';
+import { ROUTES } from '@/routes/paths';
 
 const APP_URL = 'https://david-molofsky.github.io/media-journal/';
+
+/**
+ * Media types that support a shared "add to journal" deep link, and
+ * the metadata key their source id is stored under (see
+ * MetadataSearch.tsx's getSourceIdKey / AddEntryPage's shared-link
+ * handling). Comics and any other type are left out — a comic's
+ * ComicVine id identifies a series, not one issue, so it can't be
+ * resolved back into a single entry the way a TMDB id or Open Library
+ * work key can.
+ */
+const SHARED_LINK_ID_KEY: Record<string, string> = {
+  film: 'tmdbId',
+  tv: 'tmdbId',
+  book: 'openLibraryKey',
+  audiobook: 'openLibraryKey',
+};
+
+/**
+ * Builds the link that goes at the end of a shared message. If the
+ * entry's media type supports it and has a persisted source id, this
+ * is a smart link straight to a pre-filled Add Entry screen
+ * (`#/entry/new?type=...&id=...`); otherwise it's just the plain app
+ * URL, same as before this feature existed.
+ */
+export function buildEntryLink(entry: MediaEntry): string {
+  const idKey = SHARED_LINK_ID_KEY[entry.mediaType];
+  const id = idKey ? entry.metadata[idKey] : undefined;
+  if (!idKey || typeof id !== 'string' || !id) return APP_URL;
+
+  const params = new URLSearchParams({ type: entry.mediaType, id });
+  return `${APP_URL}#${ROUTES.addEntry}?${params.toString()}`;
+}
 
 /**
  * Consumption verb per default media type id, used to fill in
@@ -58,7 +91,9 @@ export function buildShareMessageLine(entry: MediaEntry): string {
   }
 }
 
-/** Full share message: the message line, a newline, then the app URL. */
+/** Full share message: the message line, a newline, then the entry link
+ * (a smart "add to journal" link when available, otherwise the plain
+ * app URL — see buildEntryLink). */
 export function buildShareMessage(entry: MediaEntry): string {
-  return `${buildShareMessageLine(entry)}\n${APP_URL}`;
+  return `${buildShareMessageLine(entry)}\n${buildEntryLink(entry)}`;
 }

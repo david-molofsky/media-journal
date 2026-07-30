@@ -202,7 +202,7 @@ export async function searchFilms(query: string): Promise<SearchResult[]> {
  */
 export async function getFilmDetails(
   tmdbId: string,
-): Promise<{ fields: Record<string, string>; genres?: string[] }> {
+): Promise<{ title: string; fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbMovieDetails>(
     `/movie/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
@@ -261,7 +261,7 @@ export async function getFilmDetails(
   // Callers combine it with TMDB's image base URL when rendering.
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
 
-  return { fields, genres: extractGenres(data.genres) };
+  return { title: data.title, fields, genres: extractGenres(data.genres) };
 }
 
 // ── TV ───────────────────────────────────────────────────────────────────────
@@ -316,7 +316,7 @@ export async function searchTV(query: string): Promise<SearchResult[]> {
  */
 export async function getTVDetails(
   tmdbId: string,
-): Promise<{ fields: Record<string, string>; genres?: string[] }> {
+): Promise<{ title: string; fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbTVDetails>(
     `/tv/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
   );
@@ -361,7 +361,7 @@ export async function getTVDetails(
   if (autofillTvStatus && data.status) fields['tvStatus'] = data.status;
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
 
-  return { fields, genres: extractGenres(data.genres) };
+  return { title: data.name, fields, genres: extractGenres(data.genres) };
 }
 
 // ── IMDb id lookup (used by IMDb import — direct ID matching rather

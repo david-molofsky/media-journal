@@ -64,6 +64,10 @@ const bookMetadataSchema = z.object({
   series: z.string().optional(),
   volume: z.string().optional(),
   source: z.string().optional(),
+  // Shared-link support: Open Library work key, persisted whenever a
+  // book/audiobook is filled via search or a shared link — see
+  // matching comment on filmMetadataSchema's tmdbId.
+  openLibraryKey: z.string().optional(),
 });
 
 const filmMetadataSchema = z.object({
@@ -80,6 +84,11 @@ const filmMetadataSchema = z.object({
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
   posterPath: z.string().optional(),
+  // Shared-link support: TMDB id, persisted whenever a film is filled
+  // via search or a shared link, so the entry can later be re-shared
+  // as a smart link too. Hidden field — not in defaultMediaTypes.ts's
+  // `fields[]`, same pattern as posterPath above.
+  tmdbId: z.string().optional(),
 });
 
 const tvMetadataSchema = z.object({
@@ -97,6 +106,8 @@ const tvMetadataSchema = z.object({
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
   posterPath: z.string().optional(),
+  // Shared-link support — see matching comment on filmMetadataSchema.
+  tmdbId: z.string().optional(),
 });
 
 const comicMetadataSchema = z

@@ -87,6 +87,60 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   });
 }
 
+interface OpenLibraryWork {
+  title: string;
+  authors?: { author: { key: string } }[];
+  subjects?: string[];
+}
+
+interface OpenLibraryAuthor {
+  name: string;
+}
+
+/**
+ * Fetches a book's title, author and genre guesses directly from an
+ * Open Library work key (e.g. "/works/OL45804W" — the `id` searchBooks
+ * returns). Used by the "add via shared link" flow: unlike the normal
+ * search-and-select flow, there's no SearchResult to draw fields from
+ * at that point, only the key from the URL. Two calls: the work
+ * record, then its first author's name (Open Library only exposes an
+ * author *key* on the work itself, not the name).
+ *
+ * Deliberately narrower than searchBooks' fields — no `series`, since
+ * that comes from Open Library's search index projection, not the raw
+ * work record. Author lookup failure doesn't fail the whole fetch;
+ * title/genres still come through with author left blank.
+ */
+export async function getBookDetailsByKey(
+  key: string,
+): Promise<{ title: string; fields: Record<string, string>; genres?: string[] }> {
+  const res = await fetch(`${BASE}${key}.json`);
+  if (!res.ok) throw new Error(`Open Library work lookup failed: ${res.status}`);
+  const work = (await res.json()) as OpenLibraryWork;
+
+  const fields: Record<string, string> = {};
+  const authorKey = work.authors?.[0]?.author?.key;
+  if (authorKey) {
+    try {
+      const authorRes = await fetch(`${BASE}${authorKey}.json`);
+      if (authorRes.ok) {
+        const author = (await authorRes.json()) as OpenLibraryAuthor;
+        if (author.name) fields['author'] = author.name;
+      }
+    } catch {
+      // Author name is a nice-to-have; leave the field blank rather
+      // than failing the whole shared-link fetch over it.
+    }
+  }
+
+  const genres =
+    ENABLE_OPENLIBRARY_GENRES && work.subjects?.length
+      ? work.subjects.slice(0, OPENLIBRARY_GENRE_LIMIT)
+      : undefined;
+
+  return { title: work.title, fields, genres };
+}
+
 interface OpenLibraryBookRecord {
   title: string;
   authors?: { name: string }[];

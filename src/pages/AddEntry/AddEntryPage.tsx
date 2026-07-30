@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
@@ -13,13 +17,26 @@ import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { createEntry } from '@/services/database/entryService';
+import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
+import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { ROUTES } from '@/routes/paths';
 import { SETTINGS_KEYS } from '@/models';
-import type { MediaType } from '@/models';
+import type { MediaType, NewMediaEntryInput } from '@/models';
 
 /** Mirrors MediaTypePicker's TIP_MAX_SHOWS — a save counts as one of
  * the 5 shows just like an explicit dismissal (see chat). */
 const TIP_MAX_SHOWS = 5;
+
+/** Media types a shared "add to journal" link can resolve, and the
+ * metadata key their source id is persisted under. Kept in sync with
+ * shareMessageService's SHARED_LINK_ID_KEY and MetadataSearch's
+ * getSourceIdKey. */
+const SHARED_ID_KEY: Record<string, string> = {
+  film: 'tmdbId',
+  tv: 'tmdbId',
+  book: 'openLibraryKey',
+  audiobook: 'openLibraryKey',
+};
 
 export default function AddEntryPage() {
   const mediaTypes = useMediaTypes();
@@ -31,6 +48,96 @@ export default function AddEntryPage() {
     0,
   );
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Shared "add to journal" link support (see shareMessageService's
+  // buildEntryLink). `type`/`id` in the URL identify a source record
+  // to fetch and pre-fill — only present when someone opens a link
+  // shared from another entry.
+  const sharedType = searchParams.get('type');
+  const sharedId = searchParams.get('id');
+  const isSharedLink = Boolean(sharedType && sharedId && SHARED_ID_KEY[sharedType]);
+
+  const [sharedValues, setSharedValues] = useState<NewMediaEntryInput | null>(null);
+  const [sharedError, setSharedError] = useState(false);
+
+  // The type named in the link, once media types have loaded — derived
+  // rather than synced into state via an effect.
+  const sharedMediaType = useMemo(() => {
+    if (!isSharedLink || !mediaTypes) return null;
+    return mediaTypes.find((mt) => mt.id === sharedType) ?? null;
+  }, [isSharedLink, mediaTypes, sharedType]);
+
+  // The link named a type that doesn't exist (e.g. a custom type the
+  // user later deleted) — falls through to the manual picker. Derived,
+  // not state: true once media types are loaded but no match was found.
+  const sharedTypeMissing = isSharedLink && Boolean(mediaTypes) && !sharedMediaType;
+
+  // Manual picks (selectedType) take priority; otherwise fall back to
+  // whatever the shared link resolved to.
+  const activeType = selectedType ?? sharedMediaType;
+
+  const sharedLoading =
+    isSharedLink && !sharedTypeMissing && !sharedValues && !sharedError && Boolean(mediaTypes);
+
+  // Resolve the shared id into pre-filled values once the type is known.
+  useEffect(() => {
+    if (!isSharedLink || !sharedMediaType || sharedValues || sharedError) return;
+    if (!sharedType || !sharedId) return;
+    // isSharedLink already guarantees this key exists for sharedType.
+    const idKey = SHARED_ID_KEY[sharedType];
+    if (!idKey) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        let title = '';
+        let fields: Record<string, string> = {};
+        let genres: string[] | undefined;
+
+        if (sharedType === 'film') {
+          ({ title, fields, genres } = await getFilmDetails(sharedId));
+        } else if (sharedType === 'tv') {
+          ({ title, fields, genres } = await getTVDetails(sharedId));
+        } else {
+          ({ title, fields, genres } = await getBookDetailsByKey(sharedId));
+        }
+
+        if (cancelled) return;
+        setSharedValues({
+          title,
+          mediaType: sharedMediaType.id,
+          status: 'wishlist',
+          startedDate: undefined,
+          completedDate: undefined,
+          rating: undefined,
+          notes: '',
+          repeatConsumption: false,
+          tags: [],
+          genres: genres ?? [],
+          metadata: {
+            ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
+            ...fields,
+            [idKey]: sharedId,
+          },
+        });
+      } catch {
+        if (!cancelled) setSharedError(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSharedLink, sharedMediaType, sharedType, sharedId, sharedValues, sharedError]);
+
+  /** Drops the shared-link query params and lets the user carry on
+   * manually — used by the fallback screen's "Start a blank entry". */
+  const abandonSharedLink = () => {
+    setSharedError(false);
+    setSearchParams({}, { replace: true });
+  };
 
   /**
    * Strip or include TV episode fields depending on the tracking mode.
@@ -40,22 +147,55 @@ export default function AddEntryPage() {
    * without any re-migration.
    */
   const effectiveMediaType = useMemo((): MediaType | null => {
-    if (!selectedType || selectedType.id !== 'tv') return selectedType;
+    if (!activeType || activeType.id !== 'tv') return activeType;
     return {
-      ...selectedType,
-      fields: selectedType.fields.filter((field) =>
+      ...activeType,
+      fields: activeType.fields.filter((field) =>
         tvMode === 'episode'
           ? true
           : field.key !== 'episodeStart' && field.key !== 'episodeEnd',
       ),
     };
-  }, [selectedType, tvMode]);
+  }, [activeType, tvMode]);
 
   if (mediaTypes === undefined) {
     return <LoadingIndicator />;
   }
 
-  if (!selectedType || !effectiveMediaType) {
+  if (isSharedLink && !sharedTypeMissing && sharedLoading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          minHeight: '50vh',
+        }}
+      >
+        <CircularProgress aria-label="Fetching shared entry details" />
+        <Typography variant="body2" color="text.secondary">
+          Fetching details…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isSharedLink && sharedError) {
+    return (
+      <Box sx={{ px: 2, pt: 6, textAlign: 'center' }}>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          Couldn't fetch details for this link.
+        </Typography>
+        <Button variant="outlined" onClick={abandonSharedLink}>
+          Start a blank entry
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!activeType || !effectiveMediaType) {
     return <MediaTypePicker mediaTypes={mediaTypes} onSelect={setSelectedType} />;
   }
 
@@ -64,7 +204,10 @@ export default function AddEntryPage() {
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
         <IconButton
           aria-label="Back to media type selection"
-          onClick={() => setSelectedType(null)}
+          onClick={() => {
+            setSelectedType(null);
+            if (isSharedLink) abandonSharedLink();
+          }}
         >
           <ArrowBackIcon />
         </IconButton>
@@ -72,9 +215,15 @@ export default function AddEntryPage() {
           New {effectiveMediaType.displayName}
         </Typography>
       </Stack>
+      {sharedValues && (
+        <Alert icon={<LinkOutlinedIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
+          Filled in from a shared link — review and save.
+        </Alert>
+      )}
       <EntryForm
-        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}`}
+        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : 'manual'}`}
         mediaType={effectiveMediaType}
+        initialValues={sharedValues ?? undefined}
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
         onSubmit={async (values) => {

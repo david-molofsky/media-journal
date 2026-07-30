@@ -28,6 +28,21 @@ interface MetadataSearchProps {
 
 type Source = 'openlibrary' | 'tmdb' | 'comicvine' | null;
 
+/**
+ * Hidden metadata key each supported media type's source id gets
+ * stored under (mirrors the posterPath/coverImagePath pattern — not
+ * in defaultMediaTypes.ts's `fields[]`, but present in the per-type
+ * Zod schema so it survives save). Persisted so a manually-searched
+ * entry can later be re-shared as a smart link (see ShareEntrySheet /
+ * shareMessageService), and so the shared-link Add Entry flow has an
+ * id to resolve on the recipient's end.
+ */
+function getSourceIdKey(mediaTypeId: string): string | null {
+  if (mediaTypeId === 'film' || mediaTypeId === 'tv') return 'tmdbId';
+  if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return 'openLibraryKey';
+  return null; // comic (series id alone can't resolve one issue) and others
+}
+
 function getSource(mediaTypeId: string): Source {
   if (!hasMetadataSearch(mediaTypeId)) return null;
   if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return 'openlibrary';
@@ -109,15 +124,16 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   const handleChange = async (_: React.SyntheticEvent, value: SearchResult | null) => {
     if (!value) return;
     setFetching(true);
+    const idKey = getSourceIdKey(mediaTypeId);
     try {
       const { fields, genres } = await fetchDetails(mediaTypeId, value);
-      onFill(value.title, fields, genres);
+      onFill(value.title, idKey ? { ...fields, [idKey]: value.id } : fields, genres);
       // Clear the search so the field doesn't show the selected title twice.
       setInputValue('');
       setOptions([]);
     } catch {
       // If the details fetch fails, still fill what we have.
-      onFill(value.title, value.fields, value.genres);
+      onFill(value.title, idKey ? { ...value.fields, [idKey]: value.id } : value.fields, value.genres);
     } finally {
       setFetching(false);
     }
