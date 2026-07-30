@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -136,6 +138,7 @@ export default function LibraryPage() {
 
   const [statusTab, setStatusTab] = useState<EntryStatus>(incoming?.status ?? 'completed');
   const [searchText, setSearchText] = useState(incoming?.searchText ?? '');
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [year, setYear] = useState<string | undefined>(incoming?.year ? String(incoming.year) : undefined);
   const [month, setMonth] = useState<string | undefined>(incoming?.month ? String(incoming.month) : undefined);
   const [mediaTypeIds, setMediaTypeIds] = useState<string[]>(incoming?.mediaTypeIds ?? []);
@@ -391,7 +394,27 @@ export default function LibraryPage() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             fullWidth size="small"
-            slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+            slotProps={{
+              htmlInput: { ref: searchInputRef },
+              input: {
+                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                endAdornment: searchText && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="Clear search"
+                      size="small"
+                      edge="end"
+                      onClick={() => {
+                        setSearchText('');
+                        searchInputRef.current?.focus();
+                      }}
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           {selectionMode && (
             <Button size="small" onClick={toggleSelectAll} sx={{ flexShrink: 0 }}>
