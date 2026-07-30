@@ -85,10 +85,11 @@ function mergedSourceGroups(
  * section 5; UI & UX Specification section 8).
  *
  * Section order and grouping per the Statistics page redesign (see
- * chat): Overview → Insights → Sources (Subscription Value, then the
- * Watched/Wishlist Source breakdown) → Trends → Ratings → Top Rated
- * → Genres. Sources sits directly under Insights (a product USP, kept
- * high on the page rather than buried); Trends collapses three
+ * chat): Overview → Sources (Subscription Value, then the
+ * Watched/Wishlist Source breakdown) → Insights → Trends → Ratings →
+ * Top Rated → Genres. Sources sits directly under Overview (a product
+ * USP, kept high on the page rather than buried, and ahead of
+ * Insights per David's call — see chat); Trends collapses three
  * always-stacked charts into a tab switcher; Genres and Sources share
  * a Watched/Wishlist toggle instead of stacking both views; "Highest
  * rated" entries moved out of Ratings into their own Top Rated
@@ -214,20 +215,6 @@ export default function StatisticsPage() {
             />
           </Box>
         </Box>
-
-        {/* Insights */}
-        {data.insights.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Insights
-            </Typography>
-            <Stack spacing={1}>
-              {data.insights.map((insight) => (
-                <InsightCard key={insight} text={insight} />
-              ))}
-            </Stack>
-          </Box>
-        )}
 
         {/* Sources (incl. Subscription Value) */}
         {hasSources && (
@@ -360,6 +347,20 @@ export default function StatisticsPage() {
                   Nothing on the wishlist with a Source set yet.
                 </Typography>
               ))}
+          </Box>
+        )}
+
+        {/* Insights */}
+        {data.insights.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Insights
+            </Typography>
+            <Stack spacing={1}>
+              {data.insights.map((insight) => (
+                <InsightCard key={insight} text={insight} />
+              ))}
+            </Stack>
           </Box>
         )}
 
