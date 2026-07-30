@@ -10,6 +10,7 @@ import { useAutoBackup } from '@/hooks/useAutoBackup';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AppRoutes } from '@/routes/AppRoutes';
 import { ensureDatabaseSeeded } from '@/services/database/seed';
+import { PwaUpdateProvider } from '@/pwa/PwaUpdateContext';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -22,15 +23,17 @@ export default function App() {
   useAutoBackup();
 
   return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <ErrorBoundary>
-          <HashRouter>
-            <AppRoutes />
-          </HashRouter>
-        </ErrorBoundary>
-      </LocalizationProvider>
-    </ThemeProvider>
+    <PwaUpdateProvider>
+      <ThemeProvider theme={appTheme}>
+        <CssBaseline />
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <ErrorBoundary>
+            <HashRouter>
+              <AppRoutes />
+            </HashRouter>
+          </ErrorBoundary>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </PwaUpdateProvider>
   );
 }

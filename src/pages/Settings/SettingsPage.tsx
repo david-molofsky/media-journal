@@ -23,6 +23,7 @@ import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
 import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
+import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 
 export default function SettingsPage() {
   return (
@@ -69,6 +70,7 @@ export default function SettingsPage() {
             Media Journal v1.0 — a permanent, offline-first archive of everything you
             read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
+          <PwaUpdateSection />
         </CollapsibleSection>
 
         <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>

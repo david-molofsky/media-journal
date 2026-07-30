@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/react" />
 
 // Minimal type shim for the Google Identity Services library loaded via
 // the <script src="https://accounts.google.com/gsi/client"> tag in
