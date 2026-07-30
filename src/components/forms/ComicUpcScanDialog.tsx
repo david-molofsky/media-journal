@@ -14,7 +14,7 @@ import {
   type RankedSeriesCandidate,
 } from '@/services/metadata/upcitemdbService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
-import { toUpc12 } from '@/utils/upcBarcode';
+import { normalizeBarcode } from '@/utils/upcBarcode';
 
 interface ComicUpcScanDialogProps {
   open: boolean;
@@ -138,7 +138,7 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
             detectorAltRef.current.detect(videoRef.current),
           ]);
           for (const barcode of [...upcBarcodes, ...eanBarcodes]) {
-            const upc = toUpc12(barcode);
+            const upc = normalizeBarcode(barcode);
             // Diagnostic aid for real-device UPC scan issues — safe to
             // leave in permanently, this only logs while the scan
             // dialog is actively open and scanning.

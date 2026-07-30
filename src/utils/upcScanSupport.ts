@@ -20,7 +20,8 @@ export function hasUpcScan(mediaTypeId: string): boolean {
  * some platforms expose the API but only support a subset of formats.
  * ean_13 is checked too: some BarcodeDetector implementations report a
  * scanned UPC-A code as a 13-digit EAN-13 value with a leading zero
- * rather than as format "upc_a" (see toUpc12 in UpcScanDialog.tsx). */
+ * rather than as format "upc_a" (see normalizeBarcode in
+ * upcBarcode.ts). */
 export async function isUpcScanAvailable(): Promise<boolean> {
   if (!('BarcodeDetector' in window) || !window.BarcodeDetector) return false;
   try {
