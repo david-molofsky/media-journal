@@ -116,7 +116,13 @@ export function EntryCard({
   const colour = mediaType?.colour ?? '#616161';
 
   const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
-  const hasActions = Boolean(onMarkFinished ?? onStartTracking ?? onMoveToWishlist);
+  // Suppressed entirely in reorder mode — David's call: reorder mode is
+  // Wishlist-only, where these always render as "Mark finished" /
+  // "Start tracking" (Move to wishlist never applies to a wishlist
+  // entry), and dropping that row lets more cards fit on screen while
+  // actively reordering. The buttons still show normally everywhere
+  // else EntryCard is used.
+  const hasActions = Boolean(!reorder && (onMarkFinished ?? onStartTracking ?? onMoveToWishlist));
   // Shown next to the status badge only — Wishlist/In Progress cards
   // surface Source here since it's most useful when deciding what to
   // watch/read next or continuing something already started.
