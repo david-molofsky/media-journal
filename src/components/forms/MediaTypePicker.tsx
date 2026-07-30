@@ -15,7 +15,7 @@ import { ROUTES } from '@/routes/paths';
 
 /** Tip card stops rendering once it's been shown (saved past or
  * dismissed) this many times — see AppSettings.ts. */
-const TIP_MAX_SHOWS = 5;
+const TIP_MAX_SHOWS = 2;
 
 interface MediaTypePickerProps {
   mediaTypes: MediaType[];
