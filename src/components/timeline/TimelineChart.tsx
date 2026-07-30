@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -7,8 +7,6 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import type { TimelineBar } from '@/utils/timelinePacking';
 import {
   TIMELINE_ZOOM_LEVELS,
-  MIN_PIXELS_PER_DAY,
-  MAX_PIXELS_PER_DAY,
   DAY_GRIDLINE_THRESHOLD,
   type TimelineZoomLevel,
 } from '@/utils/timelineZoom';
@@ -92,10 +90,10 @@ const MAX_VISIBLE_ROWS = 6;
  *
  * Zoom has two layers: the Week/Month/Quarter/Year buttons in
  * TimelinePage set a preset pixels-per-day value (the `zoom` prop);
- * on top of that, this component supports continuous pinch (touch)
- * and ctrl+wheel (trackpad) zoom via internal `ppd` state, free-running
- * between MIN/MAX_PIXELS_PER_DAY. Picking a preset re-anchors `ppd`
- * back to that preset's value.
+ * on top of that, this component renders at a fixed pixels-per-day
+ * value determined entirely by the `zoom` preset — no continuous
+ * pinch/wheel zoom (removed per chat: presets only, simpler and more
+ * reliable on touchscreens than pinch was).
  */
 export function TimelineChart({
   bars,
@@ -104,10 +102,6 @@ export function TimelineChart({
   onOpenEntry,
 }: TimelineChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [ppd, setPpd] = useState<number>(TIMELINE_ZOOM_LEVELS[zoom].pixelsPerDay);
-  const ppdRef = useRef(ppd);
-  const pinchRef = useRef<{ startDist: number; startPpd: number } | null>(null);
-  const anchorRef = useRef<{ dayIndex: number; clientX: number } | null>(null);
   const scrollToTodayRef = useRef(true);
 
   // Reveal strip — shows the tapped/clicked/hovered entry's title
@@ -147,27 +141,13 @@ export function TimelineChart({
     setRevealedTitle(bar.title);
   };
 
-  useEffect(() => {
-    ppdRef.current = ppd;
-  }, [ppd]);
-
-  // A preset button click re-anchors continuous zoom back to that
-  // preset. This follows React's "adjusting state when a prop changes"
-  // pattern (comparing against a stored previous value during render)
-  // rather than an effect, since setState-in-effect is disallowed by
-  // the project's React Compiler lint rule.
-  const [prevZoom, setPrevZoom] = useState(zoom);
-  if (zoom !== prevZoom) {
-    setPrevZoom(zoom);
-    setPpd(TIMELINE_ZOOM_LEVELS[zoom].pixelsPerDay);
-  }
-  // Ref writes aren't allowed during render, so the "scroll to today"
-  // flag is set from an effect instead, keyed the same way.
+  // "Scroll to today" fires on mount and whenever the zoom preset
+  // changes (see the totalWidth-keyed effect further below).
   useEffect(() => {
     scrollToTodayRef.current = true;
   }, [zoom]);
 
-  const pixelsPerDay = ppd;
+  const pixelsPerDay = TIMELINE_ZOOM_LEVELS[zoom].pixelsPerDay;
   const gridline = pixelsPerDay >= DAY_GRIDLINE_THRESHOLD ? 'day' : 'month';
 
   const today = dayjs().endOf('day');
@@ -288,83 +268,6 @@ export function TimelineChart({
     el.scrollLeft = el.scrollWidth;
     scrollToTodayRef.current = false;
   }, [totalWidth]);
-
-  // Continuous pinch (touch) and ctrl+wheel (trackpad) zoom, layered on
-  // top of the preset buttons. Both compute the date under the
-  // finger/cursor before changing ppd, stash it in anchorRef, and the
-  // layout effect further below re-applies scrollLeft after the resize
-  // so that date stays under the same screen position rather than the
-  // view jumping around mid-gesture.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const clamp = (value: number) =>
-      Math.min(MAX_PIXELS_PER_DAY, Math.max(MIN_PIXELS_PER_DAY, value));
-    const distance = (a: Touch, b: Touch) =>
-      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 2) return;
-      const [t0, t1] = [e.touches[0], e.touches[1]];
-      if (!t0 || !t1) return;
-      pinchRef.current = { startDist: distance(t0, t1), startPpd: ppdRef.current };
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 2 || !pinchRef.current) return;
-      const [t0, t1] = [e.touches[0], e.touches[1]];
-      if (!t0 || !t1) return;
-      e.preventDefault();
-      const dist = distance(t0, t1);
-      const ratio = dist / pinchRef.current.startDist;
-      const nextPpd = clamp(pinchRef.current.startPpd * ratio);
-      const rect = el.getBoundingClientRect();
-      const midX = (t0.clientX + t1.clientX) / 2 - rect.left;
-      anchorRef.current = {
-        dayIndex: (el.scrollLeft + midX) / ppdRef.current,
-        clientX: midX,
-      };
-      setPpd(nextPpd);
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinchRef.current = null;
-    };
-
-    const handleWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
-      e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const clientX = e.clientX - rect.left;
-      const factor = Math.exp(-e.deltaY * 0.01);
-      const nextPpd = clamp(ppdRef.current * factor);
-      anchorRef.current = {
-        dayIndex: (el.scrollLeft + clientX) / ppdRef.current,
-        clientX,
-      };
-      setPpd(nextPpd);
-    };
-
-    el.addEventListener('touchstart', handleTouchStart, { passive: true });
-    el.addEventListener('touchmove', handleTouchMove, { passive: false });
-    el.addEventListener('touchend', handleTouchEnd, { passive: true });
-    el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      el.removeEventListener('touchstart', handleTouchStart);
-      el.removeEventListener('touchmove', handleTouchMove);
-      el.removeEventListener('touchend', handleTouchEnd);
-      el.removeEventListener('wheel', handleWheel);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    const anchor = anchorRef.current;
-    if (!el || !anchor) return;
-    el.scrollLeft = anchor.dayIndex * ppd - anchor.clientX;
-    anchorRef.current = null;
-  }, [ppd]);
 
   // Cap the visible viewport at MAX_VISIBLE_ROWS worth of fixed-height
   // rows before scrolling vertically kicks in.

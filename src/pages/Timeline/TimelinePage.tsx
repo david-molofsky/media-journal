@@ -98,9 +98,6 @@ export default function TimelinePage() {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
-            <Typography variant="caption" color="text.secondary">
-              Pinch, or ctrl/⌘ + scroll, to zoom freely
-            </Typography>
           </Stack>
 
           <TimelineTypeFilter
