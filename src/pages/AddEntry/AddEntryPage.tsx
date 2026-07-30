@@ -16,7 +16,7 @@ import { useNumberSetting } from '@/hooks/useNumberSetting';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { createEntry, normalizeWishlistOrder, jumpWishlistOrder } from '@/services/database/entryService';
+import { createEntry } from '@/services/database/entryService';
 import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { ROUTES } from '@/routes/paths';
@@ -26,12 +26,6 @@ import type { MediaType, NewMediaEntryInput } from '@/models';
 /** Mirrors MediaTypePicker's TIP_MAX_SHOWS — a save counts as one of
  * the 5 shows just like an explicit dismissal (see chat). */
 const TIP_MAX_SHOWS = 5;
-
-/** New entries saved as Wishlist default to this position rather than
- * the very top — jumpWishlistOrder already clamps to the list's
- * length, so this naturally lands at the end if the Wishlist has
- * fewer than 11 items (see chat). */
-const DEFAULT_WISHLIST_POSITION = 11;
 
 /** Media types a shared "add to journal" link can resolve, and the
  * metadata key their source id is persisted under. Kept in sync with
@@ -233,11 +227,7 @@ export default function AddEntryPage() {
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
         onSubmit={async (values) => {
-          const entry = await createEntry(values);
-          if (entry.status === 'wishlist') {
-            await normalizeWishlistOrder();
-            await jumpWishlistOrder(entry.id, DEFAULT_WISHLIST_POSITION);
-          }
+          await createEntry(values);
           if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
           navigate(ROUTES.library);
         }}
