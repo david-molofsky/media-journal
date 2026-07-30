@@ -9,9 +9,20 @@ import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
 import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportSection';
 import { MalImportSection } from '@/components/settings/MalImportSection';
 import { TraktImportSection } from '@/components/settings/TraktImportSection';
+import { AudiobookshelfImportSection } from '@/components/settings/AudiobookshelfImportSection';
+import { JellyfinImportSection } from '@/components/settings/JellyfinImportSection';
+import { PlexImportSection } from '@/components/settings/PlexImportSection';
 import { NetflixImportSection } from '@/components/settings/NetflixImportSection';
 import { AmazonPrimeImportSection } from '@/components/settings/AmazonPrimeImportSection';
 import type { BrandIconSlug } from '@/utils/brandIcons';
+
+interface WelcomeImportSourcesProps {
+  /** Opens Settings (Google Drive tile — see chat: Drive's own OAuth
+   * flow is bigger than a simple connect form, so its tile just
+   * navigates rather than opening a mini connect dialog like the
+   * others). */
+  onOpenSettings: () => void;
+}
 
 type CsvSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph' | 'netflix' | 'amazonPrime';
 
@@ -43,19 +54,20 @@ const tileSx = {
 /**
  * Welcome screen (below the fold) — Version B from chat: no jump-link
  * sentence, the section speaks for itself once scrolled to. Netflix
- * and Amazon Prime Video sit in the top 2 grid positions (see chat —
- * both new import sources, most people's most-used services), pushing
- * the original six down a row. Tapping a box skips straight to that
- * source's instructions dialog (bypasses the intermediate row-list
- * step ImportSourcesSection uses in Settings); MyAnimeList and Trakt
- * use their 'box' variant (see MalImportSection.tsx /
- * TraktImportSection.tsx) — same underlying hooks/dialogs as Settings'
- * row variant, just a matching tap-card trigger instead of a full row.
- * Google Drive stays out of this grid (backup/restore, not "library
- * import" — same reasoning ImportSourcesSection already applies) and
- * keeps its own text link elsewhere on the welcome screen.
+ * and Amazon Prime Video sit in the top grid positions (see chat —
+ * both new import sources, most people's most-used services). Tapping
+ * a box skips straight to that source's instructions dialog (bypasses
+ * the intermediate row-list step ImportSourcesSection uses in
+ * Settings); MyAnimeList, Trakt, Audiobookshelf, Jellyfin, and Plex
+ * all use their 'box' variant (see MalImportSection.tsx and siblings)
+ * — same underlying hooks/dialogs as Settings' row variant, just a
+ * matching tap-card trigger instead of a full row. Google Drive is
+ * the 12th tile, rounding the grid out to 4 rows of 3 (see chat) —
+ * unlike the others it navigates to Settings rather than opening a
+ * connect dialog, since Drive's own OAuth flow is a bigger thing than
+ * a simple server-URL-and-token form.
  */
-export function WelcomeImportSources() {
+export function WelcomeImportSources({ onOpenSettings }: WelcomeImportSourcesProps) {
   const [openSource, setOpenSource] = useState<CsvSource | null>(null);
 
   return (
@@ -67,8 +79,8 @@ export function WelcomeImportSources() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 1.25,
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: 1,
         }}
       >
         <Box component="button" type="button" onClick={() => setOpenSource('netflix')} sx={tileSx}>
@@ -105,6 +117,15 @@ export function WelcomeImportSources() {
 
         <MalImportSection variant="box" />
         <TraktImportSection variant="box" />
+        <AudiobookshelfImportSection variant="box" />
+        <JellyfinImportSection variant="box" />
+        <PlexImportSection variant="box" />
+
+        <Box component="button" type="button" onClick={onOpenSettings} sx={tileSx}>
+          <BrandIcon slug="googledrive" size={32} />
+          <Typography variant="body2" fontWeight={600}>Google Drive</Typography>
+          <Typography variant="caption" color="text.secondary">restore a backup</Typography>
+        </Box>
       </Box>
 
       <NetflixImportSection

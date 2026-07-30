@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
 import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import DevicesOutlinedIcon from '@mui/icons-material/DevicesOutlined';
@@ -103,15 +102,7 @@ export function WelcomeScreen({ onAddEntry, onOpenSettings }: WelcomeScreenProps
         Already have data? Scroll down to import
       </Typography>
 
-      <WelcomeImportSources />
-
-      <Typography variant="caption" color="text.secondary" maxWidth={360}>
-        Restoring from a backup instead? Find your{' '}
-        <Link component="button" onClick={onOpenSettings} sx={{ verticalAlign: 'baseline' }}>
-          Google Drive backup
-        </Link>{' '}
-        in Settings.
-      </Typography>
+      <WelcomeImportSources onOpenSettings={onOpenSettings} />
     </Box>
   );
 }

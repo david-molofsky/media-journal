@@ -16,6 +16,9 @@ import {
   siTrakt,
   siGoogledrive,
   siNetflix,
+  siAudiobookshelf,
+  siJellyfin,
+  siPlex,
 } from 'simple-icons/icons';
 
 export interface BrandIconData {
@@ -36,6 +39,9 @@ export const BRAND_ICONS = {
   trakt: siTrakt,
   googledrive: siGoogledrive,
   netflix: siNetflix,
+  audiobookshelf: siAudiobookshelf,
+  jellyfin: siJellyfin,
+  plex: siPlex,
   // Amazon Prime Video has no simple-icons entry (checked — only
   // primefaces/primeng/primereact/primevue exist, all unrelated). Its
   // box variant uses a plain Material icon in the brand's blue instead
