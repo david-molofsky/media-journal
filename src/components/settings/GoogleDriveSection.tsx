@@ -32,6 +32,7 @@ import {
 } from '@/services/googleDrive/googleDriveService';
 import { db } from '@/services/database/db';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { useDriveConnected } from '@/hooks/useDriveConnected';
 import { SETTINGS_KEYS } from '@/models';
 
 /**
@@ -44,13 +45,8 @@ import { SETTINGS_KEYS } from '@/models';
  * — it cannot read or write anything else in the user's Drive.
  */
 export function GoogleDriveSection() {
-  const TOKEN_KEY = 'googleDriveToken';
-
   // Reactive connection state — re-checks whenever the token row changes.
-  const connected = useLiveQuery(async () => {
-    const record = await db.appSettings.get(TOKEN_KEY);
-    return record !== undefined;
-  }, []);
+  const connected = useDriveConnected();
 
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<{

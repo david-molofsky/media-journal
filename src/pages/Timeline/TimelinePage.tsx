@@ -11,9 +11,11 @@ import { packTimelineBars } from '@/utils/timelinePacking';
 import { TimelineChart } from '@/components/timeline/TimelineChart';
 import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
+import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { editEntryPath } from '@/routes/paths';
 import { TIMELINE_ZOOM_ORDER, TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } from '@/utils/timelineZoom';
+import { SETTINGS_KEYS } from '@/models';
 
 /**
  * Timeline — horizontally-scrollable Gantt-style view of everything
@@ -69,10 +71,16 @@ export default function TimelinePage() {
       </Typography>
 
       {entries.length === 0 ? (
-        <PagePlaceholder
-          title="Nothing to show yet"
-          description="Once you've completed a few entries, they'll show up here as an overlapping timeline."
-        />
+        <>
+          <EmptyStateTip
+            message="Timeline shows entries by date once you've added a few."
+            dismissedKey={SETTINGS_KEYS.timelineTipDismissed}
+          />
+          <PagePlaceholder
+            title="Nothing to show yet"
+            description="Once you've completed a few entries, they'll show up here as an overlapping timeline."
+          />
+        </>
       ) : (
         <Stack spacing={2}>
           <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">

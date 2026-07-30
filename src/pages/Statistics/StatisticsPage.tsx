@@ -31,11 +31,12 @@ import {
 } from '@/components/statistics/WatchedWishlistToggle';
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
+import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ROUTES, editEntryPath } from '@/routes/paths';
 import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
-import type { MediaType } from '@/models';
+import { SETTINGS_KEYS, type MediaType } from '@/models';
 
 /** Orders a grouped-by-media-type Source record (e.g.
  * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
@@ -151,10 +152,16 @@ export default function StatisticsPage() {
             description="Try widening the Media Type, Genre, Tags or Rating range."
           />
         ) : (
-          <PagePlaceholder
-            title="Statistics will appear after you've added some media"
-            description="Come back here once you've logged a few entries."
-          />
+          <>
+            <EmptyStateTip
+              message="Add a few entries to see trends and breakdowns here."
+              dismissedKey={SETTINGS_KEYS.statisticsTipDismissed}
+            />
+            <PagePlaceholder
+              title="Statistics will appear after you've added some media"
+              description="Come back here once you've logged a few entries."
+            />
+          </>
         )}
       </Box>
     );

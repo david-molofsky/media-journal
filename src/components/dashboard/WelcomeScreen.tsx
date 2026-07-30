@@ -2,6 +2,9 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import ToggleButton from '@mui/material/ToggleButton';
 import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import DevicesOutlinedIcon from '@mui/icons-material/DevicesOutlined';
@@ -9,6 +12,7 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import KeyboardArrowDownOutlinedIcon from '@mui/icons-material/KeyboardArrowDownOutlined';
 import { WelcomeImportSources } from './WelcomeImportSources';
+import { useOnboardingPath } from '@/hooks/useOnboardingPath';
 
 interface WelcomeScreenProps {
   onAddEntry: () => void;
@@ -27,8 +31,16 @@ const FEATURES = [
  * hasSeenWelcome hasn't been set yet (see DashboardPage.tsx and
  * SETTINGS_KEYS.hasSeenWelcome). Purely presentational; the caller
  * owns marking it seen and navigation.
+ *
+ * Soft re-framing (see chat — onboarding package): the "starting
+ * fresh" / "importing my library" toggle reorders and relabels the
+ * sections below rather than hiding either path — everything stays
+ * reachable either way, and the choice can be changed at any time.
  */
 export function WelcomeScreen({ onAddEntry, onOpenSettings }: WelcomeScreenProps) {
+  const [path, setPath] = useOnboardingPath();
+  const isImporting = path === 'importing';
+
   return (
     <Box
       sx={{
@@ -67,42 +79,69 @@ export function WelcomeScreen({ onAddEntry, onOpenSettings }: WelcomeScreenProps
         </Typography>
       </Box>
 
-      <Stack alignItems="center" spacing={1}>
-        <IconButton
-          onClick={onAddEntry}
-          aria-label="Add your first entry"
-          sx={{
-            width: 64,
-            height: 64,
-            bgcolor: 'primary.main',
-            color: 'primary.contrastText',
-            '&:hover': { bgcolor: 'primary.dark' },
-          }}
-        >
-          <AddIcon sx={{ fontSize: 30 }} />
-        </IconButton>
-        <Typography variant="body1" fontWeight={500}>
-          Add your first entry
-        </Typography>
-      </Stack>
+      <ToggleButtonGroup
+        value={path}
+        exclusive
+        size="small"
+        onChange={(_event, value: 'fresh' | 'importing' | null) => {
+          if (value) setPath(value);
+        }}
+        aria-label="Starting fresh or importing your library"
+      >
+        <ToggleButton value="fresh">Starting fresh</ToggleButton>
+        <ToggleButton value="importing">Importing my library</ToggleButton>
+      </ToggleButtonGroup>
 
-      <Stack direction="row" spacing={3} justifyContent="center" flexWrap="wrap">
-        {FEATURES.map(({ icon: Icon, label }) => (
-          <Stack key={label} alignItems="center" spacing={0.75} sx={{ width: 96 }}>
-            <Icon fontSize="small" sx={{ color: 'text.secondary' }} />
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-              {label}
+      {isImporting && <WelcomeImportSources onOpenSettings={onOpenSettings} />}
+
+      {isImporting ? (
+        <Button variant="text" size="small" onClick={onAddEntry}>
+          Or start with a blank entry
+        </Button>
+      ) : (
+        <>
+          <Stack alignItems="center" spacing={1}>
+            <IconButton
+              onClick={onAddEntry}
+              aria-label="Add your first entry"
+              sx={{
+                width: 64,
+                height: 64,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                '&:hover': { bgcolor: 'primary.dark' },
+              }}
+            >
+              <AddIcon sx={{ fontSize: 30 }} />
+            </IconButton>
+            <Typography variant="body1" fontWeight={500}>
+              Add your first entry
             </Typography>
           </Stack>
-        ))}
-      </Stack>
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-        <KeyboardArrowDownOutlinedIcon fontSize="small" />
-        Already have data? Scroll down to import
-      </Typography>
+          <Stack direction="row" spacing={3} justifyContent="center" flexWrap="wrap">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <Stack key={label} alignItems="center" spacing={0.75} sx={{ width: 96 }}>
+                <Icon fontSize="small" sx={{ color: 'text.secondary' }} />
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                  {label}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
 
-      <WelcomeImportSources onOpenSettings={onOpenSettings} />
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          >
+            <KeyboardArrowDownOutlinedIcon fontSize="small" />
+            Already have data? Scroll down to import
+          </Typography>
+
+          <WelcomeImportSources onOpenSettings={onOpenSettings} />
+        </>
+      )}
     </Box>
   );
 }

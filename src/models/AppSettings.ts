@@ -128,6 +128,30 @@ export const SETTINGS_KEYS = {
    * X-Plex-Token is the only supported path (see chat). */
   plexServerUrl: 'plexServerUrl',
   plexToken: 'plexToken',
+  /** Welcome screen soft re-framing (see chat — onboarding package).
+   * 'fresh' | 'importing' | null (unset). Purely presentational: it
+   * reorders/relabels the existing Welcome screen sections rather than
+   * hiding either path, and can be changed at any time by re-tapping
+   * the toggle. Device-local, same as `hasSeenWelcome`. */
+  onboardingPath: 'onboardingPath',
+  /** Dashboard "Getting started" checklist card (see chat — onboarding
+   * package). True once the user dismisses it via the close icon; the
+   * card also stops rendering on its own once every item is complete,
+   * independent of this flag. Never reset once set. */
+  gettingStartedDismissed: 'gettingStartedDismissed',
+  /** One-time dismissible tips on Timeline/Statistics' first empty
+   * visit (see chat — onboarding package). Each tip only ever renders
+   * while that page's entry count is genuinely zero, so reaching
+   * "true" here (or adding a first entry) both permanently retire it. */
+  timelineTipDismissed: 'timelineTipDismissed',
+  statisticsTipDismissed: 'statisticsTipDismissed',
+  /** Google Drive backup nudge banner (see chat — onboarding package).
+   * Stores the entry-count threshold (10, 35, 60, ...) the banner was
+   * last dismissed at, so it stays hidden until the next threshold is
+   * crossed rather than reappearing on every Dashboard visit. Defaults
+   * to 0 via getSetting's fallback, so an existing library already
+   * past 10 entries with no Drive connected sees it immediately. */
+  backupNudgeDismissedThreshold: 'backupNudgeDismissedThreshold',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

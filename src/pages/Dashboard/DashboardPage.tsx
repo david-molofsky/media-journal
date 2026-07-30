@@ -17,6 +17,8 @@ import { RatingDistributionChart } from '@/components/charts/RatingDistributionC
 import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { WelcomeScreen } from '@/components/dashboard/WelcomeScreen';
+import { GettingStartedCard } from '@/components/dashboard/GettingStartedCard';
+import { BackupNudgeBanner } from '@/components/dashboard/BackupNudgeBanner';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
 import { SETTINGS_KEYS } from '@/models';
@@ -73,6 +75,9 @@ export default function DashboardPage() {
           )
         ) : (
           <>
+            <GettingStartedCard />
+            <BackupNudgeBanner />
+
             <Box
               sx={{
                 display: 'grid',
