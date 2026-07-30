@@ -3,10 +3,13 @@ import type { MediaEntry } from '@/models';
 
 /**
  * One bar (or marker) on the Timeline page. A "marker" is a
- * zero-duration entry — no `startedDate` was recorded, so all we know
- * is the day it was completed (or, for an in-progress entry, today).
- * See TimelinePage.tsx for how these render differently from a dated
- * span.
+ * zero-duration entry — either no `startedDate` was recorded (all we
+ * know is the day it was completed), or `startedDate` was explicitly
+ * set to the same day as `completedDate`. Both mean the same thing on
+ * the chart — "consumed in a single day" — so both render the same
+ * way: a dot rather than a bar (see chat). An in-progress entry (no
+ * `completedDate` yet) is never a marker this way, since it's still
+ * open-ended.
  */
 export interface TimelineBar {
   entryId: string;
@@ -49,7 +52,12 @@ export function packTimelineBars(
     .map((e) => {
       const isInProgress = e.status === 'in_progress';
       const end = isInProgress ? today : dayjs(e.completedDate);
-      const isMarker = !e.startedDate;
+      // No startedDate → definitely single-day. A startedDate that
+      // exactly matches completedDate is also single-day, just
+      // explicitly dated rather than left blank — both render as the
+      // same dot marker rather than one being a dot and the other a
+      // sliver of a bar.
+      const isMarker = !e.startedDate || e.startedDate === e.completedDate;
       const start = isMarker ? end : dayjs(e.startedDate);
       return { entryId: e.id, title: e.title, mediaType: e.mediaType, start, end, isMarker, isInProgress };
     })
