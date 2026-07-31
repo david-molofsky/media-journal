@@ -178,8 +178,8 @@ export function ComicVineAutofillSection() {
           />
         </Stack>
         <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
-          Stores ComicVine&apos;s hosted image URL, not the file. Shown in Edit Entry only — the
-          Library list and grid stay text-only either way.
+          Stores ComicVine&apos;s hosted image URL, not the file. Shown in Edit Entry and as a
+          small thumbnail in the Library, In Progress and Wishlist lists.
         </Alert>
       </Box>
     </CollapsibleSection>

@@ -129,8 +129,8 @@ export function TmdbAutofillSection() {
           />
         </Stack>
         <Alert severity="info" variant="outlined" sx={{ mt: 1.5 }}>
-          Stores TMDB&apos;s image path only, not the file. Shown in Edit Entry only — the
-          Library list and grid stay text-only either way.
+          Stores TMDB&apos;s image path only, not the file. Shown in Edit Entry and as a small
+          thumbnail in the Library, In Progress and Wishlist lists.
         </Alert>
       </Box>
     </CollapsibleSection>

@@ -16,6 +16,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import type { MediaEntry, MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { getEntryImageUrl } from '@/utils/entryImage';
 
 /** Position badge shown during Reorder mode — gold for the top 10 per
  * David's emphasis on those slots being precisely settable, neutral
@@ -91,6 +92,11 @@ export function EntryCard({
 }: EntryCardProps) {
   const [jumpAnchor, setJumpAnchor] = useState<HTMLElement | null>(null);
   const [jumpValue, setJumpValue] = useState('');
+  // Tracks a failed image load (404, network error) so we fall back to
+  // the icon rather than showing a broken-image box. Keyed off the URL
+  // itself so a different entry (different image URL) always gets a
+  // fresh attempt rather than inheriting a stale failure.
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
 
   const openJumpPopover = (e: React.MouseEvent<HTMLElement>) => {
     if (!reorder) return;
@@ -114,6 +120,8 @@ export function EntryCard({
   // suppress it at the JSX usage site below.
   const Icon = getMediaTypeIcon(mediaType?.icon ?? '');
   const colour = mediaType?.colour ?? '#616161';
+  const imageUrl = getEntryImageUrl(entry);
+  const showImage = Boolean(imageUrl) && imageUrl !== failedImageUrl;
 
   const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
   // Suppressed entirely in reorder mode — David's call: reorder mode is
@@ -178,10 +186,27 @@ export function EntryCard({
                   {selected ? '✓' : ''}
                 </Box>
               )}
-              <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: `${colour}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {/* eslint-disable-next-line react-hooks/static-components */}
-                <Icon sx={{ color: colour, fontSize: 22 }} />
-              </Box>
+              {showImage && imageUrl ? (
+                <Box
+                  component="img"
+                  src={imageUrl}
+                  alt=""
+                  onError={() => setFailedImageUrl(imageUrl)}
+                  sx={{
+                    width: 44,
+                    height: 62,
+                    borderRadius: 1.5,
+                    flexShrink: 0,
+                    objectFit: 'cover',
+                    bgcolor: 'action.hover',
+                  }}
+                />
+              ) : (
+                <Box sx={{ width: 44, height: 44, borderRadius: '50%', bgcolor: `${colour}1A`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {/* eslint-disable-next-line react-hooks/static-components */}
+                  <Icon sx={{ color: colour, fontSize: 22 }} />
+                </Box>
+              )}
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <Typography variant="subtitle1" fontWeight={600} noWrap>{entry.title}</Typography>
