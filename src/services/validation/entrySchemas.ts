@@ -116,6 +116,11 @@ const comicMetadataSchema = z
     issueStart: z.number().min(1, 'Issue start must be at least 1').optional(),
     issueEnd: z.number().optional(),
     source: z.string().optional(),
+    // Free-text, manual-only field — deliberately not part of the
+    // ComicVine auto-fill mapping (see chat). ComicVine's own "volume"
+    // resource is what we call `series` above; this `volume` is the
+    // user's own numbering/collection note (e.g. "Vol. 2").
+    volume: z.string().optional(),
     // ComicVine auto-fill fields (Settings > Metadata auto-fill).
     // `coverImagePath` isn't in defaultMediaTypes.ts's `fields[]` (it
     // gets bespoke UI in EntryForm, same pattern as Film/TV's
@@ -144,6 +149,28 @@ const comicMetadataSchema = z
     },
   );
 
+/**
+ * Anime previously had no dedicated schema — its metadata fell through
+ * to `genericMetadataSchema` (see chat, comment on defaultMediaTypes.ts's
+ * anime entry). Adding `seasonNumber` for the Library-card title-suffix
+ * treatment (same pattern as TV) meant it needed real validation, so
+ * this now mirrors every field MAL import + EntryForm currently write:
+ * studio/format/source/episodesWatched/totalEpisodes/malId/
+ * coverImagePath. IMPORTANT: any future anime metadata field must be
+ * added here too, or it will be silently stripped on save — this is
+ * no longer a config-only media type.
+ */
+const animeMetadataSchema = z.object({
+  studio: z.string().optional(),
+  format: z.string().optional(),
+  source: z.string().optional(),
+  episodesWatched: z.number().min(0).optional(),
+  totalEpisodes: z.number().min(0).optional(),
+  seasonNumber: z.number().min(1, 'Season number must be at least 1').optional(),
+  malId: z.string().optional(),
+  coverImagePath: z.string().optional(),
+});
+
 const genericMetadataSchema = z.record(
   z.string(),
   z.union([z.string(), z.number(), z.boolean(), z.undefined()]),
@@ -155,6 +182,7 @@ const metadataSchemasByMediaType: Record<string, z.ZodType> = {
   film: filmMetadataSchema,
   tv: tvMetadataSchema,
   comic: comicMetadataSchema,
+  anime: animeMetadataSchema,
 };
 
 /** Returns the appropriate metadata schema for a given media type id. */

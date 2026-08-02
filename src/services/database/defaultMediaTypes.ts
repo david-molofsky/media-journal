@@ -170,6 +170,13 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'issueStart', label: 'Issue Start', type: 'number', required: false },
       { key: 'issueEnd', label: 'Issue End', type: 'number', required: false },
+      // Manual only — deliberately NOT part of the ComicVine auto-fill
+      // block below (see chat). ComicVine's own "volume" resource is
+      // what `series` above maps to; this is the user's own
+      // numbering/collection note (e.g. "Vol. 2"). Drives the
+      // Library-card title-suffix treatment, same pattern as TV/Anime's
+      // seasonNumber.
+      { key: 'volume', label: 'Volume', type: 'text', required: false },
       {
         key: 'source',
         label: 'Source',
@@ -360,8 +367,9 @@ export const defaultMediaTypes: MediaType[] = [
     // MAL import ships), not TMDB — `malId`/`coverImagePath` mirror the
     // `posterPath`/`coverImagePath` convention used for Film/TV/Comic
     // auto-fill (bespoke UI in EntryForm rather than the generic field
-    // loop), but are declared here since there's no separate
-    // animeMetadataSchema forcing them through entrySchemas.ts.
+    // loop). Now backed by `animeMetadataSchema` in entrySchemas.ts
+    // (see chat, added alongside `seasonNumber` below) — any new field
+    // added here must be added there too.
     fields: [
       { key: 'studio', label: 'Studio', type: 'text', required: false },
       {
@@ -399,6 +407,10 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
       },
       { key: 'totalEpisodes', label: 'Total episodes', type: 'number', required: false },
+      // Manual only — no source auto-fills this (same as TV's
+      // seasonNumber). Drives the Library-card title-suffix treatment
+      // (e.g. "Attack on Titan — S4"), same pattern as TV.
+      { key: 'seasonNumber', label: 'Season Number', type: 'number', required: false },
       { key: 'malId', label: 'MyAnimeList ID', type: 'text', required: false },
       { key: 'coverImagePath', label: 'Cover image URL', type: 'text', required: false },
     ],

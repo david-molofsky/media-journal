@@ -21,11 +21,12 @@ export const SETTINGS_KEYS = {
   lastLibraryStatusTab: 'lastLibraryStatusTab',
   /** TMDB (Film/TV) auto-fill toggles — read by tmdbService before it
    * populates each field, written from Settings > Metadata auto-fill.
-   * Default to `true` (via getSetting's fallback) for every field
-   * except `autofillPoster`, which defaults to `false` — poster is the
-   * one field that changes what an entry visually looks like, so it's
-   * opt-in rather than opt-out. All live at the Settings level (not
-   * per-import) so the choice persists across every future auto-fill. */
+   * Default to `true` (via getSetting's fallback) for every field,
+   * including `autofillPoster` — now that Library/Wishlist cards and
+   * the share card both show a poster thumbnail (see chat), leaving it
+   * off by default meant most new entries had nothing to show. All
+   * live at the Settings level (not per-import) so the choice persists
+   * across every future auto-fill. */
   autofillOverview: 'autofillOverview',
   autofillRuntime: 'autofillRuntime',
   autofillProductionCompany: 'autofillProductionCompany',
@@ -43,8 +44,8 @@ export const SETTINGS_KEYS = {
   /** ComicVine (Comic Issues) auto-fill toggles — read by
    * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
    * (ComicVine)). Same convention as the TMDB toggles above: all
-   * default to `true` except `autofillComicCoverImage`, which is
-   * opt-in for the same reason `autofillPoster` is. */
+   * default to `true`, including `autofillComicCoverImage` — see
+   * matching comment on `autofillPoster`. */
   autofillComicPublisher: 'autofillComicPublisher',
   autofillComicIssueTitle: 'autofillComicIssueTitle',
   autofillComicCoverDate: 'autofillComicCoverDate',

@@ -79,6 +79,28 @@ function buildSubtitle(entry: MediaEntry): string {
   return `Added ${dayjs(entry.createdAt).format('D MMM YYYY')}`;
 }
 
+/**
+ * Title suffix shown on the Library card for TV/Anime (Season) and
+ * Comics (Volume) — see chat, confirmed against a real-app reference
+ * screenshot ("Avatar: The Last Airbender (Live Action) — S2"). Title
+ * wraps instead of truncating when a suffix is present, so it's never
+ * silently hidden behind an ellipsis. Manual-only fields on both sides
+ * (seasonNumber isn't set by TMDB/MAL auto-fill, volume isn't set by
+ * ComicVine auto-fill), so this only ever reflects what the person
+ * typed in themselves.
+ */
+function getTitleSuffix(entry: MediaEntry): string | null {
+  if (entry.mediaType === 'tv' || entry.mediaType === 'anime') {
+    const season = entry.metadata.seasonNumber;
+    if (typeof season === 'number') return ` — S${season}`;
+  }
+  if (entry.mediaType === 'comic') {
+    const volume = entry.metadata.volume;
+    if (typeof volume === 'string' && volume.trim()) return ` - Vol. ${volume.trim()}`;
+  }
+  return null;
+}
+
 export function EntryCard({
   entry,
   mediaType,
@@ -145,6 +167,7 @@ export function EntryCard({
     entry.status === 'completed' && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
       ? entry.metadata.source
       : null;
+  const titleSuffix = getTitleSuffix(entry);
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden', ...(selected !== undefined && { outline: selected ? `2px solid ${colour}` : '2px solid transparent' }) }}>
@@ -208,10 +231,22 @@ export function EntryCard({
                 </Box>
               )}
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <Typography variant="subtitle1" fontWeight={600} noWrap>{entry.title}</Typography>
+                <Stack direction="row" spacing={0.5} alignItems={titleSuffix ? 'flex-start' : 'center'}>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={600}
+                    noWrap={!titleSuffix}
+                    sx={titleSuffix ? { whiteSpace: 'normal', wordBreak: 'break-word' } : undefined}
+                  >
+                    {entry.title}
+                    {titleSuffix && (
+                      <Box component="span" sx={{ color: colour, fontWeight: 700 }}>
+                        {titleSuffix}
+                      </Box>
+                    )}
+                  </Typography>
                   {entry.repeatConsumption && (
-                    <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary' }} /></Tooltip>
+                    <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0, mt: titleSuffix ? 0.4 : 0 }} /></Tooltip>
                   )}
                 </Stack>
                 <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>

@@ -59,7 +59,7 @@ export function TmdbAutofillSection() {
   );
   const [tvStatus, setTvStatus] = useBooleanSetting('autofillTvStatus', true);
   const [series, setSeries] = useBooleanSetting('autofillSeries', true);
-  const [poster, setPoster] = useBooleanSetting('autofillPoster', false);
+  const [poster, setPoster] = useBooleanSetting('autofillPoster', true);
 
   const onCount = [overview, runtime, productionCompany, tvStatus, series, poster].filter(
     Boolean,

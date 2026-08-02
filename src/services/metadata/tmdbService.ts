@@ -244,7 +244,7 @@ export async function getFilmDetails(
     getSetting('autofillRuntime', true),
     getSetting('autofillProductionCompany', true),
     getSetting('autofillSeries', true),
-    getSetting('autofillPoster', false),
+    getSetting('autofillPoster', true),
   ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
@@ -352,7 +352,7 @@ export async function getTVDetails(
       getSetting('autofillRuntime', true),
       getSetting('autofillProductionCompany', true),
       getSetting('autofillTvStatus', true),
-      getSetting('autofillPoster', false),
+      getSetting('autofillPoster', true),
     ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;

@@ -173,7 +173,7 @@ export async function getIssueDetails(
     getSetting('autofillComicLetterer', true),
     getSetting('autofillComicCoverArtist', true),
     getSetting('autofillComicEditor', true),
-    getSetting('autofillComicCoverImage', false),
+    getSetting('autofillComicCoverImage', true),
   ]);
 
   const fields: Record<string, string> = {};

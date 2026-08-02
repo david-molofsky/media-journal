@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
@@ -11,6 +13,7 @@ import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import dayjs from 'dayjs';
 import type { MediaEntry, MediaType } from '@/models';
 import { buildShareMessage, getConsumptionVerb } from '@/services/share/shareMessageService';
+import { getEntryImageUrl } from '@/utils/entryImage';
 
 interface ShareEntrySheetProps {
   open: boolean;
@@ -71,6 +74,29 @@ function drawBadge(ctx: CanvasRenderingContext2D, colour: string, text: string, 
   return pillH;
 }
 
+/** Poster box drawn on the exported canvas, left of the text column —
+ * same 2:3 ratio as the in-app preview's 120×180, just scaled up to
+ * suit the 1200×630 export (see chat). */
+const CANVAS_POSTER_W = 240;
+const CANVAS_POSTER_H = 360;
+const CANVAS_POSTER_GAP = 44;
+
+/**
+ * Loads an image for drawing onto the canvas. Resolves `null` (rather
+ * than rejecting) on any load failure — a broken/expired poster URL
+ * should silently fall back to the text-only layout, exactly like
+ * EntryCard's `onError` → icon fallback, not break the whole export.
+ */
+function loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 /**
  * Generates a 1200×630 (OG-image-sized) card on a hidden canvas,
  * then either downloads it as a PNG or passes it to the Web Share API.
@@ -81,11 +107,24 @@ function drawBadge(ctx: CanvasRenderingContext2D, colour: string, text: string, 
  * show a status line and a pill badge instead of a rating (unless one
  * happens to be set — rating is drawn whenever present, regardless of
  * status).
+ *
+ * Async because it awaits the poster image loading (if the entry has
+ * one) before drawing — see chat, poster now appears on the exported
+ * image as well as the in-app preview. Text content shifts right of
+ * the poster when one is present; falls back to the original
+ * full-width layout when it isn't (no image, or the image fails
+ * to load).
  */
-function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): HTMLCanvasElement {
+async function buildShareCanvas(
+  entry: MediaEntry,
+  mediaType: MediaType | undefined,
+): Promise<HTMLCanvasElement> {
   const W = 1200;
   const H = 630;
   const colour = mediaType?.colour ?? '#2E7D32';
+
+  const imageUrl = getEntryImageUrl(entry, 'poster');
+  const posterImg = imageUrl ? await loadImage(imageUrl) : null;
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -114,7 +153,21 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
   ctx.roundRect(cardX, cardY, 12, cardH, [r, 0, 0, r]);
   ctx.fill();
 
-  const contentX = cardX + 52;
+  const baseContentX = cardX + 52;
+
+  // Poster, if present — drawn top-left of the content area; the rest
+  // of the text column shifts right to make room for it.
+  if (posterImg) {
+    const posterX = baseContentX;
+    const posterY = cardY + 56;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(posterX, posterY, CANVAS_POSTER_W, CANVAS_POSTER_H, 12);
+    ctx.clip();
+    ctx.drawImage(posterImg, posterX, posterY, CANVAS_POSTER_W, CANVAS_POSTER_H);
+    ctx.restore();
+  }
+  const contentX = posterImg ? baseContentX + CANVAS_POSTER_W + CANVAS_POSTER_GAP : baseContentX;
   const contentY = cardY + 60;
 
   // Media type label
@@ -126,7 +179,7 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
   const titleY = contentY + 72;
   ctx.font = '700 68px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#1a1a1a';
-  const maxTitleW = cardW - 120;
+  const maxTitleW = cardX + cardW - 68 - contentX;
   let title = entry.title;
   while (ctx.measureText(title).width > maxTitleW && title.length > 3) {
     title = title.slice(0, -4) + '…';
@@ -163,7 +216,10 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
     drawBadge(ctx, colour, badgeText, contentX, statusLineY + 24);
   }
 
-  // Rating — drawn whenever present, regardless of status
+  // Rating — drawn whenever present, regardless of status. Kept in the
+  // same shifted text column as everything above (rather than back at
+  // the card's full-width margin) so it doesn't collide with a tall
+  // poster; a poster this size clears the rating position comfortably.
   if (entry.rating !== undefined) {
     const ratingY = cardY + cardH - 100;
     ctx.font = '700 96px system-ui, -apple-system, sans-serif';
@@ -187,7 +243,8 @@ function buildShareCanvas(entry: MediaEntry, mediaType: MediaType | undefined): 
     ctx.fillText(`"${excerpt}${entry.notes.length > 120 ? '…' : ''}"`, contentX, cardY + cardH - 52);
   }
 
-  // Footer branding
+  // Footer branding — always full-width bottom-right, unaffected by
+  // the poster (it never extends this low).
   ctx.font = '500 24px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = '#ccc';
   ctx.textAlign = 'right';
@@ -204,6 +261,10 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   const colour = mediaType?.colour ?? '#2E7D32';
   const meta = entry.metadata;
 
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = getEntryImageUrl(entry, 'poster');
+  const showImage = Boolean(imageUrl) && !imageFailed;
+
   const subline =
     typeof meta.author === 'string' && meta.author
       ? meta.author
@@ -214,8 +275,8 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   const message = buildShareMessage(entry);
   const badgeText = getBadgeText(entry);
 
-  const handleDownload = () => {
-    const canvas = buildShareCanvas(entry, mediaType);
+  const handleDownload = async () => {
+    const canvas = await buildShareCanvas(entry, mediaType);
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
     link.download = `${entry.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.png`;
@@ -223,7 +284,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   };
 
   const handleShare = async () => {
-    const canvas = buildShareCanvas(entry, mediaType);
+    const canvas = await buildShareCanvas(entry, mediaType);
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       const file = new File([blob], 'entry.png', { type: 'image/png' });
@@ -250,50 +311,70 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
             color: '#fff',
           }}
         >
-          <Typography variant="caption" sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}>
-            {mediaType?.displayName ?? entry.mediaType}
-          </Typography>
-          <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5, mb: 0.25 }}>
-            {entry.title}
-          </Typography>
-          {subline && (
-            <Typography variant="body2" sx={{ opacity: 0.85 }}>
-              {subline}
-            </Typography>
-          )}
-          <Typography
-            variant="body2"
-            sx={{
-              opacity: 0.9,
-              mt: 0.5,
-              pt: 1,
-              borderTop: '1px solid rgba(255,255,255,0.2)',
-            }}
-          >
-            {getStatusLineText(entry)}
-          </Typography>
-          {badgeText && (
-            <Chip
-              label={badgeText.toUpperCase()}
-              size="small"
-              sx={{
-                mt: 1,
-                bgcolor: 'rgba(255,255,255,0.18)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 11,
-                letterSpacing: 0.5,
-              }}
-            />
-          )}
-          {entry.rating !== undefined && (
-            <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
-              {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
-              <Typography component="span" variant="body2" sx={{ ml: 0.5, opacity: 0.7 }}>
-                / 10
+          <Stack direction="row" spacing={2}>
+            {showImage && (
+              <Box
+                component="img"
+                src={imageUrl}
+                onError={() => setImageFailed(true)}
+                alt=""
+                sx={{
+                  flexShrink: 0,
+                  width: 120,
+                  height: 180,
+                  borderRadius: 2,
+                  objectFit: 'cover',
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
+                }}
+              />
+            )}
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography variant="caption" sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}>
+                {mediaType?.displayName ?? entry.mediaType}
               </Typography>
-            </Typography>
-          )}
+              <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5, mb: 0.25 }}>
+                {entry.title}
+              </Typography>
+              {subline && (
+                <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                  {subline}
+                </Typography>
+              )}
+              <Typography
+                variant="body2"
+                sx={{
+                  opacity: 0.9,
+                  mt: 0.5,
+                  pt: 1,
+                  borderTop: '1px solid rgba(255,255,255,0.2)',
+                }}
+              >
+                {getStatusLineText(entry)}
+              </Typography>
+              {badgeText && (
+                <Chip
+                  label={badgeText.toUpperCase()}
+                  size="small"
+                  sx={{
+                    mt: 1,
+                    bgcolor: 'rgba(255,255,255,0.18)',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  }}
+                />
+              )}
+              {entry.rating !== undefined && (
+                <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
+                  {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
+                  <Typography component="span" variant="body2" sx={{ ml: 0.5, opacity: 0.7 }}>
+                    / 10
+                  </Typography>
+                </Typography>
+              )}
+            </Box>
+          </Stack>
           {entry.notes && (
             <Typography
               variant="caption"

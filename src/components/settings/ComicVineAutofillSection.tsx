@@ -67,7 +67,7 @@ export function ComicVineAutofillSection() {
   const [letterer, setLetterer] = useBooleanSetting('autofillComicLetterer', true);
   const [coverArtist, setCoverArtist] = useBooleanSetting('autofillComicCoverArtist', true);
   const [editor, setEditor] = useBooleanSetting('autofillComicEditor', true);
-  const [coverImage, setCoverImage] = useBooleanSetting('autofillComicCoverImage', false);
+  const [coverImage, setCoverImage] = useBooleanSetting('autofillComicCoverImage', true);
 
   const onCount = [
     publisher,

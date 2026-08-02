@@ -96,7 +96,7 @@ async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
     getSetting('autofillProductionCompany', true),
     getSetting('autofillTvStatus', true),
     getSetting('autofillSeries', true),
-    getSetting('autofillPoster', false),
+    getSetting('autofillPoster', true),
     getSetting('autofillComicPublisher', true),
     getSetting('autofillComicIssueTitle', true),
     getSetting('autofillComicCoverDate', true),
@@ -107,7 +107,7 @@ async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
     getSetting('autofillComicLetterer', true),
     getSetting('autofillComicCoverArtist', true),
     getSetting('autofillComicEditor', true),
-    getSetting('autofillComicCoverImage', false),
+    getSetting('autofillComicCoverImage', true),
   ]);
   return {
     overview,
