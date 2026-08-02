@@ -7,13 +7,15 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Tooltip from '@mui/material/Tooltip';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Popover from '@mui/material/Popover';
 import TextField from '@mui/material/TextField';
 import ReplayIcon from '@mui/icons-material/Replay';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import type { MediaEntry, MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { getEntryImageUrl } from '@/utils/entryImage';
@@ -23,6 +25,23 @@ import { getEntryImageUrl } from '@/utils/entryImage';
  * grey beyond that. */
 const TOP10_BADGE = { bgcolor: '#D4A017', color: '#2A1E00', border: '#D4A017' } as const;
 const RANK_BADGE = { bgcolor: 'action.hover', color: 'text.secondary', border: 'divider' } as const;
+
+/** 30px circular icon buttons for the merged badge/action row (see
+ * chat — replaces the old full-width text button row to shrink card
+ * height). `primary` mirrors the old `variant="contained"` treatment
+ * (Mark finished — the one clearly "forward" action); `outline`
+ * mirrors the old `variant="outlined"` treatment (Start tracking /
+ * Move to wishlist). Tooltip carries the label that used to be
+ * visible text, since these are icon-only now. */
+function iconBtnSx(colour: string, variant: 'primary' | 'outline') {
+  return {
+    width: 30,
+    height: 30,
+    ...(variant === 'primary'
+      ? { bgcolor: colour, color: '#fff', '&:hover': { bgcolor: colour, opacity: 0.85 } }
+      : { color: colour, border: `1.5px solid ${colour}` }),
+  } as const;
+}
 
 interface EntryCardProps {
   entry: MediaEntry;
@@ -268,7 +287,7 @@ export function EntryCard({
 
           {statusCfg && (
             <Box sx={{ px: 2, pb: 1.5 }}>
-              <Stack direction="row" spacing={1} sx={{ mb: hasActions ? 1 : 0 }}>
+              <Stack direction="row" flexWrap="wrap" alignItems="center" rowGap={1} columnGap={1}>
                 <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
                   {statusCfg.label}
                 </Box>
@@ -277,23 +296,44 @@ export function EntryCard({
                     {source}
                   </Box>
                 )}
-              </Stack>
-              {hasActions && (
-                <>
-                  <Divider sx={{ mb: 1 }} />
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {hasActions && (
+                  <Stack direction="row" spacing={0.75} sx={{ ml: 'auto', flexShrink: 0 }}>
                     {onMarkFinished && (
-                      <Button size="small" variant="contained" onClick={(e) => { e.stopPropagation(); onMarkFinished(); }}>✓ Mark finished</Button>
+                      <Tooltip title="Mark finished">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); onMarkFinished(); }}
+                          sx={iconBtnSx(colour, 'primary')}
+                        >
+                          <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     )}
                     {onStartTracking && (
-                      <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onStartTracking(); }}>▶ Start tracking</Button>
+                      <Tooltip title="Start tracking">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); void onStartTracking(); }}
+                          sx={iconBtnSx(colour, 'outline')}
+                        >
+                          <PlayArrowIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     )}
                     {onMoveToWishlist && (
-                      <Button size="small" variant="outlined" onClick={(e) => { e.stopPropagation(); void onMoveToWishlist(); }}>★ Move to wishlist</Button>
+                      <Tooltip title="Move to wishlist">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); void onMoveToWishlist(); }}
+                          sx={iconBtnSx(colour, 'outline')}
+                        >
+                          <StarBorderIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
                     )}
                   </Stack>
-                </>
-              )}
+                )}
+              </Stack>
             </Box>
           )}
         </Box>
