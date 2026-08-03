@@ -180,10 +180,13 @@ export function EntryForm({
   // Cover image only ever renders here, in Edit Entry — never in the
   // Library card or grid, same reasoning as the Film/TV poster above.
   // Unlike posterPath (a TMDB path fragment), coverImagePath already
-  // holds ComicVine's full hosted image URL, so it's used as-is.
+  // holds a full hosted image URL (ComicVine for Comic, Open Library
+  // for Book/Audiobook), so it's used as-is.
   const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
   const showCoverImage =
-    mediaType.id === 'comic' && typeof coverImagePath === 'string' && coverImagePath;
+    (mediaType.id === 'comic' || mediaType.id === 'book' || mediaType.id === 'audiobook') &&
+    typeof coverImagePath === 'string' &&
+    coverImagePath;
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);

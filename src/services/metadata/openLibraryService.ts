@@ -4,6 +4,8 @@
  * https://openlibrary.org/developers/api
  */
 
+import { getSetting } from '@/services/database/settingsService';
+
 export interface SearchResult {
   id: string;
   title: string;
@@ -19,6 +21,11 @@ export interface SearchResult {
 }
 
 const BASE = 'https://openlibrary.org';
+/** Open Library's dedicated image CDN — separate host from the main
+ * API, same pattern as TMDB's image.tmdb.org. `-M.jpg` (medium) is
+ * used throughout, matching the size ComicVine's `medium_url` already
+ * gives EntryForm's cover preview. */
+const COVERS_BASE = 'https://covers.openlibrary.org/b';
 
 /** Toggle for Open Library's best-effort genre auto-fill. Open
  * Library's `subject` field is community-tagged rather than a clean
@@ -44,7 +51,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     title: query,
     limit: '15',
-    fields: `key,title,author_name,series,first_publish_year,editions${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
+    fields: `key,title,author_name,series,first_publish_year,editions,cover_i${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
 
   const res = await fetch(`${BASE}/search.json?${params.toString()}`);
@@ -58,8 +65,14 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
       series?: string[];
       first_publish_year?: number;
       subject?: string[];
+      cover_i?: number;
     }>;
   };
+
+  // One read for the whole result set — same convention as
+  // comicVineService.searchSeries reading its publisher toggle once
+  // before mapping every result.
+  const autofillCoverImage = await getSetting('autofillBookCoverImage', true);
 
   return data.docs.map((doc) => {
     const author = doc.author_name?.[0] ?? '';
@@ -72,6 +85,9 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     const fields: Record<string, string> = {};
     if (author) fields['author'] = author;
     if (series) fields['series'] = series;
+    if (autofillCoverImage && doc.cover_i) {
+      fields['coverImagePath'] = `${COVERS_BASE}/id/${doc.cover_i}-M.jpg`;
+    }
 
     const genres = ENABLE_OPENLIBRARY_GENRES && doc.subject?.length
       ? doc.subject.slice(0, OPENLIBRARY_GENRE_LIMIT)
@@ -91,6 +107,9 @@ interface OpenLibraryWork {
   title: string;
   authors?: { author: { key: string } }[];
   subjects?: string[];
+  /** Cover ids, first-is-primary — same id space as search's
+   * `cover_i`, both resolved via COVERS_BASE. */
+  covers?: number[];
 }
 
 interface OpenLibraryAuthor {
@@ -131,6 +150,11 @@ export async function getBookDetailsByKey(
       // Author name is a nice-to-have; leave the field blank rather
       // than failing the whole shared-link fetch over it.
     }
+  }
+
+  if (await getSetting('autofillBookCoverImage', true)) {
+    const coverId = work.covers?.find((id) => id > 0); // -1 marks "no cover"
+    if (coverId) fields['coverImagePath'] = `${COVERS_BASE}/id/${coverId}-M.jpg`;
   }
 
   const genres =
@@ -175,6 +199,14 @@ export async function lookupByIsbn(isbn: string): Promise<SearchResult | null> {
   const author = record.authors?.[0]?.name ?? '';
   const fields: Record<string, string> = {};
   if (author) fields['author'] = author;
+  // Unlike searchBooks/getBookDetailsByKey (which resolve a cover id
+  // into a URL themselves), the Books API hands back a ready-made
+  // hosted URL directly — used as-is, no COVERS_BASE construction
+  // needed here.
+  if (await getSetting('autofillBookCoverImage', true)) {
+    const coverUrl = record.cover?.medium ?? record.cover?.large;
+    if (coverUrl) fields['coverImagePath'] = coverUrl;
+  }
 
   const genres =
     ENABLE_OPENLIBRARY_GENRES && record.subjects?.length

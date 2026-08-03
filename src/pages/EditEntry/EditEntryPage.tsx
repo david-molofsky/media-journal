@@ -48,6 +48,8 @@ const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
   film: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
   tv: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
   comic: [{ key: 'coverImagePath', label: 'Cover image' }],
+  book: [{ key: 'coverImagePath', label: 'Cover image' }],
+  audiobook: [{ key: 'coverImagePath', label: 'Cover image' }],
 };
 
 function metadataFieldsFor(mediaType: MediaType): { key: string; label: string }[] {

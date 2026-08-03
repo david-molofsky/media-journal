@@ -68,6 +68,13 @@ const bookMetadataSchema = z.object({
   // book/audiobook is filled via search or a shared link — see
   // matching comment on filmMetadataSchema's tmdbId.
   openLibraryKey: z.string().optional(),
+  // Open Library auto-fill (Settings > Metadata auto-fill (Open
+  // Library)). Not in defaultMediaTypes.ts's `fields[]` — gets bespoke
+  // UI in EntryForm (a cover thumbnail, opt-in), same pattern as
+  // Film/TV's posterPath and Comic's coverImagePath. Already a
+  // complete, hosted Open Library covers.openlibrary.org URL, used
+  // as-is — not a path fragment like TMDB's posterPath.
+  coverImagePath: z.string().optional(),
 });
 
 const filmMetadataSchema = z.object({

@@ -14,6 +14,7 @@ import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
 import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
 import { ComicVineAutofillSection } from '@/components/settings/ComicVineAutofillSection';
+import { OpenLibraryAutofillSection } from '@/components/settings/OpenLibraryAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
 import { ImportSourcesSection } from '@/components/settings/ImportSourcesSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
@@ -68,6 +69,8 @@ export default function SettingsPage() {
         <TmdbAutofillSection />
 
         <ComicVineAutofillSection />
+
+        <OpenLibraryAutofillSection />
 
         <SubscriptionsSection />
 

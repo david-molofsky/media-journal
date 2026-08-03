@@ -57,6 +57,13 @@ export const SETTINGS_KEYS = {
   autofillComicCoverArtist: 'autofillComicCoverArtist',
   autofillComicEditor: 'autofillComicEditor',
   autofillComicCoverImage: 'autofillComicCoverImage',
+  /** Open Library (Books/Audiobooks) cover image auto-fill toggle —
+   * read by openLibraryService.ts before it populates
+   * `metadata.coverImagePath`. Defaults to on, same as
+   * `autofillPoster`/`autofillComicCoverImage` above. Author/Series
+   * aren't gated by a setting at all (always filled), so this is the
+   * only Open Library autofill toggle. */
+  autofillBookCoverImage: 'autofillBookCoverImage',
   /** ISO 3166-1 alpha-2 region code used for TMDB/JustWatch streaming
    * availability lookups (Settings > Region). Read by tmdbService
    * before every watch-providers call. Defaults to 'GB' via
