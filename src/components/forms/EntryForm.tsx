@@ -108,6 +108,9 @@ export function EntryForm({
 }: EntryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Raw, in-progress text for `type: 'number'` metadata fields while the
+  // user is actively editing them — see the Controller render below for why.
+  const [numberFieldDrafts, setNumberFieldDrafts] = useState<Record<string, string>>({});
   // Carries the ComicVine series id from the search step (MetadataSearch)
   // to the later "Fetch issue details" step below. Deliberately local
   // component state, not a form/metadata field — it's an internal
@@ -450,6 +453,17 @@ export function EntryForm({
                       // numeric keyboard hint sidesteps the native
                       // number-input parsing entirely; digit-filtering
                       // below does the actual validation instead.
+                      //
+                      // While typing, the displayed value comes from
+                      // numberFieldDrafts (the raw filtered digits) rather
+                      // than round-tripping through Number() and back on
+                      // every keystroke — that round-trip was the actual
+                      // cause of the "first digit/can't clear" bug, since
+                      // re-deriving the display string from a coerced
+                      // number each keystroke could desync from the
+                      // cursor position. The draft is committed to the
+                      // form's real (numeric) value live so watchers
+                      // elsewhere stay in sync, and is cleared on blur.
                       type="text"
                       slotProps={
                         field.type === 'number'
@@ -457,11 +471,16 @@ export function EntryForm({
                           : undefined
                       }
                       fullWidth
-                      value={controllerField.value ?? ''}
+                      value={
+                        field.type === 'number'
+                          ? (numberFieldDrafts[field.key] ?? controllerField.value ?? '')
+                          : (controllerField.value ?? '')
+                      }
                       onChange={(event) => {
                         const raw = event.target.value;
                         if (field.type === 'number') {
                           const digitsOnly = raw.replace(/[^0-9]/g, '');
+                          setNumberFieldDrafts((prev) => ({ ...prev, [field.key]: digitsOnly }));
                           controllerField.onChange(digitsOnly === '' ? undefined : Number(digitsOnly));
                         } else {
                           controllerField.onChange(raw);
@@ -470,6 +489,14 @@ export function EntryForm({
                       onBlur={() => {
                         if (field.type === 'text' && typeof controllerField.value === 'string') {
                           controllerField.onChange(toTitleCase(controllerField.value));
+                        }
+                        if (field.type === 'number') {
+                          setNumberFieldDrafts((prev) => {
+                            if (!(field.key in prev)) return prev;
+                            const next = { ...prev };
+                            delete next[field.key];
+                            return next;
+                          });
                         }
                         controllerField.onBlur();
                       }}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -10,6 +11,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useInProgressEntries } from '@/hooks/useInProgressEntries';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { getEntryImageUrl } from '@/utils/entryImage';
 import { ROUTES, editEntryPath } from '@/routes/paths';
 import type { MediaType } from '@/models';
 
@@ -24,6 +26,10 @@ interface InProgressSectionProps {
 export function InProgressSection({ mediaTypes }: InProgressSectionProps) {
   const navigate = useNavigate();
   const all = useInProgressEntries();
+  // Tracks which image URLs have failed to load, per entry — a Set rather
+  // than EntryCard's single failedImageUrl state, since this component
+  // renders several entries in one list rather than one entry per instance.
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
   if (!all || all.length === 0) return null;
 
   const shown = all.slice(0, 3);
@@ -46,6 +52,8 @@ export function InProgressSection({ mediaTypes }: InProgressSectionProps) {
           const mediaType = mediaTypeById.get(entry.mediaType);
           const colour = mediaType?.colour ?? '#616161';
           const Icon = getMediaTypeIcon(mediaType?.icon ?? '');
+          const imageUrl = getEntryImageUrl(entry);
+          const showImage = typeof imageUrl === 'string' && !failedImageUrls.has(imageUrl);
           return (
             <Card
               key={entry.id}
@@ -57,20 +65,39 @@ export function InProgressSection({ mediaTypes }: InProgressSectionProps) {
                 sx={{ p: 1.5 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Box
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      bgcolor: `${colour}1A`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon sx={{ color: colour, fontSize: 18 }} />
-                  </Box>
+                  {showImage && imageUrl ? (
+                    <Box
+                      component="img"
+                      src={imageUrl}
+                      alt=""
+                      onError={() =>
+                        setFailedImageUrls((prev) => new Set(prev).add(imageUrl))
+                      }
+                      sx={{
+                        width: 40,
+                        height: 56,
+                        borderRadius: 1.5,
+                        flexShrink: 0,
+                        objectFit: 'cover',
+                        bgcolor: 'action.hover',
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '50%',
+                        bgcolor: `${colour}1A`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Icon sx={{ color: colour, fontSize: 18 }} />
+                    </Box>
+                  )}
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="subtitle2" fontWeight={600} noWrap>
                       {entry.title}

@@ -225,11 +225,7 @@ async function buildShareCanvas(
     ctx.font = '700 96px system-ui, -apple-system, sans-serif';
     ctx.fillStyle = colour;
     ctx.textAlign = 'left';
-    ctx.fillText(
-      entry.rating % 1 === 0 ? entry.rating.toFixed(1) : String(entry.rating),
-      contentX,
-      ratingY,
-    );
+    ctx.fillText(String(entry.rating), contentX, ratingY);
     ctx.font = '400 36px system-ui, -apple-system, sans-serif';
     ctx.fillStyle = '#aaa';
     ctx.fillText('/ 10', contentX + 140, ratingY);
@@ -367,7 +363,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
               )}
               {entry.rating !== undefined && (
                 <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
-                  {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
+                  {entry.rating}
                   <Typography component="span" variant="body2" sx={{ ml: 0.5, opacity: 0.7 }}>
                     / 10
                   </Typography>
