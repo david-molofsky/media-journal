@@ -41,6 +41,10 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Physical Copy', 'Kindle', 'Libby', 'Kobo', 'Apple Books'],
       },
+      // Added for Open Library auto-fill (Settings > Metadata auto-fill).
+      // Year-only — see matching comment on releaseYear in
+      // entrySchemas.ts's bookMetadataSchema.
+      { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
     ],
   },
   {
@@ -111,6 +115,7 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
       },
       { key: 'series', label: 'Series', type: 'text', required: false },
+      { key: 'releaseDate', label: 'Release Date', type: 'date', required: false },
     ],
   },
   {
@@ -158,6 +163,7 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'runtime', label: 'Runtime (minutes)', type: 'number', required: false },
       { key: 'tvStatus', label: 'Status', type: 'text', required: false },
       { key: 'series', label: 'Series', type: 'text', required: false },
+      { key: 'releaseDate', label: 'Release Date', type: 'date', required: false },
     ],
   },
   {

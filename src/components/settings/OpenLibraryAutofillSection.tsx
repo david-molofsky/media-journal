@@ -23,17 +23,40 @@ import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
  */
 export function OpenLibraryAutofillSection() {
   const [coverImage, setCoverImage] = useBooleanSetting('autofillBookCoverImage', true);
+  const [releaseYear, setReleaseYear] = useBooleanSetting('autofillBookReleaseYear', true);
+
+  const onCount = [coverImage, releaseYear].filter(Boolean).length;
 
   return (
     <CollapsibleSection
       title="Metadata auto-fill (Open Library)"
       icon={DownloadOutlinedIcon}
-      badge={coverImage ? '1/1 on' : '0/1 on'}
+      badge={`${onCount}/2 on`}
     >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which fields Open Library fills in automatically when you search for a Book or
         Audiobook entry. Author and Series are always filled.
       </Typography>
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        <Box>
+          <Typography variant="body1">Release Year</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Book only — year only, Open Library doesn&apos;t give a full date
+          </Typography>
+        </Box>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={releaseYear}
+              onChange={(_, next) => setReleaseYear(next)}
+              inputProps={{ 'aria-label': 'Auto-fill release year, on by default' }}
+            />
+          }
+          label=""
+          sx={{ mr: 0 }}
+        />
+      </Stack>
 
       <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">

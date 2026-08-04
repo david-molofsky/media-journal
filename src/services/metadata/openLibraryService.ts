@@ -73,6 +73,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   // comicVineService.searchSeries reading its publisher toggle once
   // before mapping every result.
   const autofillCoverImage = await getSetting('autofillBookCoverImage', true);
+  const autofillReleaseYear = await getSetting('autofillBookReleaseYear', true);
 
   return data.docs.map((doc) => {
     const author = doc.author_name?.[0] ?? '';
@@ -88,6 +89,10 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     if (autofillCoverImage && doc.cover_i) {
       fields['coverImagePath'] = `${COVERS_BASE}/id/${doc.cover_i}-M.jpg`;
     }
+    // Year-only, unlike TMDB's full releaseDate on Film/TV — Open
+    // Library's search index only gives first_publish_year, already
+    // computed above for the subtitle.
+    if (autofillReleaseYear && year) fields['releaseYear'] = year;
 
     const genres = ENABLE_OPENLIBRARY_GENRES && doc.subject?.length
       ? doc.subject.slice(0, OPENLIBRARY_GENRE_LIMIT)

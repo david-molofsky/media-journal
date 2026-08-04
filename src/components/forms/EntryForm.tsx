@@ -441,6 +441,18 @@ export function EntryForm({
                       error={Boolean(fieldState.error)}
                       helperText={fieldState.error?.message}
                     />
+                  ) : field.type === 'date' ? (
+                    <EntryDatePicker
+                      label={field.label}
+                      required={field.required}
+                      value={
+                        typeof controllerField.value === 'string' ? controllerField.value : undefined
+                      }
+                      onChange={(newValue) => controllerField.onChange(newValue)}
+                      onBlur={controllerField.onBlur}
+                      error={Boolean(fieldState.error)}
+                      helperText={fieldState.error?.message}
+                    />
                   ) : (
                     <TextField
                       label={field.label}

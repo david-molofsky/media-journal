@@ -60,8 +60,9 @@ export function TmdbAutofillSection() {
   const [tvStatus, setTvStatus] = useBooleanSetting('autofillTvStatus', true);
   const [series, setSeries] = useBooleanSetting('autofillSeries', true);
   const [poster, setPoster] = useBooleanSetting('autofillPoster', true);
+  const [releaseDate, setReleaseDate] = useBooleanSetting('autofillReleaseDate', true);
 
-  const onCount = [overview, runtime, productionCompany, tvStatus, series, poster].filter(
+  const onCount = [overview, runtime, productionCompany, tvStatus, series, poster, releaseDate].filter(
     Boolean,
   ).length;
 
@@ -69,7 +70,7 @@ export function TmdbAutofillSection() {
     <CollapsibleSection
       title="Metadata auto-fill (TMDB)"
       icon={DownloadOutlinedIcon}
-      badge={`${onCount}/6 on`}
+      badge={`${onCount}/7 on`}
     >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which fields TMDB fills in automatically when you search for a Film or TV entry.
@@ -105,6 +106,12 @@ export function TmdbAutofillSection() {
           helperText="Merges franchise name into Series (Film only — TMDB has no TV equivalent)"
           checked={series}
           onChange={setSeries}
+        />
+        <ToggleRow
+          label="Release Date"
+          helperText="Theatrical release for Film, first air date for TV"
+          checked={releaseDate}
+          onChange={setReleaseDate}
         />
       </Stack>
 

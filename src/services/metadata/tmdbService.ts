@@ -169,6 +169,10 @@ interface TmdbMovieDetails {
   poster_path?: string;
   belongs_to_collection?: TmdbCollection;
   production_companies?: TmdbProductionCompany[];
+  /** Full ISO `yyyy-mm-dd` — unlike the search endpoint's same-named
+   * field (only used there for the dropdown subtitle year), this is
+   * the one auto-filled into `fields.releaseDate`. */
+  release_date?: string;
   credits: {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
@@ -239,12 +243,14 @@ export async function getFilmDetails(
     autofillProductionCompany,
     autofillSeries,
     autofillPoster,
+    autofillReleaseDate,
   ] = await Promise.all([
     getSetting('autofillOverview', true),
     getSetting('autofillRuntime', true),
     getSetting('autofillProductionCompany', true),
     getSetting('autofillSeries', true),
     getSetting('autofillPoster', true),
+    getSetting('autofillReleaseDate', true),
   ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
@@ -260,6 +266,9 @@ export async function getFilmDetails(
   // image itself — kept light for storage and any future sync payload.
   // Callers combine it with TMDB's image base URL when rendering.
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
+  // Already ISO yyyy-mm-dd, matching EntryDatePicker's expected format
+  // — no conversion needed, unlike Open Library's year-only value.
+  if (autofillReleaseDate && data.release_date) fields['releaseDate'] = data.release_date;
 
   return { title: data.title, fields, genres: extractGenres(data.genres) };
 }
@@ -286,6 +295,9 @@ interface TmdbTVDetails {
   status?: string;
   networks?: TmdbNetwork[];
   created_by: TmdbPerson[];
+  /** Full ISO `yyyy-mm-dd` — TV's equivalent of Film's release_date;
+   * TMDB has no separate "release date" concept for shows. */
+  first_air_date?: string;
   credits: {
     crew: TmdbCrewMember[];
     cast: TmdbCastMember[];
@@ -346,20 +358,28 @@ export async function getTVDetails(
   // Auto-fill toggles — same settings as getFilmDetails, minus Series:
   // TMDB has no "collection" concept for TV, so it's never auto-filled
   // here (it stays a manually-editable field on the TV type).
-  const [autofillOverview, autofillRuntime, autofillProductionCompany, autofillTvStatus, autofillPoster] =
-    await Promise.all([
-      getSetting('autofillOverview', true),
-      getSetting('autofillRuntime', true),
-      getSetting('autofillProductionCompany', true),
-      getSetting('autofillTvStatus', true),
-      getSetting('autofillPoster', true),
-    ]);
+  const [
+    autofillOverview,
+    autofillRuntime,
+    autofillProductionCompany,
+    autofillTvStatus,
+    autofillPoster,
+    autofillReleaseDate,
+  ] = await Promise.all([
+    getSetting('autofillOverview', true),
+    getSetting('autofillRuntime', true),
+    getSetting('autofillProductionCompany', true),
+    getSetting('autofillTvStatus', true),
+    getSetting('autofillPoster', true),
+    getSetting('autofillReleaseDate', true),
+  ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
   if (autofillRuntime && data.episode_run_time?.[0]) fields['runtime'] = String(data.episode_run_time[0]);
   if (autofillProductionCompany && data.networks?.[0]?.name) fields['network'] = data.networks[0].name;
   if (autofillTvStatus && data.status) fields['tvStatus'] = data.status;
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
+  if (autofillReleaseDate && data.first_air_date) fields['releaseDate'] = data.first_air_date;
 
   return { title: data.name, fields, genres: extractGenres(data.genres) };
 }

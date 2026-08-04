@@ -33,6 +33,9 @@ export const SETTINGS_KEYS = {
   autofillTvStatus: 'autofillTvStatus',
   autofillSeries: 'autofillSeries',
   autofillPoster: 'autofillPoster',
+  /** Full ISO release date for Film/TV (release_date/first_air_date) —
+   * added alongside the others above, same on-by-default convention. */
+  autofillReleaseDate: 'autofillReleaseDate',
   /** Google Drive automatic daily backup. `autoBackupEnabled` is the
    * user-facing toggle (Settings > Google Drive); `lastAutoBackupAt` is
    * an ISO timestamp written after each successful automatic run, used
@@ -64,6 +67,10 @@ export const SETTINGS_KEYS = {
    * aren't gated by a setting at all (always filled), so this is the
    * only Open Library autofill toggle. */
   autofillBookCoverImage: 'autofillBookCoverImage',
+  /** Open Library (Books only) release year auto-fill toggle — year-only
+   * since that's all `first_publish_year` gives. Defaults to on, same
+   * convention as `autofillBookCoverImage` above. */
+  autofillBookReleaseYear: 'autofillBookReleaseYear',
   /** ISO 3166-1 alpha-2 region code used for TMDB/JustWatch streaming
    * availability lookups (Settings > Region). Read by tmdbService
    * before every watch-providers call. Defaults to 'GB' via

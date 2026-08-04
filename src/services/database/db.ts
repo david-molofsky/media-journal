@@ -979,6 +979,52 @@ export class MediaJournalDatabase extends Dexie {
           await table.put({ ...mediaType, fields });
         }
       });
+
+    /**
+     * Version 22: adds a Release Year field to Book (number, Open
+     * Library auto-fill via `first_publish_year`) and a Release Date
+     * field to Film and TV (date, TMDB auto-fill via `release_date`/
+     * `first_air_date`) on existing installs — fresh installs already
+     * get these via seed.ts/defaultMediaTypes.ts. Guarded per-type with
+     * `existingKeys` (same pattern as version 20/21) so re-running this
+     * doesn't duplicate the field. No `mediaEntries` changes — this
+     * only affects the media type's field *definitions*, not any
+     * entry's stored metadata.
+     */
+    this.version(22)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        const book = await table.get('book');
+        if (book && !book.fields.some((f) => f.key === 'releaseYear')) {
+          await table.put({
+            ...book,
+            fields: [
+              ...book.fields,
+              { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
+            ],
+          });
+        }
+
+        for (const typeId of ['film', 'tv']) {
+          const mediaType = await table.get(typeId);
+          if (!mediaType || mediaType.fields.some((f) => f.key === 'releaseDate')) continue;
+          await table.put({
+            ...mediaType,
+            fields: [
+              ...mediaType.fields,
+              { key: 'releaseDate', label: 'Release Date', type: 'date', required: false },
+            ],
+          });
+        }
+      });
   }
 }
 

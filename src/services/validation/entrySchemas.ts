@@ -75,6 +75,11 @@ const bookMetadataSchema = z.object({
   // complete, hosted Open Library covers.openlibrary.org URL, used
   // as-is — not a path fragment like TMDB's posterPath.
   coverImagePath: z.string().optional(),
+  // Open Library auto-fill (Settings > Metadata auto-fill (Open
+  // Library)) — year-only, since that's all Open Library's search
+  // index reliably gives (`first_publish_year`), unlike TMDB's full
+  // release_date for Film/TV.
+  releaseYear: z.string().optional(),
 });
 
 const filmMetadataSchema = z.object({
@@ -91,6 +96,10 @@ const filmMetadataSchema = z.object({
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
   posterPath: z.string().optional(),
+  // TMDB auto-fill — full ISO `yyyy-mm-dd`, unlike Open Library's
+  // year-only `releaseYear` on Books (TMDB's release_date is a full
+  // date). Rendered via EntryDatePicker like Started/Completed dates.
+  releaseDate: z.string().optional(),
   // Shared-link support: TMDB id, persisted whenever a film is filled
   // via search or a shared link, so the entry can later be re-shared
   // as a smart link too. Hidden field — not in defaultMediaTypes.ts's
@@ -113,6 +122,9 @@ const tvMetadataSchema = z.object({
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
   posterPath: z.string().optional(),
+  // TMDB auto-fill — see matching comment on filmMetadataSchema.
+  // Sourced from `first_air_date` rather than `release_date` for TV.
+  releaseDate: z.string().optional(),
   // Shared-link support — see matching comment on filmMetadataSchema.
   tmdbId: z.string().optional(),
 });

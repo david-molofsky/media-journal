@@ -17,6 +17,9 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined';
 import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -76,10 +79,10 @@ function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
   return status === 'wishlist' ? 'wishlistOrderAsc' : 'completedDateDesc';
 }
 
-const STATUS_TABS: { value: EntryStatus; label: string }[] = [
-  { value: 'completed', label: 'Completed' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'wishlist', label: 'Wishlist' },
+const STATUS_TABS: { value: EntryStatus; label: string; Icon: typeof CheckCircleOutlineIcon }[] = [
+  { value: 'completed', label: 'Completed', Icon: CheckCircleOutlineIcon },
+  { value: 'in_progress', label: 'In Progress', Icon: PlayArrowIcon },
+  { value: 'wishlist', label: 'Wishlist', Icon: StarBorderIcon },
 ];
 
 export interface LibraryFilterRequest {
@@ -365,6 +368,7 @@ export default function LibraryPage() {
               value={tab.value}
               label={
                 <Stack direction="row" spacing={0.75} alignItems="center">
+                  <tab.Icon sx={{ fontSize: 16 }} />
                   <span>{tab.label}</span>
                   {count !== undefined && (count > 0 || isFiltered) && (
                     <Box
