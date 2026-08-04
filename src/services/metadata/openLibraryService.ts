@@ -40,6 +40,24 @@ const ENABLE_OPENLIBRARY_GENRES = true;
  * obscure/tag-like rather than more genre-like. */
 const OPENLIBRARY_GENRE_LIMIT = 5;
 
+/** How long to wait for Open Library's search before giving up. Open
+ * Library's own infra has documented periods of Solr-backend slowness
+ * where requests just hang rather than erroring (see chat) — without
+ * this, the search box's loading spinner would spin indefinitely with
+ * no way out. 8 seconds, per David's call. */
+const SEARCH_TIMEOUT_MS = 8000;
+
+/** Thrown specifically when the 8s timeout above fires, so
+ * MetadataSearch.tsx can show a distinct "Open Library isn't
+ * responding" message rather than the generic "No results found" it
+ * shows for a normal empty/failed search. */
+export class OpenLibraryTimeoutError extends Error {
+  constructor() {
+    super('Open Library search timed out');
+    this.name = 'OpenLibraryTimeoutError';
+  }
+}
+
 /**
  * Searches Open Library by title and returns up to 6 results.
  * All metadata is returned in a single call (no second fetch on
@@ -54,7 +72,22 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
     fields: `key,title,author_name,series,first_publish_year,editions,cover_i${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
 
-  const res = await fetch(`${BASE}/search.json?${params.toString()}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/search.json?${params.toString()}`, { signal: controller.signal });
+  } catch (err) {
+    // `abort()` makes fetch reject with a DOMException named
+    // 'AbortError' — checking the controller's own flag (rather than
+    // the error shape) distinguishes "we timed out" from any other
+    // network failure, which should still surface as a normal error.
+    if (controller.signal.aborted) throw new OpenLibraryTimeoutError();
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) throw new Error(`Open Library search failed: ${res.status}`);
 
   const data = await res.json() as {

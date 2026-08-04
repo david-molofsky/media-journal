@@ -31,9 +31,10 @@ interface BackfillDialogProps {
  * Bulk-select "Back-fill missing fields" dialog (Library > Select).
  * Purely presentational — all state and async work live in
  * useBackfillFlow, which BulkActionBar starts from the Back-fill
- * button's onClick. Covers Film/TV (TMDB) and Comic Issues (ComicVine)
- * in the same pass — a mixed selection shows a mixed review list, with
- * each row tagged by source (see matchSourceLabel). This component
+ * button's onClick. Covers Film/TV (TMDB), Comic Issues (ComicVine),
+ * and Books (Open Library) in the same pass — a mixed selection shows
+ * a mixed review list, with each row tagged by source (see
+ * matchSourceLabel). This component
  * just renders whichever phase it's handed:
  *
  *   searching — sequential per-entry search progress.
@@ -75,7 +76,7 @@ export function BackfillDialog({
 
         {phase === 'empty' && (
           <Alert severity="info" variant="outlined">
-            Nothing to back-fill — the selected entries are either not Film/TV/Comic Issues, or
+            Nothing to back-fill — the selected entries are either not Film/TV/Comic Issues/Books, or
             already have every currently-enabled field filled in.
           </Alert>
         )}

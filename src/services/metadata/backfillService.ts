@@ -3,15 +3,17 @@ import { updateEntry } from '@/services/database/entryService';
 import { getSetting } from '@/services/database/settingsService';
 import { searchFilms, getFilmDetails, searchTV, getTVDetails } from '@/services/metadata/tmdbService';
 import { searchSeries, getIssueDetails } from '@/services/metadata/comicVineService';
+import { searchBooks } from '@/services/metadata/openLibraryService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import type { MediaEntry, EntryMetadata, MetadataValue } from '@/models';
 
 /**
- * Backfill targets Film/TV (TMDB) and, as of the ComicVine integration,
- * Comic Issues too. Books/Audiobooks (Open Library) are still left for
- * a possible future pass — per David's original scoping decision, not
- * revisited here. One button, one dialog, one selection can mix all
- * three supported media types in a single run.
+ * Backfill targets Film/TV (TMDB), Comic Issues (ComicVine), and Books
+ * (Open Library). Audiobooks are deliberately excluded — they share
+ * Book's metadata schema but weren't part of David's Release
+ * Year/Backfill scoping, and have no `releaseYear` field in their
+ * `fields[]` to backfill into. One button, one dialog, one selection
+ * can mix all four supported media types in a single run.
  */
 export type BackfillableField =
   | 'overview'
@@ -31,7 +33,9 @@ export type BackfillableField =
   | 'letterer'
   | 'coverArtist'
   | 'editor'
-  | 'coverImagePath';
+  | 'coverImagePath'
+  | 'author'
+  | 'releaseYear';
 
 const FILM_FIELDS: BackfillableField[] = ['overview', 'runtime', 'productionCompany', 'series', 'posterPath'];
 // No 'series' for TV — TMDB has no TV equivalent of a film "collection"
@@ -54,6 +58,12 @@ const COMIC_FIELDS: BackfillableField[] = [
   'editor',
   'coverImagePath',
 ];
+// Book only (not Audiobook — see module doc comment above). Unlike
+// Film/TV/Comic, `coverImagePath` and `releaseYear` here are gated by
+// their own Open Library-specific toggles (autofillBookCoverImage/
+// autofillBookReleaseYear), not the shared `enabledFieldsMap()` below
+// — see `bookEnabledFieldsMap()`.
+const BOOK_FIELDS: BackfillableField[] = ['author', 'series', 'coverImagePath', 'releaseYear'];
 
 function hasValue(value: MetadataValue): boolean {
   return value !== undefined && value !== null && String(value).trim() !== '';
@@ -64,14 +74,16 @@ function hasValue(value: MetadataValue): boolean {
  * per-match, since it's always a pure function of which service a
  * given entry's matches came from. */
 export function matchSourceLabel(mediaType: string): string {
-  return mediaType === 'comic' ? 'ComicVine' : 'TMDB';
+  if (mediaType === 'comic') return 'ComicVine';
+  if (mediaType === 'book') return 'Open Library';
+  return 'TMDB';
 }
 
 /** Reads the same Settings > Metadata auto-fill toggles tmdbService and
  * comicVineService read, so backfill only ever fills what regular
  * auto-fill would have filled. `productionCompany` and `network` share
  * one toggle (`autofillProductionCompany`), same as in tmdbService. */
-async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
+async function enabledFieldsMap(): Promise<Partial<Record<BackfillableField, boolean>>> {
   const [
     overview,
     runtime,
@@ -131,6 +143,23 @@ async function enabledFieldsMap(): Promise<Record<BackfillableField, boolean>> {
   };
 }
 
+/** Book's own enabled-fields lookup — kept separate from
+ * `enabledFieldsMap()` above rather than merged into it, because two
+ * of Book's field keys collide in name (but not meaning) with fields
+ * already used by other media types: `coverImagePath` is gated by
+ * `autofillBookCoverImage` here vs `autofillComicCoverImage` for
+ * Comic, and `series` is always enabled here vs gated by
+ * `autofillSeries` (Film's TMDB collection toggle) above. Author and
+ * Series are never gated by a toggle at all, matching
+ * openLibraryService.ts's "always filled" convention for those two. */
+async function bookEnabledFieldsMap(): Promise<Partial<Record<BackfillableField, boolean>>> {
+  const [coverImagePath, releaseYear] = await Promise.all([
+    getSetting('autofillBookCoverImage', true),
+    getSetting('autofillBookReleaseYear', true),
+  ]);
+  return { author: true, series: true, coverImagePath, releaseYear };
+}
+
 export interface BackfillCandidate {
   entry: MediaEntry;
   missingFields: BackfillableField[];
@@ -146,15 +175,29 @@ export async function computeBackfillCandidates(
   const entries = (await db.mediaEntries.bulkGet(selectedIds)).filter(
     (e): e is MediaEntry => e !== undefined,
   );
-  const enabled = await enabledFieldsMap();
+  const [enabled, bookEnabled] = await Promise.all([enabledFieldsMap(), bookEnabledFieldsMap()]);
 
   const candidates: BackfillCandidate[] = [];
   for (const entry of entries) {
-    if (entry.mediaType !== 'film' && entry.mediaType !== 'tv' && entry.mediaType !== 'comic') continue;
+    if (
+      entry.mediaType !== 'film' &&
+      entry.mediaType !== 'tv' &&
+      entry.mediaType !== 'comic' &&
+      entry.mediaType !== 'book'
+    ) {
+      continue;
+    }
     const fieldKeys =
-      entry.mediaType === 'film' ? FILM_FIELDS : entry.mediaType === 'tv' ? TV_FIELDS : COMIC_FIELDS;
+      entry.mediaType === 'film'
+        ? FILM_FIELDS
+        : entry.mediaType === 'tv'
+          ? TV_FIELDS
+          : entry.mediaType === 'comic'
+            ? COMIC_FIELDS
+            : BOOK_FIELDS;
+    const activeEnabled = entry.mediaType === 'book' ? bookEnabled : enabled;
     const missingFields = fieldKeys.filter(
-      (key) => enabled[key] && !hasValue(entry.metadata[key]),
+      (key) => activeEnabled[key] && !hasValue(entry.metadata[key]),
     );
     if (missingFields.length > 0) candidates.push({ entry, missingFields });
   }
@@ -275,6 +318,37 @@ async function matchComicCandidate(
   };
 }
 
+/** Searches Open Library by title for a single Book candidate — same
+ * exact-match/ambiguous/none classification as `matchFilmOrTvCandidate`
+ * above. Unlike Film/TV, `results` here already carry every field
+ * this flow needs (author, series, cover, release year) straight from
+ * the search call — Open Library's search index returns them all in
+ * one shot, so there's no separate "detail fetch" step for Books (see
+ * `applyBookMatch` below, which reads directly off the matched
+ * candidate rather than making a second network call). */
+async function matchBookCandidate(
+  entry: MediaEntry,
+  missingFields: BackfillableField[],
+): Promise<MatchState> {
+  const results = await searchBooks(entry.title);
+
+  const exactMatches = results.filter(
+    (r) => r.title.trim().toLowerCase() === entry.title.trim().toLowerCase(),
+  );
+
+  if (exactMatches.length === 1) {
+    const match = exactMatches[0];
+    if (match) {
+      return { entry, missingFields, candidates: results, status: 'auto', selectedId: match.id };
+    }
+  }
+  if (results.length === 0) {
+    return { entry, missingFields, candidates: [], status: 'none' };
+  }
+  const topCandidates = results.slice(0, 5);
+  return { entry, missingFields, candidates: topCandidates, status: 'ambiguous', selectedId: topCandidates[0]?.id };
+}
+
 /** Classifies one backfill candidate against its media type's search
  * source. Calls are made one candidate at a time by the caller (a
  * sequential loop, not Promise.all) to avoid bursting either TMDB's or
@@ -282,6 +356,7 @@ async function matchComicCandidate(
 export async function matchCandidate(candidate: BackfillCandidate): Promise<MatchState> {
   const { entry, missingFields } = candidate;
   if (entry.mediaType === 'comic') return matchComicCandidate(entry, missingFields);
+  if (entry.mediaType === 'book') return matchBookCandidate(entry, missingFields);
   return matchFilmOrTvCandidate(entry, missingFields);
 }
 
@@ -342,10 +417,41 @@ async function applyComicMatch(state: MatchState): Promise<'updated' | 'skipped'
   return 'updated';
 }
 
+/** Applies one resolved Book match. No second fetch needed — see
+ * `matchBookCandidate` above — so this just pulls fields straight off
+ * the already-selected search result, same merge-don't-overwrite rule
+ * and genre-merge as `applyFilmOrTvMatch`. */
+async function applyBookMatch(state: MatchState): Promise<'updated' | 'skipped'> {
+  if (!state.selectedId) return 'skipped';
+  const match = state.candidates.find((c) => c.id === state.selectedId);
+  if (!match) return 'skipped';
+
+  const metadata: EntryMetadata = { ...state.entry.metadata };
+  let changed = false;
+  for (const key of state.missingFields) {
+    const value = match.fields[key];
+    if (value === undefined) continue;
+    metadata[key] = value;
+    changed = true;
+  }
+
+  const existingGenres = state.entry.genres ?? [];
+  const mergedGenres =
+    match.genres && match.genres.length > 0
+      ? Array.from(new Set([...existingGenres, ...match.genres]))
+      : existingGenres;
+
+  if (!changed && mergedGenres.length === existingGenres.length) return 'skipped';
+
+  await updateEntry(state.entry.id, { metadata, genres: mergedGenres });
+  return 'updated';
+}
+
 /** Applies one resolved match, routing to the right source by media
  * type. Returns whether an update happened. */
 export async function applyMatch(state: MatchState): Promise<'updated' | 'skipped'> {
   if (state.status !== 'auto' && state.status !== 'ambiguous') return 'skipped';
   if (state.entry.mediaType === 'comic') return applyComicMatch(state);
+  if (state.entry.mediaType === 'book') return applyBookMatch(state);
   return applyFilmOrTvMatch(state);
 }

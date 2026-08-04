@@ -6,13 +6,12 @@ import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import dayjs from 'dayjs';
 import type { MediaEntry, MediaType } from '@/models';
-import { buildShareMessage, getConsumptionVerb } from '@/services/share/shareMessageService';
+import { buildShareMessage } from '@/services/share/shareMessageService';
 import { getEntryImageUrl } from '@/utils/entryImage';
 
 interface ShareEntrySheetProps {
@@ -22,7 +21,12 @@ interface ShareEntrySheetProps {
   onClose: () => void;
 }
 
-/** Main status line drawn under the subline, above the rating/badge. */
+/** Main status line drawn under the title/subline — this is now the
+ * *only* place status (Wishlist / In progress / Completed) is
+ * conveyed on the card. The status pill badge that used to sit below
+ * it was removed (see chat) — the rating now takes that slot when
+ * present, and it's simply left blank when there isn't one, since the
+ * status line already says "On my wishlist" / "Started {date}". */
 function getStatusLineText(entry: MediaEntry): string {
   if (entry.status === 'completed') {
     return `Completed ${dayjs(entry.completedDate).format('D MMMM YYYY')}`;
@@ -46,46 +50,54 @@ function getFooterDateText(entry: MediaEntry): string {
   return `Added ${dayjs(entry.createdAt).format('D MMM YYYY')}`;
 }
 
-/** Pill badge text — only shown for non-completed statuses. */
-function getBadgeText(entry: MediaEntry): string | null {
-  if (entry.status === 'wishlist') return 'Wishlist';
-  if (entry.status === 'in_progress') {
-    return `Currently ${getConsumptionVerb(entry.mediaType)}`;
+/** Author/director/series subline, shared between the preview and the
+ * canvas export so they can never drift apart. */
+function getSubline(entry: MediaEntry): string {
+  const meta = entry.metadata;
+  if (typeof meta.author === 'string' && meta.author) return meta.author;
+  if (typeof meta.director === 'string' && meta.director) return `Dir. ${meta.director}`;
+  if (typeof meta.series === 'string' && meta.series) return meta.series;
+  return '';
+}
+
+// ── Canvas export ────────────────────────────────────────────────────────────
+
+/** Poster/cover images are drawn onto a <canvas> that then gets
+ * exported to a PNG (Save image / Share). That export requires every
+ * image on the canvas to have loaded under permissive CORS, or the
+ * whole canvas becomes "tainted" and toDataURL()/toBlob() throws.
+ * TMDB's image CDN sends the right headers; Open Library's and
+ * ComicVine's don't reliably, which silently dropped the poster from
+ * the exported file even though it displayed fine in the in-app
+ * preview (a plain <img>, no canvas involved). Routing those three
+ * hosts through the Worker's /image-proxy re-serves the bytes with an
+ * explicit CORS header, so the canvas never sees a cross-origin load
+ * at all. Anything else (e.g. Anime/Manga's manually-pasted cover
+ * URLs, which can point anywhere) falls back to the old best-effort
+ * direct load — deliberately not proxying arbitrary URLs, see the
+ * Worker's own comment on IMAGE_PROXY_ALLOWED_HOSTS. */
+const IMAGE_PROXY_BASE = 'https://media-journal-comicvine-proxy.david-molofsky.workers.dev';
+const IMAGE_PROXY_HOSTS = ['image.tmdb.org', 'covers.openlibrary.org', 'comicvine.gamespot.com'];
+
+function proxiedImageUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname;
+    if (IMAGE_PROXY_HOSTS.includes(host)) {
+      return `${IMAGE_PROXY_BASE}/image-proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // Malformed URL — fall through and let the direct load attempt
+    // fail on its own rather than throwing here.
   }
-  return null;
+  return url;
 }
-
-/** Draws a small rounded pill with uppercase text at (x, y). Returns its height. */
-function drawBadge(ctx: CanvasRenderingContext2D, colour: string, text: string, x: number, y: number): number {
-  const pillH = 44;
-  ctx.font = '700 22px system-ui, -apple-system, sans-serif';
-  const label = text.toUpperCase();
-  const pillW = ctx.measureText(label).width + 32;
-
-  ctx.fillStyle = colour;
-  ctx.beginPath();
-  ctx.roundRect(x, y, pillW, pillH, pillH / 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'left';
-  ctx.fillText(label, x + 16, y + 29);
-
-  return pillH;
-}
-
-/** Poster box drawn on the exported canvas, left of the text column —
- * same 2:3 ratio as the in-app preview's 120×180, just scaled up to
- * suit the 1200×630 export (see chat). */
-const CANVAS_POSTER_W = 240;
-const CANVAS_POSTER_H = 360;
-const CANVAS_POSTER_GAP = 44;
 
 /**
  * Loads an image for drawing onto the canvas. Resolves `null` (rather
- * than rejecting) on any load failure — a broken/expired poster URL
- * should silently fall back to the text-only layout, exactly like
- * EntryCard's `onError` → icon fallback, not break the whole export.
+ * than rejecting) on any load failure — a broken/expired poster URL,
+ * or a non-proxied host with no CORS headers, should silently fall
+ * back to the text-only layout, exactly like EntryCard's `onError` →
+ * icon fallback, not break the whole export.
  */
 function loadImage(url: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -93,183 +105,264 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = url;
+    img.src = proxiedImageUrl(url);
   });
 }
 
+const CANVAS_W = 1200;
+const PAD = 56;
+const POSTER_RATIO = 0.4; // poster is 40% of the content width, text column the rest
+const GAP = 40;
+/** Content-column height floor — keeps a short-title card at the
+ * original ~4:3 proportions rather than shrinking to fit its content;
+ * only grows taller than this when a wrapped title (or notes excerpt)
+ * genuinely needs more room. */
+const MIN_CONTENT_H = 788;
+const MAX_TITLE_LINES = 4;
+
+const LABEL_FONT = '600 26px system-ui, -apple-system, sans-serif';
+const LABEL_H = 32;
+const LABEL_GAP = 14;
+const TITLE_FONT = '700 52px system-ui, -apple-system, sans-serif';
+const TITLE_LINE_H = 60;
+const SUBLINE_FONT = '400 32px system-ui, -apple-system, sans-serif';
+const SUBLINE_H = 40;
+const SUBLINE_GAP = 10;
+const STATUS_FONT = '400 26px system-ui, -apple-system, sans-serif';
+const STATUS_H = 32;
+const RATING_FONT = '700 80px system-ui, -apple-system, sans-serif';
+const RATING_SUFFIX_FONT = '400 30px system-ui, -apple-system, sans-serif';
+const RATING_H = 90;
+const RATING_GAP = 14;
+const NOTES_FONT = 'italic 24px system-ui, -apple-system, sans-serif';
+const NOTES_H = 34;
+const NOTES_GAP = 16;
+const DIVIDER_GAP_ABOVE = 24;
+const DIVIDER_GAP_BELOW = 16;
+
+/** Greedy word-wrap against a max pixel width, using whatever font is
+ * currently set on `ctx`. Capped at MAX_TITLE_LINES — titles are
+ * capped at 250 chars by validation, but an unbroken run of very long
+ * words could otherwise still produce an impractically tall card. */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (current && ctx.measureText(test).width > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+
+  if (lines.length > MAX_TITLE_LINES) {
+    const truncated = lines.slice(0, MAX_TITLE_LINES);
+    let last = truncated[MAX_TITLE_LINES - 1] ?? '';
+    while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth) {
+      last = last.slice(0, -1);
+    }
+    truncated[MAX_TITLE_LINES - 1] = `${last}…`;
+    return truncated;
+  }
+  return lines;
+}
+
 /**
- * Generates a 1200×630 (OG-image-sized) card on a hidden canvas,
- * then either downloads it as a PNG or passes it to the Web Share API.
- * Drawn entirely with the Canvas 2D API — no extra dependencies.
+ * Generates the share card on a hidden canvas, then either downloads
+ * it as a PNG or passes it to the Web Share API. Drawn entirely with
+ * the Canvas 2D API — no extra dependencies.
  *
- * Layout adapts to entry.status: completed entries show the original
- * "Completed {date}" + rating treatment; in_progress/wishlist entries
- * show a status line and a pill badge instead of a rating (unless one
- * happens to be set — rating is drawn whenever present, regardless of
- * status).
+ * Unlike the old version, this is no longer a fixed 1200×630 — the
+ * canvas height is computed per-entry from how many lines the title
+ * wraps to (see wrapText above), so a long title makes the whole card
+ * (poster included, since it stretches to match the text column)
+ * taller rather than truncating with an ellipsis. Width is always
+ * 1200; height only ever grows from the ~4:3 baseline, never shrinks
+ * below it.
  *
- * Async because it awaits the poster image loading (if the entry has
- * one) before drawing — see chat, poster now appears on the exported
- * image as well as the in-app preview. Text content shifts right of
- * the poster when one is present; falls back to the original
- * full-width layout when it isn't (no image, or the image fails
- * to load).
+ * Colour fills the entire card (matching the in-app preview — these
+ * two used to be different designs, a white card with just a colour
+ * accent strip for the export vs. a solid colour block for the
+ * preview; unified here, see chat) rather than a white card with a
+ * colour accent strip.
  */
 async function buildShareCanvas(
   entry: MediaEntry,
   mediaType: MediaType | undefined,
 ): Promise<HTMLCanvasElement> {
-  const W = 1200;
-  const H = 630;
   const colour = mediaType?.colour ?? '#2E7D32';
+  const title = entry.title;
+  const subline = getSubline(entry);
+  const statusText = getStatusLineText(entry);
+  const hasRating = entry.rating !== undefined;
+  const notesExcerpt =
+    entry.notes && entry.notes.trim().length > 0
+      ? `"${entry.notes.slice(0, 120).replace(/\n/g, ' ')}${entry.notes.length > 120 ? '…' : ''}"`
+      : null;
 
   const imageUrl = getEntryImageUrl(entry, 'poster');
   const posterImg = imageUrl ? await loadImage(imageUrl) : null;
 
+  const contentW = CANVAS_W - PAD * 2;
+  const posterW = posterImg ? Math.round(contentW * POSTER_RATIO) : 0;
+  const textColW = posterImg ? contentW - posterW - GAP : contentW;
+
+  // Measure against a scratch context — kept separate from the final
+  // drawing context so sizing the real canvas doesn't need a
+  // resize-and-reset-state dance partway through.
+  const measureCanvas = document.createElement('canvas');
+  const measureCtx = measureCanvas.getContext('2d')!;
+  measureCtx.font = TITLE_FONT;
+  const titleLines = wrapText(measureCtx, title, textColW);
+
+  const topBlockH =
+    LABEL_H + LABEL_GAP + titleLines.length * TITLE_LINE_H + (subline ? SUBLINE_GAP + SUBLINE_H : 0);
+  const bottomBlockH =
+    DIVIDER_GAP_ABOVE +
+    2 +
+    DIVIDER_GAP_BELOW +
+    STATUS_H +
+    (hasRating ? RATING_GAP + RATING_H : 0) +
+    (notesExcerpt ? NOTES_GAP + NOTES_H : 0);
+  const contentColH = Math.max(topBlockH + bottomBlockH, MIN_CONTENT_H);
+  const canvasH = contentColH + PAD * 2;
+
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = CANVAS_W;
+  canvas.height = canvasH;
   const ctx = canvas.getContext('2d')!;
 
-  // Background
-  ctx.fillStyle = colour;
-  ctx.fillRect(0, 0, W, H);
-
-  // White card area
-  const pad = 60;
-  const cardX = pad;
-  const cardY = pad;
-  const cardW = W - pad * 2;
-  const cardH = H - pad * 2;
-  const r = 24;
-  ctx.fillStyle = '#ffffff';
+  // Card background — rounded rect filling the whole canvas, colour
+  // throughout (see function doc comment re: unifying with preview).
   ctx.beginPath();
-  ctx.roundRect(cardX, cardY, cardW, cardH, r);
-  ctx.fill();
-
-  // Accent left strip
+  ctx.roundRect(0, 0, CANVAS_W, canvasH, 32);
   ctx.fillStyle = colour;
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardY, 12, cardH, [r, 0, 0, r]);
   ctx.fill();
+  ctx.clip();
 
-  const baseContentX = cardX + 52;
+  const contentX = PAD;
+  const contentY = PAD;
 
-  // Poster, if present — drawn top-left of the content area; the rest
-  // of the text column shifts right to make room for it.
   if (posterImg) {
-    const posterX = baseContentX;
-    const posterY = cardY + 56;
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(posterX, posterY, CANVAS_POSTER_W, CANVAS_POSTER_H, 12);
+    ctx.roundRect(contentX, contentY, posterW, contentColH, 16);
     ctx.clip();
-    ctx.drawImage(posterImg, posterX, posterY, CANVAS_POSTER_W, CANVAS_POSTER_H);
+    // Cover-fit: scale to fill the box, cropping whichever axis
+    // overflows, same visual behaviour as the preview's objectFit
+    // 'cover'.
+    const imgRatio = posterImg.width / posterImg.height;
+    const boxRatio = posterW / contentColH;
+    let drawW: number;
+    let drawH: number;
+    if (imgRatio > boxRatio) {
+      drawH = contentColH;
+      drawW = contentColH * imgRatio;
+    } else {
+      drawW = posterW;
+      drawH = posterW / imgRatio;
+    }
+    const drawX = contentX + (posterW - drawW) / 2;
+    const drawY = contentY + (contentColH - drawH) / 2;
+    ctx.drawImage(posterImg, drawX, drawY, drawW, drawH);
     ctx.restore();
   }
-  const contentX = posterImg ? baseContentX + CANVAS_POSTER_W + CANVAS_POSTER_GAP : baseContentX;
-  const contentY = cardY + 60;
 
-  // Media type label
-  ctx.font = '600 28px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = colour;
-  ctx.fillText((mediaType?.displayName ?? entry.mediaType).toUpperCase(), contentX, contentY);
+  const textX = posterImg ? contentX + posterW + GAP : contentX;
 
-  // Title
-  const titleY = contentY + 72;
-  ctx.font = '700 68px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#1a1a1a';
-  const maxTitleW = cardX + cardW - 68 - contentX;
-  let title = entry.title;
-  while (ctx.measureText(title).width > maxTitleW && title.length > 3) {
-    title = title.slice(0, -4) + '…';
+  // Top block — label, title (wrapped), subline.
+  let y = contentY;
+  ctx.textAlign = 'left';
+  ctx.font = LABEL_FONT;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  y += LABEL_H - 8;
+  ctx.fillText((mediaType?.displayName ?? entry.mediaType).toUpperCase(), textX, y);
+  y += LABEL_GAP;
+
+  ctx.font = TITLE_FONT;
+  ctx.fillStyle = '#ffffff';
+  for (const line of titleLines) {
+    y += TITLE_LINE_H - 16;
+    ctx.fillText(line, textX, y);
+    y += 16;
   }
-  ctx.fillText(title, contentX, titleY);
-
-  // Author / director / etc.
-  const meta = entry.metadata;
-  const subline =
-    typeof meta.author === 'string' && meta.author
-      ? meta.author
-      : typeof meta.director === 'string' && meta.director
-        ? `Dir. ${meta.director}`
-        : typeof meta.series === 'string' && meta.series
-          ? meta.series
-          : '';
 
   if (subline) {
-    ctx.font = '400 36px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = '#555';
-    ctx.fillText(subline, contentX, titleY + 56);
+    y += SUBLINE_GAP;
+    ctx.font = SUBLINE_FONT;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    y += SUBLINE_H - 10;
+    ctx.fillText(subline, textX, y);
   }
 
-  // Status line (Completed {date} / Started {date} / In progress / On my wishlist)
-  const statusLineY = subline ? titleY + 112 : titleY + 56;
-  ctx.font = '400 30px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#888';
-  ctx.textAlign = 'left';
-  ctx.fillText(getStatusLineText(entry), contentX, statusLineY);
+  // Bottom block — divider, status, rating (or blank), notes —
+  // anchored to the bottom of the content column so it stays put
+  // regardless of how tall the top block ended up being (mirrors the
+  // in-app preview's `margin-top: auto` push-to-bottom treatment).
+  let by = contentY + contentColH - bottomBlockH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(textX, by + DIVIDER_GAP_ABOVE);
+  ctx.lineTo(textX + textColW, by + DIVIDER_GAP_ABOVE);
+  ctx.stroke();
+  by += DIVIDER_GAP_ABOVE + 2 + DIVIDER_GAP_BELOW;
 
-  // Badge (Currently {verb} / Wishlist) — only for non-completed statuses
-  const badgeText = getBadgeText(entry);
-  if (badgeText) {
-    drawBadge(ctx, colour, badgeText, contentX, statusLineY + 24);
+  ctx.font = STATUS_FONT;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  by += STATUS_H - 8;
+  ctx.fillText(statusText, textX, by);
+  by += 8;
+
+  if (hasRating) {
+    by += RATING_GAP;
+    ctx.font = RATING_FONT;
+    ctx.fillStyle = '#ffffff';
+    by += RATING_H - 20;
+    ctx.fillText(String(entry.rating), textX, by);
+    const ratingWidth = ctx.measureText(String(entry.rating)).width;
+    ctx.font = RATING_SUFFIX_FONT;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('/ 10', textX + ratingWidth + 12, by);
+    by += 20;
+  }
+  // When there's no rating, this space is deliberately left blank —
+  // no fallback status pill (see chat: the status line above already
+  // says "On my wishlist" / "Started {date}").
+
+  if (notesExcerpt) {
+    by += NOTES_GAP;
+    ctx.font = NOTES_FONT;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    by += NOTES_H - 10;
+    ctx.fillText(notesExcerpt, textX, by);
   }
 
-  // Rating — drawn whenever present, regardless of status. Kept in the
-  // same shifted text column as everything above (rather than back at
-  // the card's full-width margin) so it doesn't collide with a tall
-  // poster; a poster this size clears the rating position comfortably.
-  if (entry.rating !== undefined) {
-    const ratingY = cardY + cardH - 100;
-    ctx.font = '700 96px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = colour;
-    ctx.textAlign = 'left';
-    ctx.fillText(String(entry.rating), contentX, ratingY);
-    ctx.font = '400 36px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('/ 10', contentX + 140, ratingY);
-  }
-
-  // Notes excerpt
-  if (entry.notes && entry.notes.trim().length > 0) {
-    const excerpt = entry.notes.slice(0, 120).replace(/\n/g, ' ');
-    ctx.font = 'italic 26px system-ui, -apple-system, sans-serif';
-    ctx.fillStyle = '#666';
-    ctx.fillText(`"${excerpt}${entry.notes.length > 120 ? '…' : ''}"`, contentX, cardY + cardH - 52);
-  }
-
-  // Footer branding — always full-width bottom-right, unaffected by
-  // the poster (it never extends this low).
+  // Footer branding — always bottom-right, within the outer padding
+  // margin, unaffected by the content column's dynamic height.
   ctx.font = '500 24px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = '#ccc';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.textAlign = 'right';
-  ctx.fillText(
-    `Media Journal · ${getFooterDateText(entry)}`,
-    cardX + cardW - 30,
-    cardY + cardH - 28,
-  );
+  ctx.fillText(`Media Journal · ${getFooterDateText(entry)}`, CANVAS_W - PAD, canvasH - 26);
 
   return canvas;
 }
 
+// ── In-app preview + dialog ──────────────────────────────────────────────────
+
 export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntrySheetProps) {
   const colour = mediaType?.colour ?? '#2E7D32';
-  const meta = entry.metadata;
 
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl = getEntryImageUrl(entry, 'poster');
   const showImage = Boolean(imageUrl) && !imageFailed;
 
-  const subline =
-    typeof meta.author === 'string' && meta.author
-      ? meta.author
-      : typeof meta.director === 'string' && meta.director
-        ? `Dir. ${meta.director}`
-        : '';
-
+  const subline = getSubline(entry);
   const message = buildShareMessage(entry);
-  const badgeText = getBadgeText(entry);
 
   const handleDownload = async () => {
     const canvas = await buildShareCanvas(entry, mediaType);
@@ -297,7 +390,12 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>Share Entry</DialogTitle>
       <DialogContent>
-        {/* Card preview */}
+        {/* Card preview — mirrors buildShareCanvas's layout: colour
+            fills the whole card, poster (when present) is a fixed 40%
+            of the width and stretches to match the text column's
+            height via alignSelf: 'stretch', title wraps naturally
+            (browsers do this by default), and the rating sits where a
+            status pill used to be — left blank when there isn't one. */}
         <Box
           sx={{
             borderRadius: 3,
@@ -305,9 +403,10 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
             p: 2.5,
             mb: 2,
             color: '#fff',
+            overflow: 'hidden',
           }}
         >
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} alignItems="stretch">
             {showImage && (
               <Box
                 component="img"
@@ -315,20 +414,19 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                 onError={() => setImageFailed(true)}
                 alt=""
                 sx={{
-                  flexShrink: 0,
-                  width: 120,
-                  height: 180,
+                  flex: '0 0 40%',
+                  alignSelf: 'stretch',
                   borderRadius: 2,
                   objectFit: 'cover',
                   boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
                 }}
               />
             )}
-            <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}>
                 {mediaType?.displayName ?? entry.mediaType}
               </Typography>
-              <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5, mb: 0.25 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5, mb: 0.25, overflowWrap: 'break-word' }}>
                 {entry.title}
               </Typography>
               {subline && (
@@ -336,40 +434,27 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                   {subline}
                 </Typography>
               )}
-              <Typography
-                variant="body2"
-                sx={{
-                  opacity: 0.9,
-                  mt: 0.5,
-                  pt: 1,
-                  borderTop: '1px solid rgba(255,255,255,0.2)',
-                }}
-              >
-                {getStatusLineText(entry)}
-              </Typography>
-              {badgeText && (
-                <Chip
-                  label={badgeText.toUpperCase()}
-                  size="small"
+              <Box sx={{ mt: 'auto' }}>
+                <Typography
+                  variant="body2"
                   sx={{
-                    mt: 1,
-                    bgcolor: 'rgba(255,255,255,0.18)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: 11,
-                    letterSpacing: 0.5,
+                    opacity: 0.9,
+                    pt: 1,
+                    borderTop: '1px solid rgba(255,255,255,0.2)',
                   }}
-                />
-              )}
-              {entry.rating !== undefined && (
-                <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
-                  {entry.rating}
-                  <Typography component="span" variant="body2" sx={{ ml: 0.5, opacity: 0.7 }}>
-                    / 10
-                  </Typography>
+                >
+                  {getStatusLineText(entry)}
                 </Typography>
-              )}
-            </Box>
+                {entry.rating !== undefined && (
+                  <Typography variant="h4" fontWeight={700} sx={{ mt: 1.5 }}>
+                    {entry.rating}
+                    <Typography component="span" variant="body2" sx={{ ml: 0.5, opacity: 0.7 }}>
+                      / 10
+                    </Typography>
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
           </Stack>
           {entry.notes && (
             <Typography

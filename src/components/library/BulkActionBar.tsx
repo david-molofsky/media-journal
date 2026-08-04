@@ -224,7 +224,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
         </DialogActions>
       </Dialog>
 
-      {/* Back-fill dialog — Film/TV only. State and async work live in
+      {/* Back-fill dialog — Film/TV/Comic/Book. State and async work live in
           useBackfillFlow (started above from the button's onClick);
           this dialog only renders it. onClose after 'done' also clears
           the selection, same as every other bulk action here. */}

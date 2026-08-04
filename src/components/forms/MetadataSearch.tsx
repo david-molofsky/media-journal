@@ -6,7 +6,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
-import { searchBooks } from '@/services/metadata/openLibraryService';
+import { searchBooks, OpenLibraryTimeoutError } from '@/services/metadata/openLibraryService';
 import {
   searchFilms,
   getFilmDetails,
@@ -97,6 +97,11 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   const [options, setOptions] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [fetching, setFetching] = useState(false);
+  // Distinct message for the 8s Open Library timeout (see
+  // openLibraryService.ts) — kept separate from the generic "No
+  // results found" text so a hung Open Library request doesn't look
+  // identical to a genuinely empty search.
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards against out-of-order responses: typing further input after a
@@ -116,18 +121,23 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
       if (!value.trim() || !searchFn) {
         requestIdRef.current += 1; // invalidate any still-pending request too
         setOptions([]);
+        setSearchError(null);
         return;
       }
 
       debounceRef.current = setTimeout(async () => {
         const requestId = ++requestIdRef.current;
         setSearching(true);
+        setSearchError(null);
         try {
           const results = await searchFn(value);
           if (requestIdRef.current !== requestId) return; // superseded — drop it
           setOptions(results);
-        } catch {
+        } catch (err) {
           if (requestIdRef.current !== requestId) return;
+          if (err instanceof OpenLibraryTimeoutError) {
+            setSearchError("Open Library isn't responding — try again in a moment.");
+          }
           setOptions([]);
         } finally {
           if (requestIdRef.current === requestId) setSearching(false);
@@ -175,9 +185,11 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
         loading={searching || fetching}
         loadingText={fetching ? 'Fetching details…' : 'Searching…'}
         noOptionsText={
-          inputValue.trim()
-            ? searching ? 'Searching…' : 'No results found'
-            : 'Type to search'
+          searchError
+            ? searchError
+            : inputValue.trim()
+              ? searching ? 'Searching…' : 'No results found'
+              : 'Type to search'
         }
         getOptionLabel={(option) => option.title}
         isOptionEqualToValue={(a, b) => a.id === b.id}
