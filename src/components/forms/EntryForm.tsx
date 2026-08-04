@@ -539,12 +539,34 @@ export function EntryForm({
                     if (!comicVineVolumeId || typeof issueStart !== 'number') return;
                     setFetchingIssueDetails(true);
                     setIssueFetchError(null);
+
+                    // Split into two try/catches deliberately: only a
+                    // failure in the actual network call should produce
+                    // the "Could not reach ComicVine" message. A prior
+                    // version wrapped the setValue loop below in the
+                    // same catch, so any error while writing fetched
+                    // fields into the form got mislabeled as a
+                    // connectivity problem even when the fetch itself
+                    // succeeded (confirmed via Network tab: both
+                    // ComicVine calls returned 200).
+                    let fields: Record<string, string>;
                     try {
-                      const { fields } = await getIssueDetails(comicVineVolumeId, String(issueStart));
-                      if (Object.keys(fields).length === 0) {
-                        setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
-                        return;
-                      }
+                      const result = await getIssueDetails(comicVineVolumeId, String(issueStart));
+                      fields = result.fields;
+                    } catch (err) {
+                      console.error('ComicVine issue detail fetch failed:', err);
+                      setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
+                      setFetchingIssueDetails(false);
+                      return;
+                    }
+
+                    if (Object.keys(fields).length === 0) {
+                      setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
+                      setFetchingIssueDetails(false);
+                      return;
+                    }
+
+                    try {
                       // ComicVine's own values (creator names, issue
                       // title) are already correctly cased — unlike the
                       // TMDB onFill path above, this doesn't run values
@@ -554,8 +576,11 @@ export function EntryForm({
                           shouldValidate: true,
                         });
                       }
-                    } catch {
-                      setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
+                    } catch (err) {
+                      console.error('ComicVine issue detail fetch succeeded, but filling the form failed:', err);
+                      setIssueFetchError(
+                        'ComicVine details were fetched, but something went wrong filling in the form. Check the console for details.',
+                      );
                     } finally {
                       setFetchingIssueDetails(false);
                     }
