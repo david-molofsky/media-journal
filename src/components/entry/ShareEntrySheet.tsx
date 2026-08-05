@@ -111,13 +111,13 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
 
 const CANVAS_W = 1200;
 const PAD = 56;
-const POSTER_RATIO = 0.4; // poster is 40% of the content width, text column the rest
+const POSTER_RATIO = 0.5; // poster is 50% of the content width, text column the rest
 const GAP = 40;
-/** Content-column height floor — keeps a short-title card at the
- * original ~4:3 proportions rather than shrinking to fit its content;
- * only grows taller than this when a wrapped title (or notes excerpt)
- * genuinely needs more room. */
-const MIN_CONTENT_H = 788;
+/** Content-column height floor — keeps a short-title card at a square
+ * baseline (canvasH = CANVAS_W when content is short) rather than
+ * shrinking to fit; only grows taller than this when a wrapped title
+ * (or notes excerpt) genuinely needs more room. */
+const MIN_CONTENT_H = CANVAS_W - PAD * 2;
 const MAX_TITLE_LINES = 4;
 
 const LABEL_FONT = '600 26px system-ui, -apple-system, sans-serif';
@@ -181,8 +181,8 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
  * wraps to (see wrapText above), so a long title makes the whole card
  * (poster included, since it stretches to match the text column)
  * taller rather than truncating with an ellipsis. Width is always
- * 1200; height only ever grows from the ~4:3 baseline, never shrinks
- * below it.
+ * 1200; height only ever grows from the square (1200×1200) baseline,
+ * never shrinks below it.
  *
  * Colour fills the entire card (matching the in-app preview — these
  * two used to be different designs, a white card with just a colour
@@ -391,7 +391,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
       <DialogTitle>Share Entry</DialogTitle>
       <DialogContent>
         {/* Card preview — mirrors buildShareCanvas's layout: colour
-            fills the whole card, poster (when present) is a fixed 40%
+            fills the whole card, poster (when present) is a fixed 50%
             of the width and stretches to match the text column's
             height via alignSelf: 'stretch', title wraps naturally
             (browsers do this by default), and the rating sits where a
@@ -414,7 +414,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                 onError={() => setImageFailed(true)}
                 alt=""
                 sx={{
-                  flex: '0 0 40%',
+                  flex: '0 0 50%',
                   alignSelf: 'stretch',
                   borderRadius: 2,
                   objectFit: 'cover',

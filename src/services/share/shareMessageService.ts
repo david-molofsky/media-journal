@@ -75,19 +75,19 @@ export function getConsumptionVerb(mediaTypeId: string): string {
 
 /**
  * Builds the share message line (no trailing URL) for an entry, e.g.
- * "I finished watching Dune: Part Three on Media Journal!"
+ * "I finished watching Dune: Part Three (via Media Journal)"
  */
 export function buildShareMessageLine(entry: MediaEntry): string {
   const verb = getConsumptionVerb(entry.mediaType);
 
   switch (entry.status) {
     case 'wishlist':
-      return `I added ${entry.title} to my wishlist on Media Journal!`;
+      return `I added ${entry.title} to my wishlist (via Media Journal)`;
     case 'in_progress':
-      return `I started ${verb} ${entry.title} on Media Journal!`;
+      return `I started ${verb} ${entry.title} (via Media Journal)`;
     case 'completed':
     default:
-      return `I finished ${verb} ${entry.title} on Media Journal!`;
+      return `I finished ${verb} ${entry.title} (via Media Journal)`;
   }
 }
 
