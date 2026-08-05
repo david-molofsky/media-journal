@@ -1,11 +1,19 @@
 /**
- * Podcast Subscriptions — show search (iTunes) and RSS feed
+ * Podcast Subscriptions — show search (PodcastIndex.org) and RSS feed
  * fetch/parse (see chat). Both routes go through the Worker:
- * iTunes purely for CORS/reliability consistency, RSS because most
- * podcast hosts send no CORS headers at all and there's no way to
- * host-allowlist arbitrary podcast feeds the way /image-proxy does
- * for the three known image CDNs (see combined-worker.js's comment on
- * /rss-proxy for the tradeoff that implies).
+ * PodcastIndex because its auth (a signed request) has to happen
+ * server-side with a real secret, RSS because most podcast hosts send
+ * no CORS headers at all and there's no way to host-allowlist
+ * arbitrary podcast feeds the way /image-proxy does for the three
+ * known image CDNs (see combined-worker.js's comment on /rss-proxy
+ * for the tradeoff that implies).
+ *
+ * Originally used Apple's iTunes Search API instead (no key needed),
+ * but Apple rate-limits per source IP and Cloudflare Workers share an
+ * outbound IP pool across every Worker on the platform — a well-known
+ * show search could silently come back empty because of unrelated
+ * traffic on the same shared IP. PodcastIndex.org is built specifically
+ * for third-party podcast-app server traffic like this.
  */
 
 const WORKER_BASE = 'https://media-journal-comicvine-proxy.david-molofsky.workers.dev';
@@ -16,32 +24,33 @@ export interface PodcastSearchResult {
   artworkUrl?: string;
 }
 
-interface ItunesSearchResult {
-  feedUrl?: string;
-  collectionName?: string;
-  artworkUrl600?: string;
-  artworkUrl100?: string;
+interface PodcastIndexFeed {
+  url?: string;
+  title?: string;
+  image?: string;
+  artwork?: string;
 }
 
-/** Searches Apple's podcast directory by show name — the "search by
+/** Searches PodcastIndex.org's directory by show name — the "search by
  * show name" half of Add Subscription (the other half, pasting an RSS
  * URL directly, doesn't need this at all). */
 export async function searchPodcasts(term: string): Promise<PodcastSearchResult[]> {
   if (!term.trim()) return [];
 
-  const res = await fetch(`${WORKER_BASE}/itunes-search?term=${encodeURIComponent(term)}`);
+  const res = await fetch(`${WORKER_BASE}/podcast-search?term=${encodeURIComponent(term)}`);
   if (!res.ok) throw new Error(`Podcast search failed: ${res.status}`);
 
-  const data = (await res.json()) as { results?: ItunesSearchResult[] };
+  const data = (await res.json()) as { feeds?: PodcastIndexFeed[] };
 
-  return (data.results ?? [])
-    .filter((r): r is ItunesSearchResult & { feedUrl: string; collectionName: string } =>
-      !!r.feedUrl && !!r.collectionName,
-    )
-    .map((r) => ({
-      feedUrl: r.feedUrl,
-      showTitle: r.collectionName,
-      artworkUrl: r.artworkUrl600 || r.artworkUrl100,
+  return (data.feeds ?? [])
+    .filter((f): f is PodcastIndexFeed & { url: string; title: string } => !!f.url && !!f.title)
+    .map((f) => ({
+      feedUrl: f.url,
+      showTitle: f.title,
+      // PodcastIndex returns both `artwork` and `image` for most feeds
+      // (usually identical) — `artwork` first since it's the field
+      // their own docs describe as the canonical cover image.
+      artworkUrl: f.artwork || f.image,
     }));
 }
 
