@@ -144,7 +144,9 @@ const STATUS_H = 32;
 // block into the gap between the subline and the divider, where it's
 // vertically centred (see chat). No longer part of bottomBlockH.
 const RATING_FONT = '700 240px system-ui, -apple-system, sans-serif';
-const RATING_SUFFIX_FONT = '400 90px system-ui, -apple-system, sans-serif';
+// "/ 10" suffix — shrunk 15% (90px → 77px, see chat) relative to the
+// main rating number, which stayed at 240px.
+const RATING_SUFFIX_FONT = '400 77px system-ui, -apple-system, sans-serif';
 const RATING_H = 270;
 const NOTES_FONT = 'italic 24px system-ui, -apple-system, sans-serif';
 const NOTES_H = 34;
@@ -411,11 +413,16 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
       <DialogContent>
         {/* Card preview — mirrors buildShareCanvas's layout: colour
             fills the whole card, poster (when present) is a fixed 53%
-            of the width and stretches to match the text column's
-            height via alignSelf: 'stretch', title wraps naturally
-            (browsers do this by default), and the (now 3x larger)
-            rating sits centred in the gap between the subline and the
-            status divider — left blank when there isn't one. */}
+            of the width. Sized via a fixed 2:3 aspect-ratio rather than
+            alignSelf: 'stretch' (see chat) — stretch needs a defined
+            height somewhere in the flex chain to stretch *to*, and
+            nothing here provides one, so the browser fell back to the
+            poster's own intrinsic size at 53% width — enormous for a
+            real ~2000×3000 poster image, pushing the title/rating
+            off-screen in the dialog. Title wraps naturally (browsers
+            do this by default), and the (now 3x larger) rating sits
+            centred in the gap between the subline and the status
+            divider — left blank when there isn't one. */}
         <Box
           sx={{
             borderRadius: 3,
@@ -426,7 +433,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
             overflow: 'hidden',
           }}
         >
-          <Stack direction="row" spacing={2} alignItems="stretch">
+          <Stack direction="row" spacing={2} alignItems="flex-start">
             {showImage && (
               <Box
                 component="img"
@@ -435,7 +442,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                 alt=""
                 sx={{
                   flex: '0 0 53%',
-                  alignSelf: 'stretch',
+                  aspectRatio: '2 / 3',
                   borderRadius: 2,
                   objectFit: 'cover',
                   boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
