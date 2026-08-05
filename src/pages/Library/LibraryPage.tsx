@@ -6,6 +6,8 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import Select from '@mui/material/Select';
@@ -348,97 +350,60 @@ export default function LibraryPage() {
 
   return (
     <Box>
-      <ToggleButtonGroup
+      <Tabs
         value={statusTab}
-        exclusive
-        fullWidth
-        onChange={(_, v) => {
-          if (v === null) return; // exclusive mode allows deselect on re-click — ignore, a status tab must always be selected
-          const next = v as EntryStatus;
-          setStatusTab(next);
-          setSort(defaultSortForStatus(next));
-          setSelectedIds(new Set());
-          setSelectionMode(false);
-          setReorderMode(false);
-        }}
+        onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); setReorderMode(false); }}
         // Note: switching tabs deliberately does NOT clear filters —
         // matches existing single-select behavior (filters persisted
         // across tab changes already; unchanged by multi-select).
-        sx={{
-          mb: 2,
-          gap: 1,
-          // ToggleButtonGroup joins adjacent buttons by default (square
-          // inner corners, shared borders) — overridden here so each
-          // status reads as its own separate outlined chip rather than
-          // one continuous bar.
-          '& .MuiToggleButtonGroup-grouped': {
-            border: '1.5px solid',
-            borderColor: 'divider',
-            borderRadius: '12px !important',
-          },
-        }}
+        //
+        // Redesigned from bordered-pill tabs to a thin-divider style
+        // (see chat): the default MUI active-tab underline indicator
+        // is hidden, and a 1px vertical divider is drawn between each
+        // tab instead (via borderRight on all but the last Tab) — no
+        // pill borders/backgrounds anywhere. Icons and the count
+        // badge are unchanged. The active tab is distinguished purely
+        // by MUI's built-in selected-tab text colour (primary) plus a
+        // bolder weight added below; no underline.
+        sx={{ mb: 2, mx: -2, px: 2, borderBottom: 1, borderColor: 'divider', '& .MuiTabs-indicator': { display: 'none' } }}
+        variant="fullWidth"
       >
-        {STATUS_TABS.map((tab) => {
+        {STATUS_TABS.map((tab, index) => {
           const { count, filteredOf } = tabCount(tab.value);
           const isFiltered = filteredOf !== undefined;
-          const isActive = tab.value === statusTab;
           return (
-            <ToggleButton
+            <Tab
               key={tab.value}
               value={tab.value}
               sx={{
-                flex: 1,
-                textTransform: 'none',
-                gap: 0.75,
-                py: 1,
-                color: 'text.secondary',
-                '&.Mui-selected': {
-                  color: 'primary.main',
-                  borderColor: 'primary.main',
-                  bgcolor: 'action.selected',
-                },
-                '&.Mui-selected:hover': { bgcolor: 'action.selected' },
+                fontWeight: tab.value === statusTab ? 700 : 400,
+                borderRight: index < STATUS_TABS.length - 1 ? 1 : 0,
+                borderColor: 'divider',
               }}
-            >
-              <Box
-                sx={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  border: '1.5px solid currentColor',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <tab.Icon sx={{ fontSize: 12 }} />
-              </Box>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: isActive ? 700 : 500, fontSize: 12.5, whiteSpace: 'nowrap' }}
-              >
-                {tab.label}
-              </Typography>
-              {count !== undefined && (count > 0 || isFiltered) && (
-                <Box
-                  sx={{
-                    fontSize: 10, fontWeight: 700,
-                    bgcolor: isFiltered ? 'primary.main' : (isActive ? 'primary.main' : 'action.hover'),
-                    color: isFiltered ? 'primary.contrastText' : (isActive ? 'primary.contrastText' : 'text.secondary'),
-                    border: isFiltered ? '1px solid' : undefined,
-                    borderColor: isFiltered ? 'primary.light' : undefined,
-                    borderRadius: 10, px: 0.75, py: 0.1, lineHeight: 1.6,
-                  }}
-                >
-                  {isFiltered ? `${count}/${filteredOf}` : count}
-                </Box>
-              )}
-            </ToggleButton>
+              label={
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <tab.Icon sx={{ fontSize: 16 }} />
+                  <span>{tab.label}</span>
+                  {count !== undefined && (count > 0 || isFiltered) && (
+                    <Box
+                      sx={{
+                        fontSize: 10, fontWeight: 700,
+                        bgcolor: isFiltered ? 'primary.main' : (tab.value === statusTab ? 'primary.main' : 'action.hover'),
+                        color: isFiltered ? 'primary.contrastText' : (tab.value === statusTab ? 'primary.contrastText' : 'text.secondary'),
+                        border: isFiltered ? '1px solid' : undefined,
+                        borderColor: isFiltered ? 'primary.light' : undefined,
+                        borderRadius: 10, px: 0.75, py: 0.1, lineHeight: 1.6,
+                      }}
+                    >
+                      {isFiltered ? `${count}/${filteredOf}` : count}
+                    </Box>
+                  )}
+                </Stack>
+              }
+            />
           );
         })}
-      </ToggleButtonGroup>
-
+      </Tabs>
 
       <Stack spacing={2} sx={{ mb: 3 }}>
         <Stack direction="row" spacing={1} alignItems="center">
