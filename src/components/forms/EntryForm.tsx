@@ -32,7 +32,9 @@ import { MetadataSearch } from './MetadataSearch';
 import { IsbnScanDialog } from './IsbnScanDialog';
 import { UpcScanDialog } from './UpcScanDialog';
 import { ComicUpcScanDialog } from './ComicUpcScanDialog';
+import { CoverImageSearchDialog } from './CoverImageSearchDialog';
 import { AutocompleteField } from './AutocompleteField';
+import ImageSearchOutlinedIcon from '@mui/icons-material/ImageSearchOutlined';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
@@ -184,12 +186,35 @@ export function EntryForm({
   // Library card or grid, same reasoning as the Film/TV poster above.
   // Unlike posterPath (a TMDB path fragment), coverImagePath already
   // holds a full hosted image URL (ComicVine for Comic, Open Library
-  // for Book/Audiobook), so it's used as-is.
+  // for Book/Audiobook — and now also any type's manual "Find cover
+  // image" search/paste result, see chat), so it's used as-is. Shown
+  // for any media type that has one set, not just the three original
+  // auto-fill sources — `showPoster` above still wins when both are
+  // somehow set, matching getEntryImageUrl's (entryImage.ts)
+  // posterPath-first precedence.
   const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
-  const showCoverImage =
-    (mediaType.id === 'comic' || mediaType.id === 'book' || mediaType.id === 'audiobook') &&
-    typeof coverImagePath === 'string' &&
-    coverImagePath;
+  const showCoverImage = !showPoster && typeof coverImagePath === 'string' && coverImagePath;
+
+  // "Find cover image" (see chat) — search icon only appears once
+  // *both* fields are empty, for every media type, not just the ones
+  // TMDB/Open Library/ComicVine auto-fill touch. Deliberately reads
+  // the same two watched values as the previews above rather than
+  // getEntryImageUrl (entryImage.ts), since that helper works off a
+  // saved MediaEntry, not live, unsaved form state.
+  const [coverSearchDialogOpen, setCoverSearchDialogOpen] = useState(false);
+  const showFindCoverButton = !showPoster && !showCoverImage;
+  const titleValue = watch('title');
+  // Best-effort second search term — whichever of these the current
+  // media type happens to have filled in, if any. Purely to make the
+  // image search a bit more specific (e.g. "Dune" the book vs. the
+  // film) than a bare title would be; the search box itself is still
+  // freely editable before running the search.
+  const authorLikeValue =
+    (watch('metadata.author' as 'metadata') as unknown as string | undefined) ||
+    (watch('metadata.director' as 'metadata') as unknown as string | undefined) ||
+    (watch('metadata.creator' as 'metadata') as unknown as string | undefined) ||
+    '';
+  const coverSearchDefaultQuery = [titleValue, authorLikeValue].filter(Boolean).join(' ');
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -358,6 +383,39 @@ export function EntryForm({
               sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
             />
           )}
+          {showFindCoverButton && (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 84,
+                  borderRadius: 1,
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                }}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ImageSearchOutlinedIcon fontSize="small" />}
+                onClick={() => setCoverSearchDialogOpen(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                Find cover image
+              </Button>
+            </Stack>
+          )}
+          <CoverImageSearchDialog
+            open={coverSearchDialogOpen}
+            defaultQuery={coverSearchDefaultQuery}
+            onClose={() => setCoverSearchDialogOpen(false)}
+            onSelect={(url) => {
+              setValue('metadata.coverImagePath' as 'metadata', url as unknown as EntryMetadata, {
+                shouldValidate: true,
+              });
+              setCoverSearchDialogOpen(false);
+            }}
+          />
           <TextField
             label="Title"
             required

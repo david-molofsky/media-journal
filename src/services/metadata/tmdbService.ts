@@ -201,6 +201,36 @@ export async function searchFilms(query: string): Promise<SearchResult[]> {
 }
 
 /**
+ * Infinite-scroll variant used by MetadataSearch.tsx. Fetches one TMDB
+ * results page directly (TMDB's own page size, ~20 — unlike the 15-cap
+ * `searchFilms` above) and reports whether a further page would return
+ * anything, per TMDB's own `total_pages`. Left as a separate function
+ * (rather than adding a `page` param to `searchFilms`) so every
+ * existing caller of `searchFilms` — import matchers, fuzzy-match,
+ * etc. — keeps its simple `Promise<SearchResult[]>` contract.
+ */
+export async function searchFilmsPage(
+  query: string,
+  page: number,
+): Promise<{ results: SearchResult[]; hasMore: boolean }> {
+  if (!query.trim()) return { results: [], hasMore: false };
+
+  const data = await tmdbGet<{ results: TmdbMovieSearchResult[]; page: number; total_pages: number }>(
+    `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=${page}`,
+  );
+
+  return {
+    results: data.results.map((movie) => ({
+      id: String(movie.id),
+      title: movie.title,
+      subtitle: movie.release_date ? movie.release_date.slice(0, 4) : '',
+      fields: {},
+    })),
+    hasMore: data.page < data.total_pages,
+  };
+}
+
+/**
  * Fetches director, screenwriter and cast for a film. Called once the
  * user selects a search result — not during the search itself.
  */
@@ -321,6 +351,28 @@ export async function searchTV(query: string): Promise<SearchResult[]> {
     subtitle: show.first_air_date ? show.first_air_date.slice(0, 4) : '',
     fields: {},
   }));
+}
+
+/** Infinite-scroll variant — see matching comment on `searchFilmsPage`. */
+export async function searchTVPage(
+  query: string,
+  page: number,
+): Promise<{ results: SearchResult[]; hasMore: boolean }> {
+  if (!query.trim()) return { results: [], hasMore: false };
+
+  const data = await tmdbGet<{ results: TmdbTVSearchResult[]; page: number; total_pages: number }>(
+    `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=${page}`,
+  );
+
+  return {
+    results: data.results.map((show) => ({
+      id: String(show.id),
+      title: show.name,
+      subtitle: show.first_air_date ? show.first_air_date.slice(0, 4) : '',
+      fields: {},
+    })),
+    hasMore: data.page < data.total_pages,
+  };
 }
 
 /**

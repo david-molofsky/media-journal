@@ -63,6 +63,22 @@ interface ComicVineVolumeSearchResult {
  * writing to the entry) — it's just how the id travels from this
  * search step to the later `getIssueDetails` step.
  */
+function mapVolume(volume: ComicVineVolumeSearchResult, autofillPublisher: boolean): SearchResult {
+  const fields: Record<string, string> = {
+    series: volume.name,
+    comicVineVolumeId: String(volume.id),
+  };
+  if (autofillPublisher && volume.publisher?.name) {
+    fields['publisher'] = volume.publisher.name;
+  }
+  return {
+    id: String(volume.id),
+    title: volume.name,
+    subtitle: [volume.publisher?.name, volume.start_year].filter(Boolean).join(' · '),
+    fields,
+  };
+}
+
 export async function searchSeries(query: string): Promise<SearchResult[]> {
   if (!query.trim()) return [];
 
@@ -72,21 +88,34 @@ export async function searchSeries(query: string): Promise<SearchResult[]> {
 
   const autofillPublisher = await getSetting('autofillComicPublisher', true);
 
-  return data.results.slice(0, 15).map((volume) => {
-    const fields: Record<string, string> = {
-      series: volume.name,
-      comicVineVolumeId: String(volume.id),
-    };
-    if (autofillPublisher && volume.publisher?.name) {
-      fields['publisher'] = volume.publisher.name;
-    }
-    return {
-      id: String(volume.id),
-      title: volume.name,
-      subtitle: [volume.publisher?.name, volume.start_year].filter(Boolean).join(' · '),
-      fields,
-    };
-  });
+  return data.results.slice(0, 15).map((volume) => mapVolume(volume, autofillPublisher));
+}
+
+/**
+ * Infinite-scroll variant used by MetadataSearch.tsx — fetches the
+ * next 15-result batch starting at `offset` and reports whether a
+ * further batch would still return anything, per ComicVine's own
+ * `number_of_total_results`. See matching comment on
+ * tmdbService.ts's `searchFilmsPage` for why this is a separate
+ * function rather than a new param on `searchSeries`.
+ */
+export async function searchSeriesPage(
+  query: string,
+  offset: number,
+): Promise<{ results: SearchResult[]; hasMore: boolean }> {
+  if (!query.trim()) return { results: [], hasMore: false };
+
+  const data = await comicVineGet<{
+    results: ComicVineVolumeSearchResult[];
+    number_of_total_results: number;
+  }>(
+    `/search/?resources=volume&query=${encodeURIComponent(query)}&field_list=id,name,publisher,start_year&limit=15&offset=${offset}`,
+  );
+
+  const autofillPublisher = await getSetting('autofillComicPublisher', true);
+  const results = data.results.map((volume) => mapVolume(volume, autofillPublisher));
+
+  return { results, hasMore: offset + results.length < data.number_of_total_results };
 }
 
 // ── Issue detail (credits, cover date, cover image) ─────────────────────────

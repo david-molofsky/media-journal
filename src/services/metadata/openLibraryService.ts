@@ -58,17 +58,29 @@ export class OpenLibraryTimeoutError extends Error {
   }
 }
 
-/**
- * Searches Open Library by title and returns up to 6 results.
- * All metadata is returned in a single call (no second fetch on
- * selection) because the search endpoint supports field projection.
- */
-export async function searchBooks(query: string): Promise<SearchResult[]> {
-  if (!query.trim()) return [];
+/** Page size for both the original single-shot search and each
+ * subsequent infinite-scroll batch fetched via `searchBooksPage`. */
+const PAGE_SIZE = 15;
+
+interface OpenLibrarySearchPage {
+  results: SearchResult[];
+  /** Total matches Open Library reports (`numFound`) — used to work
+   * out whether a further offset would return anything. */
+  numFound: number;
+}
+
+/** Shared fetch+map core for both `searchBooks` (offset 0, original
+ * behaviour, untouched signature so every existing caller — import
+ * matchers, fuzzy-match, etc. — keeps working unmodified) and the new
+ * `searchBooksPage` (arbitrary offset, used by MetadataSearch.tsx's
+ * infinite scroll). */
+async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrarySearchPage> {
+  if (!query.trim()) return { results: [], numFound: 0 };
 
   const params = new URLSearchParams({
     title: query,
-    limit: '15',
+    limit: String(PAGE_SIZE),
+    offset: String(offset),
     fields: `key,title,author_name,series,first_publish_year,editions,cover_i${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
 
@@ -91,6 +103,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   if (!res.ok) throw new Error(`Open Library search failed: ${res.status}`);
 
   const data = await res.json() as {
+    numFound?: number;
     docs: Array<{
       key: string;
       title: string;
@@ -108,7 +121,7 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
   const autofillCoverImage = await getSetting('autofillBookCoverImage', true);
   const autofillReleaseYear = await getSetting('autofillBookReleaseYear', true);
 
-  return data.docs.map((doc) => {
+  const results = data.docs.map((doc) => {
     const author = doc.author_name?.[0] ?? '';
     const series = doc.series?.[0] ?? '';
     const year = doc.first_publish_year ? String(doc.first_publish_year) : '';
@@ -139,6 +152,32 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
       genres,
     };
   });
+
+  return { results, numFound: data.numFound ?? results.length };
+}
+
+/**
+ * Searches Open Library by title and returns up to 15 results (the
+ * first page). All metadata is returned in a single call (no second
+ * fetch on selection) because the search endpoint supports field
+ * projection.
+ */
+export async function searchBooks(query: string): Promise<SearchResult[]> {
+  return (await fetchBooksPage(query, 0)).results;
+}
+
+/**
+ * Infinite-scroll variant used by MetadataSearch.tsx — fetches one
+ * further batch of results starting at `offset` and reports whether
+ * another batch beyond that would still return anything, based on
+ * Open Library's own `numFound` total.
+ */
+export async function searchBooksPage(
+  query: string,
+  offset: number,
+): Promise<{ results: SearchResult[]; hasMore: boolean }> {
+  const { results, numFound } = await fetchBooksPage(query, offset);
+  return { results, hasMore: offset + results.length < numFound };
 }
 
 interface OpenLibraryWork {

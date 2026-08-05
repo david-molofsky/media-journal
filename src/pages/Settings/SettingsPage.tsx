@@ -10,6 +10,7 @@ import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import ImportExportOutlinedIcon from '@mui/icons-material/ImportExportOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import PodcastsOutlinedIcon from '@mui/icons-material/PodcastsOutlined';
 import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
 import { TvTrackingSection } from '@/components/settings/TvTrackingSection';
 import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
@@ -26,6 +27,7 @@ import { AudiobookshelfImportSection } from '@/components/settings/Audiobookshel
 import { JellyfinImportSection } from '@/components/settings/JellyfinImportSection';
 import { PlexImportSection } from '@/components/settings/PlexImportSection';
 import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
+import { PodcastSubscriptionsSection } from '@/components/settings/PodcastSubscriptionsSection';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 
@@ -71,6 +73,13 @@ export default function SettingsPage() {
         <ComicVineAutofillSection />
 
         <OpenLibraryAutofillSection />
+
+        {/* Podcast Subscriptions — deliberately just another Settings
+            section, not a dedicated screen (David's call — doesn't
+            want the app to feel "podcast first"). See chat. */}
+        <CollapsibleSection title="Podcasts" icon={PodcastsOutlinedIcon}>
+          <PodcastSubscriptionsSection />
+        </CollapsibleSection>
 
         <SubscriptionsSection />
 

@@ -5,6 +5,7 @@ import type {
   AppSettingRecord,
   InProgressEntry,
   EntryMetadata,
+  PodcastSubscription,
 } from '@/models';
 import { defaultMediaTypes } from './defaultMediaTypes';
 
@@ -30,6 +31,7 @@ export class MediaJournalDatabase extends Dexie {
   mediaTypes!: EntityTable<MediaType, 'id'>;
   appSettings!: EntityTable<AppSettingRecord, 'key'>;
   inProgressEntries!: EntityTable<InProgressEntry, 'id'>;
+  podcastSubscriptions!: EntityTable<PodcastSubscription, 'id'>;
 
   constructor() {
     super('MediaJournalDatabase');
@@ -1025,6 +1027,29 @@ export class MediaJournalDatabase extends Dexie {
           });
         }
       });
+
+    /**
+     * Version 23: adds the `podcastSubscriptions` table (Podcast
+     * Subscriptions — see chat). New table, so no `.upgrade()` step is
+     * needed; Dexie creates it empty. Deliberately its own table
+     * rather than a new field on an existing one — a subscription
+     * isn't a `mediaEntry` (it's not something the user rates or
+     * reviews), and it isn't an `appSetting` either (there can be many
+     * of them, each with real per-row state: last-checked time, show
+     * artwork). Episodes a "Check for New Episodes" run finds are
+     * created as ordinary Wishlist `mediaEntries` (mediaType
+     * `podcast`), tagged back here via
+     * `metadata.podcastSubscriptionId` — see
+     * podcastSubscriptionService.ts / checkForNewEpisodes.ts.
+     */
+    this.version(23).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+      podcastSubscriptions: 'id, feedUrl, createdAt',
+    });
   }
 }
 

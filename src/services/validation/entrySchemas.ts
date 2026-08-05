@@ -105,6 +105,14 @@ const filmMetadataSchema = z.object({
   // as a smart link too. Hidden field — not in defaultMediaTypes.ts's
   // `fields[]`, same pattern as posterPath above.
   tmdbId: z.string().optional(),
+  // Cover image search / manual URL paste (EntryForm's "Find cover
+  // image" — see chat). Only ever set by the user, never by TMDB
+  // auto-fill, which always writes `posterPath` instead; kept as a
+  // separate key rather than overloading `posterPath` since it holds
+  // a complete hosted URL, not a TMDB path fragment. getEntryImageUrl
+  // (entryImage.ts) checks `posterPath` first and only falls back to
+  // this, so a manually-picked image never overrides a TMDB one.
+  coverImagePath: z.string().optional(),
 });
 
 const tvMetadataSchema = z.object({
@@ -127,6 +135,9 @@ const tvMetadataSchema = z.object({
   releaseDate: z.string().optional(),
   // Shared-link support — see matching comment on filmMetadataSchema.
   tmdbId: z.string().optional(),
+  // Cover image search / manual URL paste — see matching comment on
+  // filmMetadataSchema.
+  coverImagePath: z.string().optional(),
 });
 
 const comicMetadataSchema = z

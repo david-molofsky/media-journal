@@ -15,3 +15,4 @@ export type {
 } from './MediaType';
 export type { AppSettingRecord, SettingsKey, TvTrackingMode, ColorMode } from './AppSettings';
 export { SETTINGS_KEYS } from './AppSettings';
+export type { PodcastSubscription, NewPodcastSubscriptionInput } from './PodcastSubscription';
