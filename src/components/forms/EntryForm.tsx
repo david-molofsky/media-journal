@@ -361,21 +361,24 @@ export function EntryForm({
             mediaTypeId={mediaType.id}
             onFill={applyMetadataFill}
           />
-          {showPoster && (
-            <Box
-              component="img"
-              src={`https://image.tmdb.org/t/p/w154${posterPath}`}
-              alt=""
-              sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
-            />
-          )}
-          {showCoverImage && (
-            <Box
-              component="img"
-              src={coverImagePath}
-              alt=""
-              sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
-            />
+          {(showPoster || showCoverImage) && (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Box
+                component="img"
+                src={showPoster ? `https://image.tmdb.org/t/p/w154${posterPath}` : (coverImagePath as unknown as string)}
+                alt=""
+                sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
+              />
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
+                onClick={() => setCoverDialogOpen(true)}
+                sx={{ textTransform: 'none' }}
+              >
+                Change cover image
+              </Button>
+            </Stack>
           )}
           {showAddCoverButton && (
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -403,6 +406,17 @@ export function EntryForm({
             open={coverDialogOpen}
             onClose={() => setCoverDialogOpen(false)}
             onSelect={(url) => {
+              // A pasted replacement always lands in coverImagePath —
+              // if the entry currently shows a TMDB `posterPath`
+              // instead, that has to be cleared too, or
+              // getEntryImageUrl (entryImage.ts)'s posterPath-first
+              // precedence would keep showing the old TMDB poster
+              // forever regardless of what gets pasted here.
+              if (showPoster) {
+                setValue('metadata.posterPath' as 'metadata', undefined as unknown as EntryMetadata, {
+                  shouldValidate: true,
+                });
+              }
               setValue('metadata.coverImagePath' as 'metadata', url as unknown as EntryMetadata, {
                 shouldValidate: true,
               });
