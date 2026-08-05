@@ -116,7 +116,12 @@ const PAD = 56;
 // Poster share of the content width — enlarged from 0.4 to 0.58 (see
 // chat: "option 5" of the redesign exploration). Text column narrows
 // accordingly, so titles wrap a line sooner than they used to.
-const POSTER_RATIO = 0.58;
+// Poster share of the content width — reduced from 0.58 to 0.53 (see
+// chat): at 58%, a two-digit rating's "/ 10" suffix ran past the
+// right edge of the canvas for some titles, since the text column
+// wasn't quite wide enough for the enlarged rating font. 53% gives
+// the text column, and therefore the rating, breathing room again.
+const POSTER_RATIO = 0.53;
 const GAP = 40;
 /** Content-column height floor — keeps a short-title card at the
  * original ~4:3 proportions rather than shrinking to fit its content;
@@ -405,7 +410,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
       <DialogTitle>Share Entry</DialogTitle>
       <DialogContent>
         {/* Card preview — mirrors buildShareCanvas's layout: colour
-            fills the whole card, poster (when present) is a fixed 58%
+            fills the whole card, poster (when present) is a fixed 53%
             of the width and stretches to match the text column's
             height via alignSelf: 'stretch', title wraps naturally
             (browsers do this by default), and the (now 3x larger)
@@ -429,7 +434,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                 onError={() => setImageFailed(true)}
                 alt=""
                 sx={{
-                  flex: '0 0 58%',
+                  flex: '0 0 53%',
                   alignSelf: 'stretch',
                   borderRadius: 2,
                   objectFit: 'cover',
