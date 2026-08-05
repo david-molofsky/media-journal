@@ -95,6 +95,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Max',
           'Hulu',
           'Apple TV+',
+          'Paramount+',
           'Physical Media',
           'Digital',
         ],
@@ -150,6 +151,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Max',
           'Hulu',
           'Apple TV+',
+          'Paramount+',
           'Physical Media',
           'Digital',
         ],
@@ -269,8 +271,25 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Spotify', 'Apple Podcasts', 'YouTube', 'Overcast'],
+        options: [
+          'Spotify',
+          'Apple Podcasts',
+          'YouTube',
+          'Overcast',
+          'Podcast Addict',
+          'PodBean',
+        ],
       },
+      // Added for Podcast RSS auto-fill (see chat) — itunes:season,
+      // itunes:episode and itunes:duration respectively. Order matches
+      // the row layout in EntryForm (Season, Episode, Duration).
+      // `overview` (Show Notes, from itunes:summary/<description>) is
+      // deliberately NOT declared here — same pattern as Film/TV's
+      // Overview, it gets a multiline block in EntryForm instead of
+      // the generic single-line field loop.
+      { key: 'seasonNumber', label: 'Season Number', type: 'number', required: false },
+      { key: 'episodeNumber', label: 'Episode Number', type: 'number', required: false },
+      { key: 'duration', label: 'Duration (minutes)', type: 'number', required: false },
     ],
   },
   {

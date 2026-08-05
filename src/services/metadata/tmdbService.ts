@@ -85,6 +85,13 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
   'Disney Plus': 'Disney+',
   'Amazon Prime Video': 'Amazon Prime Video',
   'Apple TV Plus': 'Apple TV+',
+  // See chat (Paramount+ / Paramount Plus duplicate source bug) — TMDB
+  // reports this provider as "Paramount Plus", same spelled-out
+  // convention as Disney Plus/Apple TV Plus above, but this entry was
+  // missing, so auto-fill was passing it through unmapped and landing
+  // on a different string than the app's own "+"-suffixed suggestion
+  // list convention (now added to Film/TV source options).
+  'Paramount Plus': 'Paramount+',
   Netflix: 'Netflix',
   Max: 'Max',
   Hulu: 'Hulu',

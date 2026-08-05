@@ -68,6 +68,21 @@ export interface PodcastEpisode {
    * artwork at the call site, not here — this service just reports
    * what each item actually has. */
   artworkUrl?: string;
+  /** From `itunes:season` — undefined if the feed doesn't tag it
+   * (most don't, outside of shows explicitly organised into seasons). */
+  seasonNumber?: number;
+  /** From `itunes:episode` — undefined if the feed doesn't tag it. */
+  episodeNumber?: number;
+  /** From `itunes:duration`, normalised to whole minutes regardless of
+   * whether the feed used HH:MM:SS, MM:SS, or a bare seconds count —
+   * see parseItunesDurationMinutes. */
+  durationMinutes?: number;
+  /** Show notes, from `itunes:summary` or, failing that, the item's
+   * plain `<description>`. Feeds are inconsistent about which of the
+   * two they populate (some do both, identically); summary is checked
+   * first since it's the field iTunes/Apple Podcasts itself surfaces
+   * as the episode description. */
+  description?: string;
 }
 
 export interface FetchedPodcastFeed {
@@ -103,6 +118,43 @@ function toIsoDate(pubDate: string | undefined): string {
   return new Date().toISOString();
 }
 
+/** Parses `itunes:season`/`itunes:episode` (see chat) — both are
+ * plain integers per the Podcasting 2.0 spec, but some feeds pad or
+ * otherwise mangle them, so this tolerates any leading integer rather
+ * than requiring an exact match. Returns undefined for missing/
+ * unparseable values rather than 0, so an absent tag doesn't get
+ * saved as episode/season zero. */
+function parseItunesInt(parent: Element | null, tagName: string): number | undefined {
+  const raw = textOf(parent, tagName);
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isNaN(parsed) ? undefined : parsed;
+}
+
+/** Parses `itunes:duration` into whole minutes (see chat — Duration
+ * field is declared `type: 'number'` in defaultMediaTypes.ts, matching
+ * the "Runtime (minutes)" convention used elsewhere in the app). The
+ * tag isn't consistently formatted across feeds: most use
+ * `HH:MM:SS` or `MM:SS`, but the spec also allows a bare seconds
+ * count (e.g. "3600"), so all three are handled here. */
+function parseItunesDurationMinutes(parent: Element | null): number | undefined {
+  const raw = textOf(parent, 'itunes:duration');
+  if (!raw) return undefined;
+
+  if (/^\d+$/.test(raw)) {
+    return Math.round(Number.parseInt(raw, 10) / 60);
+  }
+
+  const parts = raw.split(':').map((p) => Number.parseInt(p, 10));
+  if (parts.some((p) => Number.isNaN(p))) return undefined;
+
+  let totalSeconds = 0;
+  for (const part of parts) {
+    totalSeconds = totalSeconds * 60 + part;
+  }
+  return Math.round(totalSeconds / 60);
+}
+
 /**
  * Fetches an RSS feed via the Worker proxy and parses it into show
  * metadata + an episode list. Throws on network failure or malformed
@@ -136,6 +188,10 @@ export async function fetchAndParseFeed(feedUrl: string): Promise<FetchedPodcast
       title,
       publishedAt: toIsoDate(pubDate),
       artworkUrl: itunesImageHref(item),
+      seasonNumber: parseItunesInt(item, 'itunes:season'),
+      episodeNumber: parseItunesInt(item, 'itunes:episode'),
+      durationMinutes: parseItunesDurationMinutes(item),
+      description: textOf(item, 'itunes:summary') ?? textOf(item, 'description'),
     };
   });
 

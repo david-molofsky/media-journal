@@ -216,6 +216,32 @@ const animeMetadataSchema = z.object({
   coverImagePath: z.string().optional(),
 });
 
+/**
+ * Podcasts previously had no dedicated schema — its metadata fell
+ * through to `genericMetadataSchema` (same situation Anime was in
+ * before it got one; see matching comment on animeMetadataSchema).
+ * Adding Season/Episode/Duration (see chat) meant it needed real
+ * number coercion, since defaultMediaTypes.ts declares these
+ * `type: 'number'` and EntryForm always writes numeric metadata as a
+ * real number — a plain z.string() here would silently fail to save,
+ * same bug already hit and fixed on Book's releaseYear. `overview`
+ * (Show Notes) and the subscription/dedup fields aren't in
+ * defaultMediaTypes.ts's `fields[]` (overview gets a multiline block
+ * in EntryForm, the other two are RSS-sync bookkeeping never shown in
+ * the form) but must still be listed here or they'd be silently
+ * stripped on save — same pattern as posterPath on filmMetadataSchema.
+ */
+const podcastMetadataSchema = z.object({
+  source: z.string().optional(),
+  seasonNumber: z.coerce.number().min(1, 'Season number must be at least 1').optional(),
+  episodeNumber: z.coerce.number().min(1, 'Episode number must be at least 1').optional(),
+  duration: z.coerce.number().min(0).optional(),
+  overview: z.string().max(2000).optional(),
+  coverImagePath: z.string().optional(),
+  podcastSubscriptionId: z.string().optional(),
+  episodeGuid: z.string().optional(),
+});
+
 const genericMetadataSchema = z.record(
   z.string(),
   z.union([z.string(), z.number(), z.boolean(), z.undefined()]),
@@ -228,6 +254,7 @@ const metadataSchemasByMediaType: Record<string, z.ZodType> = {
   tv: tvMetadataSchema,
   comic: comicMetadataSchema,
   anime: animeMetadataSchema,
+  podcast: podcastMetadataSchema,
 };
 
 /** Returns the appropriate metadata schema for a given media type id. */

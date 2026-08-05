@@ -38,7 +38,17 @@ export function RatingInput({ value, onChange }: RatingInputProps) {
           marks={MARKS}
           aria-label="Rating"
           valueLabelDisplay="auto"
-          sx={{ flexGrow: 1 }}
+          // See chat (screen-recording bug report): without this, a
+          // touch that starts on the thumb but drifts even slightly
+          // vertically while dragging horizontally gets read by the
+          // browser as a page scroll at the same time as a slider
+          // drag, progressively scrolling the whole form down mid-
+          // drag until Save/Convert/Delete end up under the user's
+          // thumb. `pan-x` tells the browser this element handles its
+          // own horizontal panning, so only vertical scroll gestures
+          // are left for the page — same fix already applied to
+          // TimelineChart's bars.
+          sx={{ flexGrow: 1, touchAction: 'pan-x' }}
         />
         <Button size="small" onClick={() => onChange(undefined)} disabled={value === undefined}>
           Clear

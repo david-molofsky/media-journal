@@ -693,14 +693,19 @@ export function EntryForm({
                 Director/Cast/Source and the new Runtime/Production
                 company/Series/Status fields — deliberately not in
                 mediaType.fields so it gets a multiline layout instead of
-                the generic single-line TextField loop above. */}
-            {(mediaType.id === 'film' || mediaType.id === 'tv') && (
+                the generic single-line TextField loop above. Reused for
+                Podcasts as "Show Notes" (same metadata.overview key,
+                populated from itunes:summary/<description> instead of
+                TMDB — see chat) rather than a separate field, since the
+                underlying need (a free-text multiline blurb, auto-filled
+                but editable) is identical. */}
+            {(mediaType.id === 'film' || mediaType.id === 'tv' || mediaType.id === 'podcast') && (
               <Controller
                 name={'metadata.overview' as 'metadata'}
                 control={control}
                 render={({ field: controllerField, fieldState }) => (
                   <TextField
-                    label="Overview"
+                    label={mediaType.id === 'podcast' ? 'Show Notes' : 'Overview'}
                     multiline
                     minRows={3}
                     fullWidth

@@ -1050,6 +1050,82 @@ export class MediaJournalDatabase extends Dexie {
       inProgressEntries: null,
       podcastSubscriptions: 'id, feedUrl, createdAt',
     });
+
+    /**
+     * Version 24 (see chat): adds Season Number/Episode Number/
+     * Duration fields to Podcasts, Podcast Addict and PodBean to its
+     * Source options, and Paramount+ to Film/TV's Source options —
+     * fresh installs already get all of these via
+     * seed.ts/defaultMediaTypes.ts. Guarded per-field/per-option with
+     * `existingKeys`/`existingOptions` (same pattern as version
+     * 20/21/22) so re-running this doesn't duplicate anything. No
+     * `mediaEntries` changes — this only affects media type field
+     * *definitions*, not any entry's stored metadata (new Podcast
+     * entries pick up the fields going forward; existing ones are
+     * unaffected until edited, same as every other field added this
+     * way).
+     */
+    this.version(24)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        const podcast = await table.get('podcast');
+        if (podcast) {
+          const existingKeys = new Set(podcast.fields.map((f) => f.key));
+          const fields = podcast.fields.map((field) => {
+            if (field.key !== 'source' || field.type !== 'autocomplete') return field;
+            const existingOptions = new Set(field.options ?? []);
+            const toAdd = ['Podcast Addict', 'PodBean'].filter((s) => !existingOptions.has(s));
+            if (toAdd.length === 0) return field;
+            return { ...field, options: [...(field.options ?? []), ...toAdd] };
+          });
+          if (!existingKeys.has('seasonNumber')) {
+            fields.push({
+              key: 'seasonNumber',
+              label: 'Season Number',
+              type: 'number',
+              required: false,
+            });
+          }
+          if (!existingKeys.has('episodeNumber')) {
+            fields.push({
+              key: 'episodeNumber',
+              label: 'Episode Number',
+              type: 'number',
+              required: false,
+            });
+          }
+          if (!existingKeys.has('duration')) {
+            fields.push({
+              key: 'duration',
+              label: 'Duration (minutes)',
+              type: 'number',
+              required: false,
+            });
+          }
+          await table.put({ ...podcast, fields });
+        }
+
+        for (const typeId of ['film', 'tv']) {
+          const mediaType = await table.get(typeId);
+          if (!mediaType) continue;
+          const fields = mediaType.fields.map((field) => {
+            if (field.key !== 'source' || field.type !== 'autocomplete') return field;
+            const existingOptions = new Set(field.options ?? []);
+            if (existingOptions.has('Paramount+')) return field;
+            return { ...field, options: [...(field.options ?? []), 'Paramount+'] };
+          });
+          await table.put({ ...mediaType, fields });
+        }
+      });
   }
 }
 

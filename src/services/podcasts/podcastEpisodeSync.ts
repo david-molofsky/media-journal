@@ -37,6 +37,14 @@ async function createEpisodeEntry(
     podcastSubscriptionId: subscription.id,
     episodeGuid: episode.guid,
     ...(coverImagePath ? { coverImagePath } : {}),
+    // RSS auto-fill (see chat) — Season/Episode/Duration/Show Notes.
+    // Each only written when the feed actually provided it, same
+    // pattern as coverImagePath above, so a field absent from the
+    // feed stays genuinely absent rather than saving as 0/''.
+    ...(episode.seasonNumber !== undefined ? { seasonNumber: episode.seasonNumber } : {}),
+    ...(episode.episodeNumber !== undefined ? { episodeNumber: episode.episodeNumber } : {}),
+    ...(episode.durationMinutes !== undefined ? { duration: episode.durationMinutes } : {}),
+    ...(episode.description ? { overview: episode.description } : {}),
   };
   await createEntry({
     title: episode.title,
