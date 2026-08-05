@@ -79,7 +79,22 @@ const bookMetadataSchema = z.object({
   // Library)) — year-only, since that's all Open Library's search
   // index reliably gives (`first_publish_year`), unlike TMDB's full
   // release_date for Film/TV.
-  releaseYear: z.string().optional(),
+  //
+  // BUG FIX (see chat): this was `z.string()`, but defaultMediaTypes.ts
+  // declares this field `type: 'number'` — which makes EntryForm's
+  // Controller render it as a numeric input AND makes
+  // applyMetadataFill (EntryForm.tsx) convert the auto-filled value to
+  // a real number via `Number(value)` before writing it here. Every
+  // book whose Release Year got auto-filled therefore saved a number
+  // against a schema expecting a string, failing validation with
+  // Zod's "Invalid input: expected string, received number" and
+  // silently blocking the save. `z.coerce.number()` both matches the
+  // field's declared type and tolerates a stray string (e.g. from
+  // backfillService.ts's applyBookMatch, which writes Open Library's
+  // raw string as-is rather than converting it — also worth fixing at
+  // the source, done below, but this keeps the schema robust either
+  // way).
+  releaseYear: z.coerce.number().optional(),
 });
 
 const filmMetadataSchema = z.object({
@@ -91,7 +106,7 @@ const filmMetadataSchema = z.object({
   // `posterPath` aren't in defaultMediaTypes.ts's `fields[]` (they get
   // bespoke UI in EntryForm), but must still be listed here — per-type
   // schemas silently strip any metadata key they don't know about.
-  runtime: z.number().min(0).optional(),
+  runtime: z.coerce.number().min(0).optional(),
   productionCompany: z.string().optional(),
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
@@ -116,16 +131,16 @@ const filmMetadataSchema = z.object({
 });
 
 const tvMetadataSchema = z.object({
-  seasonNumber: z.number().min(1, 'Season number must be at least 1').optional(),
-  episodeStart: z.number().min(1, 'Episode must be at least 1').optional(),
-  episodeEnd: z.number().min(1, 'Episode must be at least 1').optional(),
+  seasonNumber: z.coerce.number().min(1, 'Season number must be at least 1').optional(),
+  episodeStart: z.coerce.number().min(1, 'Episode must be at least 1').optional(),
+  episodeEnd: z.coerce.number().min(1, 'Episode must be at least 1').optional(),
   creator: z.string().optional(),
   showrunner: z.string().optional(),
   cast: z.string().optional(),
   source: z.string().optional(),
   // TMDB auto-fill fields — see matching comment on filmMetadataSchema.
   network: z.string().optional(),
-  runtime: z.number().min(0).optional(),
+  runtime: z.coerce.number().min(0).optional(),
   tvStatus: z.string().optional(),
   series: z.string().optional(),
   overview: z.string().max(2000).optional(),
@@ -143,8 +158,8 @@ const tvMetadataSchema = z.object({
 const comicMetadataSchema = z
   .object({
     series: z.string().optional(),
-    issueStart: z.number().min(1, 'Issue start must be at least 1').optional(),
-    issueEnd: z.number().optional(),
+    issueStart: z.coerce.number().min(1, 'Issue start must be at least 1').optional(),
+    issueEnd: z.coerce.number().optional(),
     source: z.string().optional(),
     // Free-text, manual-only field — deliberately not part of the
     // ComicVine auto-fill mapping (see chat). ComicVine's own "volume"
@@ -194,9 +209,9 @@ const animeMetadataSchema = z.object({
   studio: z.string().optional(),
   format: z.string().optional(),
   source: z.string().optional(),
-  episodesWatched: z.number().min(0).optional(),
-  totalEpisodes: z.number().min(0).optional(),
-  seasonNumber: z.number().min(1, 'Season number must be at least 1').optional(),
+  episodesWatched: z.coerce.number().min(0).optional(),
+  totalEpisodes: z.coerce.number().min(0).optional(),
+  seasonNumber: z.coerce.number().min(1, 'Season number must be at least 1').optional(),
   malId: z.string().optional(),
   coverImagePath: z.string().optional(),
 });

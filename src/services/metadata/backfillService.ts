@@ -431,7 +431,11 @@ async function applyBookMatch(state: MatchState): Promise<'updated' | 'skipped'>
   for (const key of state.missingFields) {
     const value = match.fields[key];
     if (value === undefined) continue;
-    metadata[key] = value;
+    // `releaseYear` is `type: 'number'` in defaultMediaTypes.ts (and
+    // the Zod schema, since the fix above) — same conversion
+    // applyFilmOrTvMatch already does for `runtime`. Open Library's
+    // search result carries it as a plain string.
+    metadata[key] = key === 'releaseYear' ? Number(value) : value;
     changed = true;
   }
 
