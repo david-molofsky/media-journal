@@ -435,19 +435,36 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
         >
           <Stack direction="row" spacing={2} alignItems="flex-start">
             {showImage && (
+              // Wrapper Box owns the width/shape (flex-basis + aspect-ratio),
+              // the <img> just fills it at 100%/100% — more reliable across
+              // browsers than putting aspect-ratio directly on the <img>
+              // itself (see chat): images are "replaced elements", and a
+              // percentage flex-basis + aspect-ratio on the element being
+              // replaced doesn't consistently compute the way it does on a
+              // plain div, which is what caused the poster to render at
+              // full card width just now instead of 53%.
               <Box
-                component="img"
-                src={imageUrl}
-                onError={() => setImageFailed(true)}
-                alt=""
                 sx={{
                   flex: '0 0 53%',
                   aspectRatio: '2 / 3',
                   borderRadius: 2,
-                  objectFit: 'cover',
+                  overflow: 'hidden',
                   boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
                 }}
-              />
+              >
+                <Box
+                  component="img"
+                  src={imageUrl}
+                  onError={() => setImageFailed(true)}
+                  alt=""
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                  }}
+                />
+              </Box>
             )}
             <Stack sx={{ minWidth: 0, flex: 1 }}>
               <Typography variant="caption" sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}>
