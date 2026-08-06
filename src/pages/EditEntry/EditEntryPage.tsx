@@ -45,8 +45,16 @@ import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
  * keys. Included here so conversion between e.g. Film and TV carries
  * Overview/poster over like any other shared-role field. */
 const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
-  film: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
-  tv: [{ key: 'overview', label: 'Overview' }, { key: 'posterPath', label: 'Poster' }],
+  film: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'posterPath', label: 'Poster' },
+    { key: 'imdbUrl', label: 'IMDb link' },
+  ],
+  tv: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'posterPath', label: 'Poster' },
+    { key: 'imdbUrl', label: 'IMDb link' },
+  ],
   comic: [{ key: 'coverImagePath', label: 'Cover image' }],
   book: [{ key: 'coverImagePath', label: 'Cover image' }],
   audiobook: [{ key: 'coverImagePath', label: 'Cover image' }],

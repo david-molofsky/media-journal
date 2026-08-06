@@ -26,7 +26,13 @@ interface ShareEntrySheetProps {
  * conveyed on the card. The status pill badge that used to sit below
  * it was removed (see chat) — the rating now takes that slot when
  * present, and it's simply left blank when there isn't one, since the
- * status line already says "On my wishlist" / "Started {date}". */
+ * status line already says "Added {date}" / "Started {date}".
+ *
+ * Wishlist previously read the static "On my wishlist" (see chat) —
+ * changed to "Added {date}" using entry.createdAt, matching the
+ * Completed/Started convention of always showing *when* rather than
+ * a static label, now that the middle block (see REPLACEMENT_TEXT
+ * below) carries the "On my Wishlist" framing instead. */
 function getStatusLineText(entry: MediaEntry): string {
   if (entry.status === 'completed') {
     return `Completed ${dayjs(entry.completedDate).format('D MMMM YYYY')}`;
@@ -36,7 +42,23 @@ function getStatusLineText(entry: MediaEntry): string {
       ? `Started ${dayjs(entry.startedDate).format('D MMMM YYYY')}`
       : 'In progress';
   }
-  return 'On my wishlist';
+  return `Added ${dayjs(entry.createdAt).format('D MMMM YYYY')}`;
+}
+
+/** Middle-block replacement text (see chat) — when there's no rating
+ * *and* the entry isn't Completed, this takes the rating's old slot
+ * instead of leaving it blank, so Wishlist/In Progress cards aren't
+ * missing a focal point in the middle of the card. A Completed entry
+ * with no rating still gets nothing here — same as before — since
+ * "Completed" alone isn't a useful thing to say twice (it's already
+ * the status line). Deliberately distinct wording from the status
+ * line below it ("Added {date}" / "Started {date}") rather than
+ * repeating it, so the two lines carry different information. */
+function getMiddleReplacementText(entry: MediaEntry): string | undefined {
+  if (entry.rating !== undefined) return undefined;
+  if (entry.status === 'wishlist') return 'On my Media Journal Wishlist';
+  if (entry.status === 'in_progress') return 'In Progress';
+  return undefined;
 }
 
 /** Footer branding date — shorter format, different source date per status. */
@@ -148,6 +170,16 @@ const RATING_FONT = '700 240px system-ui, -apple-system, sans-serif';
 // main rating number, which stayed at 240px.
 const RATING_SUFFIX_FONT = '400 77px system-ui, -apple-system, sans-serif';
 const RATING_H = 270;
+// Middle-block replacement text (see chat) — 30px, 80% white opacity.
+// Deliberately not RATING_FONT-scale: 200px was tried first and
+// discarded (a wireframe showed individual words wider than the text
+// column at that size, unfixable by wrapping alone). 80% opacity sits
+// between the subline/status tier (0.85) and the notes tier (0.75),
+// and the colour is otherwise identical to the rest of the card's
+// white-based text hierarchy — no bespoke colour was introduced.
+const REPLACEMENT_FONT = '700 30px system-ui, -apple-system, sans-serif';
+const REPLACEMENT_COLOUR = 'rgba(255,255,255,0.8)';
+const REPLACEMENT_LINE_H = 40;
 const NOTES_FONT = 'italic 24px system-ui, -apple-system, sans-serif';
 const NOTES_H = 34;
 const NOTES_GAP = 16;
@@ -213,6 +245,7 @@ async function buildShareCanvas(
   const subline = getSubline(entry);
   const statusText = getStatusLineText(entry);
   const hasRating = entry.rating !== undefined;
+  const middleReplacementText = getMiddleReplacementText(entry);
   const notesExcerpt =
     entry.notes && entry.notes.trim().length > 0
       ? `"${entry.notes.slice(0, 120).replace(/\n/g, ' ')}${entry.notes.length > 120 ? '…' : ''}"`
@@ -233,6 +266,15 @@ async function buildShareCanvas(
   measureCtx.font = TITLE_FONT;
   const titleLines = wrapText(measureCtx, title, textColW);
 
+  // Wrapped up front (not just at draw time) so its height can feed
+  // into middleFloorH below, same reason titleLines is computed here
+  // rather than inline in the drawing pass further down.
+  let middleReplacementLines: string[] = [];
+  if (!hasRating && middleReplacementText) {
+    measureCtx.font = REPLACEMENT_FONT;
+    middleReplacementLines = wrapText(measureCtx, middleReplacementText, textColW);
+  }
+
   const topBlockH =
     LABEL_H + LABEL_GAP + titleLines.length * TITLE_LINE_H + (subline ? SUBLINE_GAP + SUBLINE_H : 0);
   const bottomBlockH =
@@ -245,8 +287,12 @@ async function buildShareCanvas(
   // it's centred in whatever vertical space is left between them, so
   // a floor is reserved here (only when there is a rating to show)
   // purely to guarantee that gap is never smaller than the rating
-  // itself needs, growing the whole card taller if it would be.
-  const middleFloorH = hasRating ? RATING_H : 0;
+  // itself needs, growing the whole card taller if it would be. The
+  // Wishlist/In Progress replacement text (see chat) gets the same
+  // treatment at its own (much smaller) height.
+  const middleFloorH = hasRating
+    ? RATING_H
+    : middleReplacementLines.length * REPLACEMENT_LINE_H;
   const contentColH = Math.max(topBlockH + middleFloorH + bottomBlockH, MIN_CONTENT_H);
   const canvasH = contentColH + PAD * 2;
 
@@ -321,8 +367,11 @@ async function buildShareCanvas(
   // Middle block — rating, vertically centred in whatever space is
   // left between the subline and the bottom block (see chat: 3x
   // bigger, moved out of the status/rating row it used to share).
-  // Left entirely blank when there's no rating — no fallback badge,
-  // same rule as before.
+  // When there's no rating, a Wishlist/In Progress entry gets
+  // replacement text in the same slot instead (see chat) — wrapped
+  // like the title, since "On my Media Journal Wishlist" doesn't
+  // reliably fit the text column on one line. Only a Completed entry
+  // with no rating still gets nothing here, same rule as before.
   if (hasRating) {
     const middleTop = contentY + topBlockH;
     const middleH = contentColH - topBlockH - bottomBlockH;
@@ -334,6 +383,17 @@ async function buildShareCanvas(
     ctx.font = RATING_SUFFIX_FONT;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillText('/ 10', textX + ratingWidth + 16, ratingY);
+  } else if (middleReplacementLines.length > 0) {
+    const middleTop = contentY + topBlockH;
+    const middleH = contentColH - topBlockH - bottomBlockH;
+    const blockH = middleReplacementLines.length * REPLACEMENT_LINE_H;
+    let replacementY = middleTop + (middleH - blockH) / 2 + REPLACEMENT_LINE_H - 12;
+    ctx.font = REPLACEMENT_FONT;
+    ctx.fillStyle = REPLACEMENT_COLOUR;
+    for (const line of middleReplacementLines) {
+      ctx.fillText(line, textX, replacementY);
+      replacementY += REPLACEMENT_LINE_H;
+    }
   }
 
   // Bottom block — divider, status, notes — anchored to the bottom of
@@ -383,6 +443,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   const showImage = Boolean(imageUrl) && !imageFailed;
 
   const subline = getSubline(entry);
+  const middleReplacementText = getMiddleReplacementText(entry);
   const message = buildShareMessage(entry);
 
   const handleDownload = async () => {
@@ -478,7 +539,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                   {subline}
                 </Typography>
               )}
-              {entry.rating !== undefined && (
+              {entry.rating !== undefined ? (
                 <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
                   <Typography sx={{ fontSize: '3.5rem', fontWeight: 700, lineHeight: 1 }}>
                     {entry.rating}
@@ -487,6 +548,14 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                     </Typography>
                   </Typography>
                 </Box>
+              ) : (
+                middleReplacementText && (
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
+                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, opacity: 0.8, lineHeight: 1.3 }}>
+                      {middleReplacementText}
+                    </Typography>
+                  </Box>
+                )
               )}
               <Box sx={{ mt: 'auto' }}>
                 <Typography

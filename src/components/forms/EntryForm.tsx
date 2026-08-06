@@ -35,6 +35,7 @@ import { ComicUpcScanDialog } from './ComicUpcScanDialog';
 import { AddCoverImageDialog } from './AddCoverImageDialog';
 import { AutocompleteField } from './AutocompleteField';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
@@ -194,6 +195,14 @@ export function EntryForm({
   // posterPath-first precedence.
   const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
   const showCoverImage = !showPoster && typeof coverImagePath === 'string' && coverImagePath;
+  // Read-only — see chat. Only film/tv carry this (schema-only on
+  // those two types), auto-filled via TMDB's external_ids alongside
+  // credits/watch-providers. Never an editable TextField: there's
+  // nothing for the user to usefully type here, and a free-text URL
+  // field would just invite a broken link.
+  const imdbUrl = watch('metadata.imdbUrl' as 'metadata');
+  const showImdbLink =
+    (mediaType.id === 'film' || mediaType.id === 'tv') && typeof imdbUrl === 'string' && imdbUrl;
 
   // "Add cover image" (see chat) — icon only appears once *both*
   // fields are empty, for every media type, not just the ones
@@ -369,15 +378,35 @@ export function EntryForm({
                 alt=""
                 sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
               />
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
-                onClick={() => setCoverDialogOpen(true)}
-                sx={{ textTransform: 'none' }}
-              >
-                Change cover image
-              </Button>
+              <Stack spacing={1} alignItems="flex-start">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
+                  onClick={() => setCoverDialogOpen(true)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Change cover image
+                </Button>
+                {showImdbLink && (
+                  <Chip
+                    component="a"
+                    href={imdbUrl as unknown as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                    size="small"
+                    icon={<OpenInNewOutlinedIcon fontSize="small" />}
+                    label="IMDb"
+                    sx={{
+                      bgcolor: '#F5C518',
+                      color: '#000',
+                      fontWeight: 700,
+                      '& .MuiChip-icon': { color: '#000' },
+                    }}
+                  />
+                )}
+              </Stack>
             </Stack>
           )}
           {showAddCoverButton && (
@@ -391,15 +420,35 @@ export function EntryForm({
                   borderColor: 'divider',
                 }}
               />
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
-                onClick={() => setCoverDialogOpen(true)}
-                sx={{ textTransform: 'none' }}
-              >
-                Add cover image
-              </Button>
+              <Stack spacing={1} alignItems="flex-start">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
+                  onClick={() => setCoverDialogOpen(true)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Add cover image
+                </Button>
+                {showImdbLink && (
+                  <Chip
+                    component="a"
+                    href={imdbUrl as unknown as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    clickable
+                    size="small"
+                    icon={<OpenInNewOutlinedIcon fontSize="small" />}
+                    label="IMDb"
+                    sx={{
+                      bgcolor: '#F5C518',
+                      color: '#000',
+                      fontWeight: 700,
+                      '& .MuiChip-icon': { color: '#000' },
+                    }}
+                  />
+                )}
+              </Stack>
             </Stack>
           )}
           <AddCoverImageDialog

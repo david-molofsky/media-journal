@@ -36,6 +36,7 @@ export const SETTINGS_KEYS = {
   /** Full ISO release date for Film/TV (release_date/first_air_date) —
    * added alongside the others above, same on-by-default convention. */
   autofillReleaseDate: 'autofillReleaseDate',
+  autofillImdbLink: 'autofillImdbLink',
   /** Google Drive automatic daily backup. `autoBackupEnabled` is the
    * user-facing toggle (Settings > Google Drive); `lastAutoBackupAt` is
    * an ISO timestamp written after each successful automatic run, used

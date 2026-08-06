@@ -167,6 +167,15 @@ interface TmdbMovieSearchResult {
 interface TmdbCollection { name: string; }
 interface TmdbProductionCompany { name: string; }
 
+/** `external_ids` (see chat — IMDb link auto-fill), appended to the
+ * same movie/TV detail request that already fetches credits and
+ * watch/providers, so no extra API call is needed. `imdb_id` is
+ * `null` (not just absent) on TMDB entries that genuinely have no
+ * IMDb match, hence the explicit `| null` rather than just optional. */
+interface TmdbExternalIds {
+  imdb_id?: string | null;
+}
+
 interface TmdbMovieDetails {
   id: number;
   title: string;
@@ -185,6 +194,7 @@ interface TmdbMovieDetails {
     cast: TmdbCastMember[];
   };
   'watch/providers'?: TmdbWatchProviders;
+  external_ids?: TmdbExternalIds;
 }
 
 /**
@@ -245,7 +255,7 @@ export async function getFilmDetails(
   tmdbId: string,
 ): Promise<{ title: string; fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbMovieDetails>(
-    `/movie/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
+    `/movie/${tmdbId}?append_to_response=credits,watch/providers,external_ids&language=en-US`,
   );
 
   const crew = data.credits?.crew ?? [];
@@ -281,6 +291,7 @@ export async function getFilmDetails(
     autofillSeries,
     autofillPoster,
     autofillReleaseDate,
+    autofillImdbLink,
   ] = await Promise.all([
     getSetting('autofillOverview', true),
     getSetting('autofillRuntime', true),
@@ -288,6 +299,7 @@ export async function getFilmDetails(
     getSetting('autofillSeries', true),
     getSetting('autofillPoster', true),
     getSetting('autofillReleaseDate', true),
+    getSetting('autofillImdbLink', true),
   ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
@@ -306,6 +318,13 @@ export async function getFilmDetails(
   // Already ISO yyyy-mm-dd, matching EntryDatePicker's expected format
   // — no conversion needed, unlike Open Library's year-only value.
   if (autofillReleaseDate && data.release_date) fields['releaseDate'] = data.release_date;
+  // Full URL stored directly (see chat) rather than the bare IMDb id
+  // — this is purely a read-only outbound link, nothing else in the
+  // app needs to reconstruct or parse it, so there's no benefit to
+  // the lighter posterPath-style "store a fragment" convention here.
+  if (autofillImdbLink && data.external_ids?.imdb_id) {
+    fields['imdbUrl'] = `https://www.imdb.com/title/${data.external_ids.imdb_id}/`;
+  }
 
   return { title: data.title, fields, genres: extractGenres(data.genres) };
 }
@@ -340,6 +359,7 @@ interface TmdbTVDetails {
     cast: TmdbCastMember[];
   };
   'watch/providers'?: TmdbWatchProviders;
+  external_ids?: TmdbExternalIds;
 }
 
 /**
@@ -389,7 +409,7 @@ export async function getTVDetails(
   tmdbId: string,
 ): Promise<{ title: string; fields: Record<string, string>; genres?: string[] }> {
   const data = await tmdbGet<TmdbTVDetails>(
-    `/tv/${tmdbId}?append_to_response=credits,watch/providers&language=en-US`,
+    `/tv/${tmdbId}?append_to_response=credits,watch/providers,external_ids&language=en-US`,
   );
 
   const crew = data.credits?.crew ?? [];
@@ -424,6 +444,7 @@ export async function getTVDetails(
     autofillTvStatus,
     autofillPoster,
     autofillReleaseDate,
+    autofillImdbLink,
   ] = await Promise.all([
     getSetting('autofillOverview', true),
     getSetting('autofillRuntime', true),
@@ -431,6 +452,7 @@ export async function getTVDetails(
     getSetting('autofillTvStatus', true),
     getSetting('autofillPoster', true),
     getSetting('autofillReleaseDate', true),
+    getSetting('autofillImdbLink', true),
   ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
@@ -439,6 +461,9 @@ export async function getTVDetails(
   if (autofillTvStatus && data.status) fields['tvStatus'] = data.status;
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
   if (autofillReleaseDate && data.first_air_date) fields['releaseDate'] = data.first_air_date;
+  if (autofillImdbLink && data.external_ids?.imdb_id) {
+    fields['imdbUrl'] = `https://www.imdb.com/title/${data.external_ids.imdb_id}/`;
+  }
 
   return { title: data.name, fields, genres: extractGenres(data.genres) };
 }

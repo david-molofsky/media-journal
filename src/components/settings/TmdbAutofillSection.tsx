@@ -61,16 +61,24 @@ export function TmdbAutofillSection() {
   const [series, setSeries] = useBooleanSetting('autofillSeries', true);
   const [poster, setPoster] = useBooleanSetting('autofillPoster', true);
   const [releaseDate, setReleaseDate] = useBooleanSetting('autofillReleaseDate', true);
+  const [imdbLink, setImdbLink] = useBooleanSetting('autofillImdbLink', true);
 
-  const onCount = [overview, runtime, productionCompany, tvStatus, series, poster, releaseDate].filter(
-    Boolean,
-  ).length;
+  const onCount = [
+    overview,
+    runtime,
+    productionCompany,
+    tvStatus,
+    series,
+    poster,
+    releaseDate,
+    imdbLink,
+  ].filter(Boolean).length;
 
   return (
     <CollapsibleSection
       title="Metadata auto-fill (TMDB)"
       icon={DownloadOutlinedIcon}
-      badge={`${onCount}/7 on`}
+      badge={`${onCount}/8 on`}
     >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Choose which fields TMDB fills in automatically when you search for a Film or TV entry.
@@ -112,6 +120,12 @@ export function TmdbAutofillSection() {
           helperText="Theatrical release for Film, first air date for TV"
           checked={releaseDate}
           onChange={setReleaseDate}
+        />
+        <ToggleRow
+          label="IMDb link"
+          helperText="Read-only link shown next to the poster in Edit Entry"
+          checked={imdbLink}
+          onChange={setImdbLink}
         />
       </Stack>
 

@@ -115,6 +115,12 @@ const filmMetadataSchema = z.object({
   // year-only `releaseYear` on Books (TMDB's release_date is a full
   // date). Rendered via EntryDatePicker like Started/Completed dates.
   releaseDate: z.string().optional(),
+  // TMDB auto-fill — read-only "IMDb" link shown next to the poster
+  // in EntryForm (see chat). Same bespoke-field reasoning as
+  // overview/posterPath above: not in defaultMediaTypes.ts's
+  // `fields[]` since it isn't a generic text/number/date/autocomplete
+  // input, it's a link.
+  imdbUrl: z.string().optional(),
   // Shared-link support: TMDB id, persisted whenever a film is filled
   // via search or a shared link, so the entry can later be re-shared
   // as a smart link too. Hidden field — not in defaultMediaTypes.ts's
@@ -148,6 +154,8 @@ const tvMetadataSchema = z.object({
   // TMDB auto-fill — see matching comment on filmMetadataSchema.
   // Sourced from `first_air_date` rather than `release_date` for TV.
   releaseDate: z.string().optional(),
+  // TMDB auto-fill — see matching comment on filmMetadataSchema.
+  imdbUrl: z.string().optional(),
   // Shared-link support — see matching comment on filmMetadataSchema.
   tmdbId: z.string().optional(),
   // Cover image search / manual URL paste — see matching comment on
