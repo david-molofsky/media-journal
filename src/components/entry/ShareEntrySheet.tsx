@@ -144,6 +144,11 @@ const PAD = 56;
 // wasn't quite wide enough for the enlarged rating font. 53% gives
 // the text column, and therefore the rating, breathing room again.
 const POSTER_RATIO = 0.53;
+// Poster corner radius — enlarged from 16 to 40 (see chat: "the
+// square version with the curved edges on the poster looks better")
+// for a more pronounced squircle look, closer to the outer card's own
+// 32px radius rather than a subtle rounding.
+const POSTER_RADIUS = 40;
 const GAP = 40;
 /** Content-column height floor — keeps a short-title card at the
  * original ~4:3 proportions rather than shrinking to fit its content;
@@ -170,16 +175,17 @@ const RATING_FONT = '700 240px system-ui, -apple-system, sans-serif';
 // main rating number, which stayed at 240px.
 const RATING_SUFFIX_FONT = '400 77px system-ui, -apple-system, sans-serif';
 const RATING_H = 270;
-// Middle-block replacement text (see chat) — 30px, 80% white opacity.
-// Deliberately not RATING_FONT-scale: 200px was tried first and
-// discarded (a wireframe showed individual words wider than the text
-// column at that size, unfixable by wrapping alone). 80% opacity sits
-// between the subline/status tier (0.85) and the notes tier (0.75),
-// and the colour is otherwise identical to the rest of the card's
-// white-based text hierarchy — no bespoke colour was introduced.
-const REPLACEMENT_FONT = '700 30px system-ui, -apple-system, sans-serif';
+// Middle-block replacement text (see chat) — enlarged from 30px to
+// 44px so "In Progress" / "On my Media Journal Wishlist" reads with
+// real visual weight in that slot rather than looking like an
+// afterthought next to the (much larger) rating it substitutes for.
+// 80% white opacity sits between the subline/status tier (0.85) and
+// the notes tier (0.75), and the colour is otherwise identical to the
+// rest of the card's white-based text hierarchy — no bespoke colour
+// was introduced.
+const REPLACEMENT_FONT = '700 44px system-ui, -apple-system, sans-serif';
 const REPLACEMENT_COLOUR = 'rgba(255,255,255,0.8)';
-const REPLACEMENT_LINE_H = 40;
+const REPLACEMENT_LINE_H = 56;
 const NOTES_FONT = 'italic 24px system-ui, -apple-system, sans-serif';
 const NOTES_H = 34;
 const NOTES_GAP = 16;
@@ -315,7 +321,7 @@ async function buildShareCanvas(
   if (posterImg) {
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(contentX, contentY, posterW, contentColH, 16);
+    ctx.roundRect(contentX, contentY, posterW, contentColH, POSTER_RADIUS);
     ctx.clip();
     // Cover-fit: scale to fill the box, cropping whichever axis
     // overflows, same visual behaviour as the preview's objectFit
@@ -508,7 +514,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
                 sx={{
                   flex: '0 0 53%',
                   aspectRatio: '2 / 3',
-                  borderRadius: 2,
+                  borderRadius: 4,
                   overflow: 'hidden',
                   boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
                 }}
@@ -551,7 +557,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
               ) : (
                 middleReplacementText && (
                   <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-                    <Typography sx={{ fontSize: '1rem', fontWeight: 700, opacity: 0.8, lineHeight: 1.3 }}>
+                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, opacity: 0.85, lineHeight: 1.25 }}>
                       {middleReplacementText}
                     </Typography>
                   </Box>

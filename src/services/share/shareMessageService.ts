@@ -9,7 +9,7 @@
 import type { MediaEntry } from '@/models';
 import { ROUTES } from '@/routes/paths';
 
-const APP_URL = 'https://david-molofsky.github.io/media-journal/';
+const APP_URL = 'https://mediajournal.ap2hyc.com/';
 
 /**
  * Media types that support a shared "add to journal" deep link, and
