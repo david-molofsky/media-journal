@@ -21,12 +21,15 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMediaEntry } from '@/hooks/useMediaEntry';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
+import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
+import { WishlistRecommendationsSection } from '@/components/entry/WishlistRecommendationsSection';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
@@ -35,9 +38,18 @@ import {
   listEntries,
 } from '@/services/database/entryService';
 import { convertMetadata } from '@/utils/entryConversion';
+import { relogButtonLabel } from '@/utils/relogLabel';
+import { todayIso } from '@/utils/dateUtils';
 import { ROUTES, editEntryPath } from '@/routes/paths';
-import type { MediaType } from '@/models';
+import type { MediaType, NewMediaEntryInput } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
+import type { RelogNavigationState } from '@/pages/AddEntry/AddEntryPage';
+
+/** Tags starting with this prefix reflect import provenance, not
+ * something the user wants carried onto a freshly re-logged entry —
+ * see importedFromTag.ts. Re-logging is a manual action, not an
+ * import "from" anywhere. */
+const IMPORTED_TAG_PREFIX = 'imported from ';
 
 /** Metadata keys that exist per-type but aren't in defaultMediaTypes.ts's
  * `fields[]` (they get bespoke UI in EntryForm — poster thumbnail,
@@ -93,6 +105,7 @@ export default function EditEntryPage() {
   const entry = useMediaEntry(id);
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
+  const defaultStatus = useDefaultEntryStatus();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // Any type can convert to any other, via a role-based field mapping
@@ -166,6 +179,32 @@ export default function EditEntryPage() {
     navigate(ROUTES.library, { state: incomingFilters });
   };
 
+  // "Log a Rewatch/Reread/Replay" (see chat) — hands core metadata
+  // (title, genre, tags, creator/franchise fields, poster/cover) to
+  // Add Entry as a pre-fill, same mechanism as the existing shared-link
+  // pre-fill. Rating, notes, dates and status deliberately start fresh
+  // rather than carrying over — this is a new experience of the thing,
+  // not a copy of the old one. repeatConsumption starts true since
+  // that's literally what this is. The "imported from X" tag is
+  // dropped since re-logging is a manual action, not an import.
+  const handleRelog = () => {
+    const relogValues: NewMediaEntryInput = {
+      title: entry.title,
+      mediaType: entry.mediaType,
+      status: defaultStatus,
+      startedDate: undefined,
+      completedDate: defaultStatus === 'completed' ? todayIso() : undefined,
+      rating: undefined,
+      notes: '',
+      repeatConsumption: true,
+      tags: (entry.tags ?? []).filter((tag) => !tag.trim().toLowerCase().startsWith(IMPORTED_TAG_PREFIX)),
+      genres: entry.genres ?? [],
+      metadata: entry.metadata,
+    };
+    const state: RelogNavigationState = { relogValues };
+    navigate(ROUTES.addEntry, { state });
+  };
+
   // Bug fix (kept from the original Book<->Audiobook feature): only
   // offer conversion targets that are currently enabled in Settings >
   // Manage Media Types — `mediaTypes` is already the enabled-only list
@@ -235,6 +274,19 @@ export default function EditEntryPage() {
         }}
         secondaryActions={
           <Stack spacing={2}>
+            {entry.status !== 'wishlist' && (
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<ReplayIcon />}
+                onClick={handleRelog}
+              >
+                {relogButtonLabel(effectiveMediaType.id)}
+              </Button>
+            )}
+
+            <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
+
             <Divider />
             <Stack direction="row" spacing={2} justifyContent="flex-end">
               {convertCandidates.length > 0 && (

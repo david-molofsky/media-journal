@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
@@ -44,6 +45,14 @@ const SHARED_ID_KEY: Record<string, string> = {
   audiobook: 'openLibraryKey',
 };
 
+/** Navigation state Edit Entry's "Log a Rewatch/Reread/Replay" button
+ * (see chat) hands to Add Entry — a full set of values ready to hand
+ * straight to EntryForm as `initialValues`, same mechanism as the
+ * existing shared-link pre-fill below. */
+export interface RelogNavigationState {
+  relogValues: NewMediaEntryInput;
+}
+
 export default function AddEntryPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
@@ -54,7 +63,15 @@ export default function AddEntryPage() {
     0,
   );
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Re-log pre-fill (from Edit Entry's "Log a Rewatch/Reread/Replay").
+  // Dismissed the same way a shared link is abandoned — the arrow-back
+  // button on the type-picker screen clears it rather than it
+  // reappearing after the user chooses a different type manually.
+  const relogValues = (location.state as RelogNavigationState | null)?.relogValues;
+  const [relogDismissed, setRelogDismissed] = useState(false);
 
   // Shared "add to journal" link support (see shareMessageService's
   // buildEntryLink). `type`/`id` in the URL identify a source record
@@ -79,9 +96,23 @@ export default function AddEntryPage() {
   // not state: true once media types are loaded but no match was found.
   const sharedTypeMissing = isSharedLink && Boolean(mediaTypes) && !sharedMediaType;
 
+  // The type named by a re-log, once media types have loaded — mirrors
+  // sharedMediaType above. Ignored once the user has dismissed the
+  // pre-fill via the back button.
+  const relogMediaType = useMemo(() => {
+    if (!relogValues || relogDismissed || !mediaTypes) return null;
+    return mediaTypes.find((mt) => mt.id === relogValues.mediaType) ?? null;
+  }, [relogValues, relogDismissed, mediaTypes]);
+
   // Manual picks (selectedType) take priority; otherwise fall back to
-  // whatever the shared link resolved to.
-  const activeType = selectedType ?? sharedMediaType;
+  // whatever the shared link resolved to, then a re-log pre-fill.
+  const activeType = selectedType ?? sharedMediaType ?? relogMediaType;
+
+  // Only apply the re-log values once the resolved type actually
+  // matches — guards against a stale pre-fill being applied after the
+  // user manually picks a different type.
+  const relogInitialValues =
+    relogMediaType && activeType?.id === relogMediaType.id ? relogValues : undefined;
 
   const sharedLoading =
     isSharedLink && !sharedTypeMissing && !sharedValues && !sharedError && Boolean(mediaTypes);
@@ -213,6 +244,7 @@ export default function AddEntryPage() {
           onClick={() => {
             setSelectedType(null);
             if (isSharedLink) abandonSharedLink();
+            if (relogValues) setRelogDismissed(true);
           }}
         >
           <ArrowBackIcon />
@@ -226,10 +258,15 @@ export default function AddEntryPage() {
           Filled in from a shared link — review and save.
         </Alert>
       )}
+      {relogInitialValues && (
+        <Alert icon={<ReplayIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
+          Pre-filled from your previous entry — review and save.
+        </Alert>
+      )}
       <EntryForm
-        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : 'manual'}`}
+        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : relogInitialValues ? 'relog' : 'manual'}`}
         mediaType={effectiveMediaType}
-        initialValues={sharedValues ?? undefined}
+        initialValues={sharedValues ?? relogInitialValues ?? undefined}
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
         onSubmit={async (values) => {
