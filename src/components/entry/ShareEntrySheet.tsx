@@ -175,17 +175,22 @@ const RATING_FONT = '700 240px system-ui, -apple-system, sans-serif';
 // main rating number, which stayed at 240px.
 const RATING_SUFFIX_FONT = '400 77px system-ui, -apple-system, sans-serif';
 const RATING_H = 270;
-// Middle-block replacement text (see chat) — enlarged from 30px to
-// 44px so "In Progress" / "On my Media Journal Wishlist" reads with
-// real visual weight in that slot rather than looking like an
-// afterthought next to the (much larger) rating it substitutes for.
-// 80% white opacity sits between the subline/status tier (0.85) and
-// the notes tier (0.75), and the colour is otherwise identical to the
-// rest of the card's white-based text hierarchy — no bespoke colour
-// was introduced.
-const REPLACEMENT_FONT = '700 44px system-ui, -apple-system, sans-serif';
+// Middle-block replacement text (see chat) — enlarged 30px -> 44px ->
+// 72px (Option C from the size wireframe) so "In Progress" / "On my
+// Media Journal Wishlist" reads with real visual weight in that slot
+// rather than looking like an afterthought next to the (much larger)
+// rating it substitutes for. 72px was chosen as the practical ceiling
+// before the widest word ("Journal"/"Wishlist") starts crowding the
+// text column edge. 80% white opacity sits between the subline/status
+// tier (0.85) and the notes tier (0.75), and the colour is otherwise
+// identical to the rest of the card's white-based text hierarchy — no
+// bespoke colour was introduced.
+const REPLACEMENT_FONT = '700 72px system-ui, -apple-system, sans-serif';
 const REPLACEMENT_COLOUR = 'rgba(255,255,255,0.8)';
-const REPLACEMENT_LINE_H = 56;
+// Scaled proportionally with REPLACEMENT_FONT (56px line height at
+// 44px font -> ~92px at 72px) so multi-line wraps ("On my Media
+// Journal" / "Wishlist") keep the same relative leading.
+const REPLACEMENT_LINE_H = 92;
 const NOTES_FONT = 'italic 24px system-ui, -apple-system, sans-serif';
 const NOTES_H = 34;
 const NOTES_GAP = 16;
@@ -557,7 +562,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
               ) : (
                 middleReplacementText && (
                   <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-                    <Typography sx={{ fontSize: '1.5rem', fontWeight: 700, opacity: 0.85, lineHeight: 1.25 }}>
+                    <Typography sx={{ fontSize: '2.5rem', fontWeight: 700, opacity: 0.85, lineHeight: 1.2 }}>
                       {middleReplacementText}
                     </Typography>
                   </Box>
