@@ -19,6 +19,13 @@
  *   GET  /mal/animelist — proxies the user's anime list (paginated)
  *   GET  /mal/mangalist — proxies the user's manga list (paginated)
  *
+ * Plus, added for "Find Next in Series" (see chat, Aug 2026) — public,
+ * Client-ID-only routes needing no user OAuth connection:
+ *   GET  /mal/anime         — title search
+ *   GET  /mal/anime/:id     — single anime detail (e.g. related_anime)
+ *   GET  /mal/manga         — title search
+ *   GET  /mal/manga/:id     — single manga detail (e.g. related_manga)
+ *
  * If your existing Worker uses a router library (itty-router, Hono,
  * etc.) rather than a plain switch/if chain, adapt the route
  * registration syntax below to match — the handler bodies themselves
@@ -133,6 +140,35 @@ async function handleMalList(request, origin, listType) {
   });
 }
 
+/**
+ * GET /mal/anime/:id or /mal/manga/:id, and GET /mal/anime or
+ * /mal/manga (search, when no :id segment is present) — added for
+ * "Find Next in Series" (see chat, Aug 2026). Client-ID-only auth
+ * (X-MAL-Client-ID, no Authorization header) since these are MAL's
+ * public read endpoints — unlike handleMalList above, these work
+ * whether or not the user has ever connected their MAL account.
+ * `id` is undefined for the search variant.
+ */
+async function handleMalPublic(request, origin, type, id) {
+  const incomingUrl = new URL(request.url);
+  const malUrl = id
+    ? `${MAL_API_BASE}/${type}/${id}?${incomingUrl.searchParams.toString()}`
+    : `${MAL_API_BASE}/${type}?${incomingUrl.searchParams.toString()}`;
+
+  const malResponse = await fetch(malUrl, {
+    headers: { 'X-MAL-Client-ID': MAL_CLIENT_ID },
+  });
+
+  const data = await malResponse.text();
+  return new Response(data, {
+    status: malResponse.status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...corsHeaders(origin),
+    },
+  });
+}
+
 // ── Wire these into your existing router ────────────────────────────────────
 //
 // If your Worker is a plain switch on `url.pathname`, something like:
@@ -151,6 +187,17 @@ async function handleMalList(request, origin, listType) {
 //   }
 //   if (url.pathname === '/mal/mangalist' && request.method === 'GET') {
 //     return handleMalList(request, origin, 'mangalist');
+//   }
+//   // Added for "Find Next in Series" (Aug 2026) — matches both the
+//   // search form (/mal/anime, /mal/manga) and the detail form
+//   // (/mal/anime/123, /mal/manga/123).
+//   const animeMatch = url.pathname.match(/^\/mal\/anime(?:\/(\d+))?$/);
+//   if (animeMatch && request.method === 'GET') {
+//     return handleMalPublic(request, origin, 'anime', animeMatch[1]);
+//   }
+//   const mangaMatch = url.pathname.match(/^\/mal\/manga(?:\/(\d+))?$/);
+//   if (mangaMatch && request.method === 'GET') {
+//     return handleMalPublic(request, origin, 'manga', mangaMatch[1]);
 //   }
 //
 // Don't forget: if your Worker handles OPTIONS preflight requests

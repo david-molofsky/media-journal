@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -30,6 +31,12 @@ interface WishlistRecommendationsSectionProps {
 export function WishlistRecommendationsSection({ entry, mediaTypes }: WishlistRecommendationsSectionProps) {
   const navigate = useNavigate();
   const recommendations = useWishlistRecommendations(entry);
+  // Tracks image URLs that failed to load (e.g. a dead Open Library
+  // cover) so they fall back to the media-type icon instead of the
+  // browser's broken-image icon — same pattern as EntryCard.tsx's
+  // `failedImageUrl`, plural here since this section can list several
+  // entries at once, each with its own image.
+  const [failedImageUrls, setFailedImageUrls] = useState<Set<string>>(new Set());
 
   if (!recommendations || recommendations.length === 0) return null;
 
@@ -67,11 +74,14 @@ export function WishlistRecommendationsSection({ entry, mediaTypes }: WishlistRe
                     border: `2px solid ${recType?.colour ?? 'transparent'}`,
                   }}
                 >
-                  {imageUrl ? (
+                  {imageUrl && !failedImageUrls.has(imageUrl) ? (
                     <Box
                       component="img"
                       src={imageUrl}
                       alt=""
+                      onError={() =>
+                        setFailedImageUrls((prev) => new Set(prev).add(imageUrl))
+                      }
                       sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (

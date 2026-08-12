@@ -66,6 +66,12 @@ const FIELD_ROLES: Record<string, Record<string, FieldRole>> = {
   podcast: { source: 'source' },
   art: { source: 'source' },
   theatre: { source: 'source' },
+  // Added alongside their new `series` fields for "Find Next in
+  // Series" (see chat, Aug 2026) — previously absent from this map
+  // entirely, so Convert never carried genre/creator-adjacent series
+  // info for these two types.
+  anime: { series: 'series', source: 'source' },
+  manga: { author: 'creator', series: 'series', source: 'source' },
 };
 
 export function fieldRolesFor(mediaTypeId: string): Record<string, FieldRole> {

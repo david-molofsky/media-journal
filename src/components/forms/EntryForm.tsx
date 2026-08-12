@@ -195,6 +195,14 @@ export function EntryForm({
   // posterPath-first precedence.
   const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
   const showCoverImage = !showPoster && typeof coverImagePath === 'string' && coverImagePath;
+  // Tracks a src that failed to load (e.g. an Open Library cover_i
+  // that no longer resolves to a real image — see chat, the
+  // "A Rare Book of Cunning Device" broken-icon report). Same pattern
+  // as EntryCard.tsx/ShareEntrySheet.tsx's `failedImageUrl` — this was
+  // the one image-rendering spot in the app missing it, which is why
+  // a dead cover URL showed the browser's raw broken-image icon here
+  // instead of gracefully falling back like everywhere else.
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   // Read-only — see chat. Only film/tv carry this (schema-only on
   // those two types), auto-filled via TMDB's external_ids alongside
   // credits/watch-providers. Never an editable TextField: there's
@@ -217,7 +225,18 @@ export function EntryForm({
   // 2024, so it could never actually work), leaving just the manual
   // URL paste dialog.
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
-  const showAddCoverButton = !showPoster && !showCoverImage;
+  // A value is stored (showPoster/showCoverImage) but its image failed
+  // to actually load — still offers "Change cover image" (there IS
+  // something to fix), just renders the dashed placeholder box instead
+  // of a broken <img>.
+  const activeCoverSrc = showPoster
+    ? `https://image.tmdb.org/t/p/w154${posterPath}`
+    : showCoverImage
+      ? (coverImagePath as unknown as string)
+      : undefined;
+  const coverImageFailed = Boolean(activeCoverSrc) && activeCoverSrc === failedImageUrl;
+  const hasCoverValue = Boolean(showPoster || showCoverImage);
+  const showAddCoverButton = !hasCoverValue;
 
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
@@ -370,14 +389,27 @@ export function EntryForm({
             mediaTypeId={mediaType.id}
             onFill={applyMetadataFill}
           />
-          {(showPoster || showCoverImage) && (
+          {(hasCoverValue || showAddCoverButton) && (
             <Stack direction="row" alignItems="center" spacing={1}>
-              <Box
-                component="img"
-                src={showPoster ? `https://image.tmdb.org/t/p/w154${posterPath}` : (coverImagePath as unknown as string)}
-                alt=""
-                sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
-              />
+              {hasCoverValue && !coverImageFailed ? (
+                <Box
+                  component="img"
+                  src={activeCoverSrc}
+                  alt=""
+                  onError={() => setFailedImageUrl(activeCoverSrc ?? null)}
+                  sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    width: 56,
+                    height: 84,
+                    borderRadius: 1,
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                  }}
+                />
+              )}
               <Stack spacing={1} alignItems="flex-start">
                 <Button
                   size="small"
@@ -386,50 +418,13 @@ export function EntryForm({
                   onClick={() => setCoverDialogOpen(true)}
                   sx={{ textTransform: 'none' }}
                 >
-                  Change cover image
+                  {hasCoverValue ? 'Change cover image' : 'Add cover image'}
                 </Button>
-                {showImdbLink && (
-                  <Chip
-                    component="a"
-                    href={imdbUrl as unknown as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    clickable
-                    size="small"
-                    icon={<OpenInNewOutlinedIcon fontSize="small" />}
-                    label="IMDb"
-                    sx={{
-                      bgcolor: '#F5C518',
-                      color: '#000',
-                      fontWeight: 700,
-                      '& .MuiChip-icon': { color: '#000' },
-                    }}
-                  />
+                {coverImageFailed && (
+                  <Typography variant="caption" color="text.secondary">
+                    This cover image link isn&apos;t loading — try replacing it.
+                  </Typography>
                 )}
-              </Stack>
-            </Stack>
-          )}
-          {showAddCoverButton && (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Box
-                sx={{
-                  width: 56,
-                  height: 84,
-                  borderRadius: 1,
-                  border: '1px dashed',
-                  borderColor: 'divider',
-                }}
-              />
-              <Stack spacing={1} alignItems="flex-start">
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AddPhotoAlternateOutlinedIcon fontSize="small" />}
-                  onClick={() => setCoverDialogOpen(true)}
-                  sx={{ textTransform: 'none' }}
-                >
-                  Add cover image
-                </Button>
                 {showImdbLink && (
                   <Chip
                     component="a"
@@ -469,6 +464,11 @@ export function EntryForm({
               setValue('metadata.coverImagePath' as 'metadata', url as unknown as EntryMetadata, {
                 shouldValidate: true,
               });
+              // A fresh replacement deserves a fresh attempt to load —
+              // otherwise if the new URL happens to equal a previously
+              // failed one (unlikely, but free to guard against) the
+              // placeholder would never clear.
+              setFailedImageUrl(null);
               setCoverDialogOpen(false);
             }}
           />

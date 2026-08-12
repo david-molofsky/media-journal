@@ -27,3 +27,10 @@ export async function removePodcastSubscription(id: string): Promise<void> {
 export async function touchPodcastSubscriptionLastChecked(id: string): Promise<void> {
   await db.podcastSubscriptions.update(id, { lastCheckedAt: nowIso() });
 }
+
+/** Added for "Find Next in Series" (see chat, Aug 2026) — resolves a
+ * stored `podcastSubscriptionId` back to its feed URL, needed to
+ * re-fetch the feed and find the next episode. */
+export async function getPodcastSubscription(id: string): Promise<PodcastSubscription | undefined> {
+  return db.podcastSubscriptions.get(id);
+}

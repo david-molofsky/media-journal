@@ -1178,6 +1178,67 @@ export class MediaJournalDatabase extends Dexie {
           await table.update(entry.id, { genres: mapped });
         }
       });
+
+    /**
+     * Version 26 (see chat, Aug 2026): adds `series` to Anime and
+     * `series`/`volumeNumber` to Manga's field definitions, needed for
+     * "Find Next in Series" — both types previously had no
+     * series-grouping field at all. Same guarded
+     * `existingKeys`/append pattern as version 24's Podcast fields; no
+     * `mediaEntries` changes — existing entries simply have these keys
+     * absent from `metadata` until edited, same as every other field
+     * added this way.
+     */
+    this.version(26)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        const anime = await table.get('anime');
+        if (anime) {
+          const existingKeys = new Set(anime.fields.map((f) => f.key));
+          if (!existingKeys.has('series')) {
+            const seasonIndex = anime.fields.findIndex((f) => f.key === 'seasonNumber');
+            const fields = [...anime.fields];
+            const newField = { key: 'series', label: 'Series', type: 'text' as const, required: false };
+            // Inserted right after seasonNumber to match the order
+            // seen in the field list elsewhere (Number, then Series),
+            // falling back to appending if seasonNumber is somehow
+            // absent.
+            if (seasonIndex >= 0) fields.splice(seasonIndex + 1, 0, newField);
+            else fields.push(newField);
+            await table.put({ ...anime, fields });
+          }
+        }
+
+        const manga = await table.get('manga');
+        if (manga) {
+          const existingKeys = new Set(manga.fields.map((f) => f.key));
+          const toAdd: MediaType['fields'] = [];
+          if (!existingKeys.has('series')) {
+            toAdd.push({ key: 'series', label: 'Series', type: 'text', required: false });
+          }
+          if (!existingKeys.has('volumeNumber')) {
+            toAdd.push({ key: 'volumeNumber', label: 'Volume Number', type: 'number', required: false });
+          }
+          if (toAdd.length > 0) {
+            // Inserted right after `author` (index 0), same "new
+            // series-identity fields near the top" placement as Anime
+            // above.
+            const authorIndex = manga.fields.findIndex((f) => f.key === 'author');
+            const fields = [...manga.fields];
+            fields.splice(authorIndex >= 0 ? authorIndex + 1 : 0, 0, ...toAdd);
+            await table.put({ ...manga, fields });
+          }
+        }
+      });
   }
 }
 

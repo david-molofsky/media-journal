@@ -197,3 +197,25 @@ export async function fetchAndParseFeed(feedUrl: string): Promise<FetchedPodcast
 
   return { showTitle, showArtworkUrl, episodes };
 }
+
+// ── Find Next in Series ("next episode") ────────────────────────────────────
+// See chat (Aug 2026) — Podcast's variant of "Find Next in Series":
+// episodic feeds have no series/number concept, so this walks the
+// feed's own chronological order instead.
+
+/**
+ * Finds the episode published immediately after the one identified by
+ * `currentGuid`, within the same feed. `episodes` is newest-first (per
+ * `fetchAndParseFeed`'s own contract above), so "next" (chronologically
+ * later) is the item *before* the current one in that array. Returns
+ * `null` if the current episode can't be found in the feed (e.g. it
+ * was removed upstream) or is already the newest episode.
+ */
+export function findNextEpisode(
+  episodes: PodcastEpisode[],
+  currentGuid: string,
+): PodcastEpisode | null {
+  const currentIndex = episodes.findIndex((ep) => ep.guid === currentGuid);
+  if (currentIndex <= 0) return null;
+  return episodes[currentIndex - 1] ?? null;
+}

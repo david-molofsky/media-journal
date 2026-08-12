@@ -220,8 +220,33 @@ const animeMetadataSchema = z.object({
   episodesWatched: z.coerce.number().min(0).optional(),
   totalEpisodes: z.coerce.number().min(0).optional(),
   seasonNumber: z.coerce.number().min(1, 'Season number must be at least 1').optional(),
+  // Added for "Find Next in Series" (see chat, Aug 2026) — see matching
+  // comment on defaultMediaTypes.ts's anime entry.
+  series: z.string().optional(),
   malId: z.string().optional(),
   coverImagePath: z.string().optional(),
+});
+
+/**
+ * Manga previously had no dedicated schema either (see chat, Aug
+ * 2026) — same situation Anime was in before it got one, and TV/Comic
+ * before that. Mirrors every field defaultMediaTypes.ts declares for
+ * this type, plus `series`/`volumeNumber` added alongside this schema
+ * for "Find Next in Series". IMPORTANT: any future manga metadata
+ * field must be added here too, or it will be silently stripped on
+ * save — this is no longer a config-only media type.
+ */
+const mangaMetadataSchema = z.object({
+  author: z.string().optional(),
+  series: z.string().optional(),
+  volumeNumber: z.coerce.number().min(1, 'Volume number must be at least 1').optional(),
+  chaptersRead: z.coerce.number().min(0).optional(),
+  totalChapters: z.coerce.number().min(0).optional(),
+  volumesRead: z.coerce.number().min(0).optional(),
+  totalVolumes: z.coerce.number().min(0).optional(),
+  malId: z.string().optional(),
+  coverImagePath: z.string().optional(),
+  source: z.string().optional(),
 });
 
 /**
@@ -262,6 +287,7 @@ const metadataSchemasByMediaType: Record<string, z.ZodType> = {
   tv: tvMetadataSchema,
   comic: comicMetadataSchema,
   anime: animeMetadataSchema,
+  manga: mangaMetadataSchema,
   podcast: podcastMetadataSchema,
 };
 

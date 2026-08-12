@@ -247,3 +247,38 @@ export async function getIssueDetails(
 
   return { fields };
 }
+
+// ── Find Next in Series ─────────────────────────────────────────────────────
+// See chat (Aug 2026).
+
+/**
+ * Comic's "next in series". Entries don't persist ComicVine's numeric
+ * volume id (see mapVolume's comment above — it only ever travels
+ * transiently through EntryForm), so unlike Book/TV/Film this always
+ * re-resolves the volume by searching the stored `series` text first,
+ * taking the first (best) match, then reuses `getIssueDetails` for the
+ * actual issue+1 lookup — same two-call shape that function already
+ * has. Returns `null` if the series text finds no ComicVine volume, or
+ * the target issue number doesn't exist within it.
+ */
+export async function findNextComicIssue(
+  seriesName: string,
+  targetIssueNumber: number,
+): Promise<{ title: string; fields: Record<string, string> } | null> {
+  const volumeMatches = await searchSeries(seriesName);
+  const volumeId = volumeMatches[0]?.fields.comicVineVolumeId;
+  if (!volumeId) return null;
+
+  const { fields } = await getIssueDetails(volumeId, String(targetIssueNumber));
+  if (Object.keys(fields).length === 0) return null;
+
+  return {
+    title: fields.issueTitle || `${seriesName} #${targetIssueNumber}`,
+    fields: {
+      ...fields,
+      series: seriesName,
+      issueStart: String(targetIssueNumber),
+      comicVineVolumeId: volumeId,
+    },
+  };
+}

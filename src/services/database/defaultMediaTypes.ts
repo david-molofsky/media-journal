@@ -436,6 +436,12 @@ export const defaultMediaTypes: MediaType[] = [
       // seasonNumber). Drives the Library-card title-suffix treatment
       // (e.g. "Attack on Titan — S4"), same pattern as TV.
       { key: 'seasonNumber', label: 'Season Number', type: 'number', required: false },
+      // Added for "Find Next in Series" (see chat, Aug 2026) — Anime
+      // previously had no series-grouping field at all (unlike every
+      // other type with a `series` role in entryConversion.ts's
+      // FIELD_ROLES). Paired with the existing `seasonNumber` above as
+      // this type's Number for that feature.
+      { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'malId', label: 'MyAnimeList ID', type: 'text', required: false },
       { key: 'coverImagePath', label: 'Cover image URL', type: 'text', required: false },
     ],
@@ -446,8 +452,21 @@ export const defaultMediaTypes: MediaType[] = [
     icon: 'remove_red_eye',
     colour: '#8E24AA',
     enabled: false,
+    // Now backed by a dedicated `mangaMetadataSchema` in
+    // entrySchemas.ts (see chat, Aug 2026 — added alongside
+    // `series`/`volumeNumber` below, previously fell through to the
+    // permissive genericMetadataSchema). Any new field added here must
+    // be added there too, same discipline as animeMetadataSchema.
     fields: [
       { key: 'author', label: 'Author', type: 'text', required: false },
+      // Added for "Find Next in Series" (see chat, Aug 2026) — Manga
+      // previously had no series-grouping field at all, and its
+      // existing numeric fields (chaptersRead/volumesRead) track
+      // reading *progress*, not "which volume this entry represents"
+      // — so `volumeNumber` is a distinct new field rather than reusing
+      // one of those.
+      { key: 'series', label: 'Series', type: 'text', required: false },
+      { key: 'volumeNumber', label: 'Volume Number', type: 'number', required: false },
       { key: 'chaptersRead', label: 'Chapters read', type: 'number', required: false },
       { key: 'totalChapters', label: 'Total chapters', type: 'number', required: false },
       { key: 'volumesRead', label: 'Volumes read', type: 'number', required: false },

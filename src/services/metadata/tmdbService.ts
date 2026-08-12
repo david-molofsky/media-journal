@@ -164,7 +164,7 @@ interface TmdbMovieSearchResult {
   release_date?: string;
 }
 
-interface TmdbCollection { name: string; }
+interface TmdbCollection { id: number; name: string; }
 interface TmdbProductionCompany { name: string; }
 
 /** `external_ids` (see chat — IMDb link auto-fill), appended to the
@@ -541,4 +541,83 @@ export async function getTVShowSummary(
     .filter((n) => n > 0)
     .sort((a, b) => a - b);
   return { title: data.name, seasonNumbers };
+}
+
+// ── Find Next in Series ─────────────────────────────────────────────────────
+// See chat (Aug 2026).
+
+interface TmdbSeasonDetail { air_date?: string; }
+
+/**
+ * TV's "next in series" — the next season of the *same show*, not a
+ * text search (unlike Open Library's for Books). Reuses
+ * `getTVShowSummary` to both confirm the next season number actually
+ * exists on this show (rather than just guessing +1 exists) and to
+ * get its display title, then fetches that one season's air date.
+ * Requires `tmdbId` — callers are expected to have already checked
+ * that via the eligibility rules in nextInSeries.ts.
+ */
+export async function findNextTVSeason(
+  tmdbId: string,
+  currentSeasonNumber: number,
+): Promise<{ title: string; fields: Record<string, string> } | null> {
+  const summary = await getTVShowSummary(tmdbId);
+  const nextSeasonNumber = currentSeasonNumber + 1;
+  if (!summary.seasonNumbers.includes(nextSeasonNumber)) return null;
+
+  const season = await tmdbGet<TmdbSeasonDetail>(`/tv/${tmdbId}/season/${nextSeasonNumber}`);
+
+  const fields: Record<string, string> = {
+    series: summary.title,
+    seasonNumber: String(nextSeasonNumber),
+  };
+  if (season.air_date) fields['releaseDate'] = season.air_date;
+
+  return { title: summary.title, fields };
+}
+
+interface TmdbCollectionPart {
+  id: number;
+  title: string;
+  release_date?: string;
+}
+interface TmdbCollectionDetail {
+  parts: TmdbCollectionPart[];
+}
+
+/**
+ * Film's "next in series" — uses TMDB's actual Collections API rather
+ * than a name+number text search (per David's call, Aug 2026: Film has
+ * no numeric field at all, and TMDB's own collection data is
+ * authoritative). Sorts the collection's films by release date and
+ * returns whichever comes immediately after this one — "next" here
+ * means chronologically, not "next unreleased", so a collection with
+ * films already logged out of release order still resolves correctly.
+ * Requires `tmdbId`; returns `null` if the film isn't part of any
+ * collection, or is already the newest entry in its collection.
+ */
+export async function findNextFilmInCollection(
+  tmdbId: string,
+): Promise<{ title: string; fields: Record<string, string> } | null> {
+  const movie = await tmdbGet<TmdbMovieDetails>(`/movie/${tmdbId}`);
+  const collectionId = movie.belongs_to_collection?.id;
+  if (!collectionId) return null;
+
+  const collection = await tmdbGet<TmdbCollectionDetail>(`/collection/${collectionId}`);
+  const sorted = collection.parts
+    .filter((part) => part.release_date)
+    .sort((a, b) => (a.release_date! < b.release_date! ? -1 : a.release_date! > b.release_date! ? 1 : 0));
+
+  const currentIndex = sorted.findIndex((part) => part.id === Number(tmdbId));
+  if (currentIndex === -1 || currentIndex === sorted.length - 1) return null;
+
+  const next = sorted[currentIndex + 1];
+  if (!next) return null;
+  const series = extractSeriesFromCollection(movie.belongs_to_collection?.name);
+
+  const fields: Record<string, string> = { tmdbId: String(next.id) };
+  if (series) fields['series'] = series;
+  if (next.release_date) fields['releaseDate'] = next.release_date;
+
+  return { title: next.title, fields };
 }

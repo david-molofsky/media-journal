@@ -221,3 +221,72 @@ export async function fetchMalList(
 
   return results;
 }
+
+// ── Find Next in Series ─────────────────────────────────────────────────────
+// See chat (Aug 2026). Unlike fetchMalList above, these use MAL's
+// Client-ID-only auth (the `X-MAL-Client-ID` header, no user OAuth
+// token) — MAL's public anime/manga detail and search endpoints
+// support this, so these work regardless of whether the user has ever
+// connected their MAL account. Still routed through the same Worker
+// purely for the CORS bypass (see file header) — the Worker forwards
+// these without touching any Authorization header, unlike
+// `handleMalList`. New Worker routes needed: GET /mal/anime/:id,
+// GET /mal/manga/:id, GET /mal/anime (search), GET /mal/manga
+// (search) — see mal-worker-routes.js.
+
+interface MalRelatedNode {
+  node: { id: number; title: string };
+  relation_type: string;
+}
+
+interface MalDetailResponse {
+  id: number;
+  title: string;
+  related_anime?: MalRelatedNode[];
+  related_manga?: MalRelatedNode[];
+}
+
+/**
+ * Follows MAL's own `related_anime`/`related_manga` "sequel"
+ * relation from a given MAL id — more reliable than guessing from a
+ * season/volume number, since MAL already tracks which entries are
+ * genuinely sequels of each other (season 2 of a show is very often
+ * its own separate MAL entry, not a season *within* one entry the way
+ * TMDB models TV). Returns `null` if MAL has no "sequel"-relation
+ * entry for this id.
+ */
+export async function findMalSequel(
+  malId: string,
+  type: 'anime' | 'manga',
+): Promise<{ id: number; title: string } | null> {
+  const field = type === 'anime' ? 'related_anime' : 'related_manga';
+  const res = await fetch(`${WORKER_BASE}/mal/${type}/${malId}?fields=${field}`);
+  if (!res.ok) throw new Error(`MyAnimeList ${type} detail lookup failed (${res.status})`);
+  const data = (await res.json()) as MalDetailResponse;
+  const related = type === 'anime' ? data.related_anime : data.related_manga;
+  const sequel = related?.find((r) => r.relation_type === 'sequel');
+  return sequel ? { id: sequel.node.id, title: sequel.node.title } : null;
+}
+
+interface MalSearchResponse {
+  data: { node: { id: number; title: string } }[];
+}
+
+/**
+ * Title search against MAL's public search endpoint — the fallback
+ * path when an entry has a `series` name but no stored `malId` yet
+ * (e.g. logged manually rather than via MAL import). Takes the first
+ * result as the show/series' own MAL id, which `findMalSequel` above
+ * then follows to the actual next entry.
+ */
+export async function searchMalTitle(
+  query: string,
+  type: 'anime' | 'manga',
+): Promise<{ id: number; title: string } | null> {
+  if (!query.trim()) return null;
+  const res = await fetch(`${WORKER_BASE}/mal/${type}?q=${encodeURIComponent(query)}&limit=1`);
+  if (!res.ok) throw new Error(`MyAnimeList ${type} search failed (${res.status})`);
+  const data = (await res.json()) as MalSearchResponse;
+  const first = data.data[0]?.node;
+  return first ? { id: first.id, title: first.title } : null;
+}

@@ -318,3 +318,87 @@ export async function lookupByIsbn(isbn: string): Promise<SearchResult | null> {
     genres,
   };
 }
+
+// ── Find Next in Series ─────────────────────────────────────────────────────
+//
+// See chat (Aug 2026). Open Library has no dedicated "series + volume
+// number" search field — search results only expose `series` as a
+// free-text string (e.g. "Rivers of London" or, on better-tagged
+// editions, "Rivers of London #6"), so this is deliberately a
+// best-effort text match rather than an exact lookup like TMDB
+// Collections (film) or ComicVine's volume+issue filter (comic).
+
+/** Extracts a trailing volume number from an Open Library `series`
+ * string, e.g. "Rivers of London #6" -> 6, "Discworld, 5" -> 5.
+ * Returns undefined if the string has no matching editions or no
+ * parseable number, which callers treat as "can't confirm this is the
+ * right volume" rather than a false match. */
+function parseSeriesVolume(seriesText: string | undefined): number | undefined {
+  if (!seriesText) return undefined;
+  const match = seriesText.match(/#?\s*(\d+)\s*$/);
+  if (!match) return undefined;
+  return Number(match[1]);
+}
+
+interface OpenLibrarySearchDoc {
+  key: string;
+  title: string;
+  author_name?: string[];
+  series?: string[];
+  first_publish_year?: number;
+  cover_i?: number;
+}
+
+/**
+ * Searches Open Library for the next book in a series — the entry
+ * whose own `series` text parses to `targetVolume`. Queries by general
+ * text (`q=`, matching title/series/subject) rather than `title=`
+ * (unlike searchBooks above) since the next book's title is unknown;
+ * only its series name is. Returns `null` if nothing in the first 25
+ * results parses to the target volume — treated by callers as "not
+ * found", not an error.
+ */
+export async function findNextBookInSeries(
+  seriesName: string,
+  targetVolume: number,
+): Promise<{ title: string; fields: Record<string, string> } | null> {
+  if (!seriesName.trim()) return null;
+
+  const params = new URLSearchParams({
+    q: seriesName,
+    limit: '25',
+    fields: 'key,title,author_name,series,first_publish_year,cover_i',
+  });
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/search.json?${params.toString()}`, { signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) throw new OpenLibraryTimeoutError();
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) throw new Error(`Open Library search failed: ${res.status}`);
+
+  const data = (await res.json()) as { docs: OpenLibrarySearchDoc[] };
+
+  const match = data.docs.find((doc) => parseSeriesVolume(doc.series?.[0]) === targetVolume);
+  if (!match) return null;
+
+  const fields: Record<string, string> = {};
+  const author = match.author_name?.[0];
+  if (author) fields['author'] = author;
+  fields['series'] = seriesName;
+  fields['volume'] = String(targetVolume);
+  if (await getSetting('autofillBookCoverImage', true) && match.cover_i) {
+    fields['coverImagePath'] = `${COVERS_BASE}/id/${match.cover_i}-M.jpg`;
+  }
+  if (await getSetting('autofillBookReleaseYear', true) && match.first_publish_year) {
+    fields['releaseYear'] = String(match.first_publish_year);
+  }
+
+  return { title: match.title, fields };
+}
