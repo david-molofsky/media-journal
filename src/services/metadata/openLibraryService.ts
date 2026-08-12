@@ -5,6 +5,8 @@
  */
 
 import { getSetting } from '@/services/database/settingsService';
+import { db } from '@/services/database/db';
+import { mapOpenLibrarySubjectsToGenres } from '@/utils/openLibraryGenreMap';
 
 export interface SearchResult {
   id: string;
@@ -13,10 +15,11 @@ export interface SearchResult {
   subtitle: string;
   /** Fields to pre-fill in the entry form on selection. */
   fields: Record<string, string>;
-  /** Best-effort genre guesses, from Open Library's community-tagged
-   * `subject` field. Only present when `ENABLE_OPENLIBRARY_GENRES` is
-   * true. Unlike TMDB's genres, these are noisy (mixed in with
-   * non-genre tags) — David is trying this out and may switch it off. */
+  /** Genre guesses, mapped from Open Library's community-tagged
+   * `subject` field onto this app's genre vocabulary via
+   * openLibraryGenreMap.ts (see that file's header for the two-part
+   * matching rules). Only present when `ENABLE_OPENLIBRARY_GENRES` is
+   * true. Non-matching subjects are dropped rather than surfaced. */
   genres?: string[];
 }
 
@@ -35,10 +38,20 @@ const COVERS_BASE = 'https://covers.openlibrary.org/b';
  * to rip the feature out, just flip this to `false`. */
 const ENABLE_OPENLIBRARY_GENRES = true;
 
-/** How many raw `subject` entries to take as genre guesses. Kept small
- * since later entries in Open Library's subject list tend to get more
- * obscure/tag-like rather than more genre-like. */
-const OPENLIBRARY_GENRE_LIMIT = 5;
+/** Every genre in use anywhere in the library, used as the "custom
+ * genre" half of mapOpenLibrarySubjectsToGenres's matching (see that
+ * file). Queried fresh per search/lookup call rather than cached —
+ * these calls are already network round-trips to Open Library, so one
+ * extra IndexedDB read is negligible, and it means a genre added
+ * moments ago is picked up immediately rather than after a reload. */
+async function getKnownGenres(): Promise<string[]> {
+  const entries = await db.mediaEntries.toArray();
+  const genreSet = new Set<string>();
+  for (const entry of entries) {
+    for (const genre of entry.genres ?? []) genreSet.add(genre);
+  }
+  return Array.from(genreSet);
+}
 
 /** How long to wait for Open Library's search before giving up. Open
  * Library's own infra has documented periods of Solr-backend slowness
@@ -120,6 +133,7 @@ async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrar
   // before mapping every result.
   const autofillCoverImage = await getSetting('autofillBookCoverImage', true);
   const autofillReleaseYear = await getSetting('autofillBookReleaseYear', true);
+  const knownGenres = ENABLE_OPENLIBRARY_GENRES ? await getKnownGenres() : [];
 
   const results = data.docs.map((doc) => {
     const author = doc.author_name?.[0] ?? '';
@@ -140,9 +154,10 @@ async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrar
     // computed above for the subtitle.
     if (autofillReleaseYear && year) fields['releaseYear'] = year;
 
-    const genres = ENABLE_OPENLIBRARY_GENRES && doc.subject?.length
-      ? doc.subject.slice(0, OPENLIBRARY_GENRE_LIMIT)
-      : undefined;
+    const mappedGenres = ENABLE_OPENLIBRARY_GENRES && doc.subject?.length
+      ? mapOpenLibrarySubjectsToGenres(doc.subject, knownGenres)
+      : [];
+    const genres = mappedGenres.length > 0 ? mappedGenres : undefined;
 
     return {
       id: doc.key,
@@ -234,10 +249,11 @@ export async function getBookDetailsByKey(
     if (coverId) fields['coverImagePath'] = `${COVERS_BASE}/id/${coverId}-M.jpg`;
   }
 
-  const genres =
+  const mappedWorkGenres =
     ENABLE_OPENLIBRARY_GENRES && work.subjects?.length
-      ? work.subjects.slice(0, OPENLIBRARY_GENRE_LIMIT)
-      : undefined;
+      ? mapOpenLibrarySubjectsToGenres(work.subjects, await getKnownGenres())
+      : [];
+  const genres = mappedWorkGenres.length > 0 ? mappedWorkGenres : undefined;
 
   return { title: work.title, fields, genres };
 }
@@ -285,10 +301,14 @@ export async function lookupByIsbn(isbn: string): Promise<SearchResult | null> {
     if (coverUrl) fields['coverImagePath'] = coverUrl;
   }
 
-  const genres =
+  const mappedIsbnGenres =
     ENABLE_OPENLIBRARY_GENRES && record.subjects?.length
-      ? record.subjects.slice(0, OPENLIBRARY_GENRE_LIMIT).map((s) => s.name)
-      : undefined;
+      ? mapOpenLibrarySubjectsToGenres(
+          record.subjects.map((s) => s.name),
+          await getKnownGenres(),
+        )
+      : [];
+  const genres = mappedIsbnGenres.length > 0 ? mappedIsbnGenres : undefined;
 
   return {
     id: isbn,

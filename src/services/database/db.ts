@@ -8,6 +8,7 @@ import type {
   PodcastSubscription,
 } from '@/models';
 import { defaultMediaTypes } from './defaultMediaTypes';
+import { mapOpenLibrarySubjectsToGenres } from '@/utils/openLibraryGenreMap';
 
 /**
  * Media Journal's IndexedDB database, accessed via Dexie.
@@ -1124,6 +1125,57 @@ export class MediaJournalDatabase extends Dexie {
             return { ...field, options: [...(field.options ?? []), 'Paramount+'] };
           });
           await table.put({ ...mediaType, fields });
+        }
+      });
+
+    /**
+     * Version 25 (see chat, Aug 2026): one-time backfill mapping
+     * Book/Audiobook entries' `genres` — previously raw Open Library
+     * `subject` strings (noisy LCSH tags) — onto the fixed vocabulary
+     * in openLibraryGenreMap.ts. Deliberate hard overwrite, not
+     * additive: David explicitly accepted that any manually-edited
+     * genre text on these entries that doesn't match a keyword or an
+     * already-used genre elsewhere in the library will be dropped, and
+     * declined a console log of affected entries. No `mediaTypes`
+     * changes — this only touches stored entry data, not field
+     * definitions, so it's a `.upgrade()` with an unchanged `.stores()`
+     * (same pattern as version 6's metadata-only migration).
+     *
+     * `knownGenres` is computed once up front from every OTHER media
+     * type's entries (Film, TV, Comics, etc. — genuinely curated genre
+     * values) so a custom genre the user already typed elsewhere, e.g.
+     * "Cyberpunk" on a Film entry, is available as a match target
+     * here. Deliberately excludes Book/Audiobook entries' own
+     * genres — at this point in the migration those are still the OLD
+     * raw Open Library subject noise about to be overwritten, so
+     * treating them as "known custom genres" would just let noise
+     * re-match itself across entries instead of getting cleaned up.
+     */
+    this.version(25)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaEntry>('mediaEntries');
+        const allEntries = await table.toArray();
+
+        const knownGenres = new Set<string>();
+        for (const entry of allEntries) {
+          if (entry.mediaType === 'book' || entry.mediaType === 'audiobook') continue;
+          for (const genre of entry.genres ?? []) knownGenres.add(genre);
+        }
+        const knownGenresList = Array.from(knownGenres);
+
+        for (const entry of allEntries) {
+          if (entry.mediaType !== 'book' && entry.mediaType !== 'audiobook') continue;
+          if (!entry.genres?.length) continue;
+          const mapped = mapOpenLibrarySubjectsToGenres(entry.genres, knownGenresList);
+          await table.update(entry.id, { genres: mapped });
         }
       });
   }
