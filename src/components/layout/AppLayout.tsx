@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import { Outlet } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { BottomNav } from './BottomNav';
@@ -28,6 +29,30 @@ export function AppLayout() {
         }}
       >
         <Outlet />
+        <Box
+          component="footer"
+          sx={{
+            mt: 4,
+            pt: 2,
+            textAlign: 'center',
+            borderTop: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Media Journal — a permanent, offline-first archive of everything you read, watch and
+            listen to.{' '}
+            <Typography
+              component="a"
+              href={`${import.meta.env.BASE_URL}privacy.html`}
+              variant="caption"
+              color="primary"
+              sx={{ textDecoration: 'none' }}
+            >
+              Privacy Policy
+            </Typography>
+          </Typography>
+        </Box>
       </Box>
       <BottomNav />
     </Box>
