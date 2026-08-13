@@ -239,7 +239,16 @@ export default function EditEntryPage() {
   };
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 4 }}>
+    // key={id} forces a full remount when navigating between entries
+    // on this same route (e.g. via a Wishlist recommendation or
+    // "Previous Entries with This Title") — see chat. Without it,
+    // EntryForm's react-hook-form state (seeded from `initialValues`
+    // only on mount) stays frozen on the entry that was being edited
+    // when the page first mounted, while everything else on the page
+    // (header, delete dialog, share sheet) correctly reflects the new
+    // one. Remounting also cleanly resets unrelated local state
+    // (delete/convert dialogs left open) from the previous entry.
+    <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
         <IconButton aria-label="Back to library" onClick={() => navigate(ROUTES.library, { state: incomingFilters })}>
           <ArrowBackIcon />
