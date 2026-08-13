@@ -5,18 +5,18 @@ interface PwaUpdateContextValue {
   /**
    * Forces the browser to re-check the network for a new service
    * worker (bypassing the HTTP cache, per the standard SW update
-   * algorithm) — this is what "Check for updates" in Settings calls.
+   * algorithm) \u2014 this is what "Check for updates" in Settings calls.
    *
    * Doesn't itself report whether an update was found:
    * `registerType: 'autoUpdate'` (vite.config.ts) means any update
    * found installs and activates immediately, which triggers a full
    * page reload on its own via the `activated` handler inside
    * vite-plugin-pwa's registerSW. So the caller just waits a few
-   * seconds — a reload happening means yes, no reload means no.
+   * seconds \u2014 a reload happening means yes, no reload means no.
    */
   checkForUpdates: () => Promise<void>;
   /** False in browsers/contexts without service worker support (or
-   * during local dev, where no SW is registered) — callers should
+   * during local dev, where no SW is registered) \u2014 callers should
    * hide the update-check UI entirely rather than show a button that
    * can never do anything. */
   supported: boolean;
@@ -27,9 +27,13 @@ const PwaUpdateContext = createContext<PwaUpdateContextValue | null>(null);
 /**
  * Registers the app's service worker exactly once (via useRegisterSW)
  * and makes a manual "check now" action available anywhere in the
- * tree through usePwaUpdate. Must wrap the app root — useRegisterSW
+ * tree through usePwaUpdate. Must wrap the app root \u2014 useRegisterSW
  * itself isn't safe to call from more than one place, since each call
  * registers a fresh Workbox instance and listener set.
+ *
+ * Ported directly from Media Journal's pwa/PwaUpdateContext.tsx \u2014
+ * same vite-plugin-pwa setup (registerType: 'autoUpdate'), so the
+ * pattern applies unchanged.
  */
 export function PwaUpdateProvider({ children }: { children: ReactNode }) {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
