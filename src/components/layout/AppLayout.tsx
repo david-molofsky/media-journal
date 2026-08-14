@@ -41,16 +41,7 @@ export function AppLayout() {
         >
           <Typography variant="caption" color="text.secondary">
             Media Journal — a permanent, offline-first archive of everything you read, watch and
-            listen to.{' '}
-            <Typography
-              component="a"
-              href={`${import.meta.env.BASE_URL}privacy.html`}
-              variant="caption"
-              color="primary"
-              sx={{ textDecoration: 'none' }}
-            >
-              Privacy Policy
-            </Typography>
+            listen to.
           </Typography>
         </Box>
       </Box>
