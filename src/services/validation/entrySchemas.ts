@@ -275,6 +275,30 @@ const podcastMetadataSchema = z.object({
   episodeGuid: z.string().optional(),
 });
 
+/**
+ * Video Games (see chat, Aug 2026 — Video Game media type fields).
+ * `source` (storefront/physical) and `platform` (hardware) are
+ * deliberately separate fields — see comment on defaultMediaTypes.ts's
+ * 'game' entry. `completionPercent` is capped at 100 since it's a
+ * percentage; the two achievements fields are independent optional
+ * numbers rather than a single "X of Y" string, matching the app's
+ * existing issueStart/issueEnd (Comics) convention for paired numeric
+ * fields.
+ */
+const gameMetadataSchema = z.object({
+  source: z.string().optional(),
+  platform: z.string().optional(),
+  developer: z.string().optional(),
+  publisher: z.string().optional(),
+  series: z.string().optional(),
+  gameMode: z.string().optional(),
+  releaseYear: z.coerce.number().optional(),
+  hoursPlayed: z.coerce.number().min(0).optional(),
+  completionPercent: z.coerce.number().min(0).max(100).optional(),
+  achievementsEarned: z.coerce.number().min(0).optional(),
+  achievementsTotal: z.coerce.number().min(0).optional(),
+});
+
 const genericMetadataSchema = z.record(
   z.string(),
   z.union([z.string(), z.number(), z.boolean(), z.undefined()]),
@@ -289,6 +313,7 @@ const metadataSchemasByMediaType: Record<string, z.ZodType> = {
   anime: animeMetadataSchema,
   manga: mangaMetadataSchema,
   podcast: podcastMetadataSchema,
+  game: gameMetadataSchema,
 };
 
 /** Returns the appropriate metadata schema for a given media type id. */

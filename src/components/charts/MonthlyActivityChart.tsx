@@ -44,7 +44,10 @@ export function MonthlyActivityChart({ monthlyBreakdown, onSelectMonth }: Monthl
         <CartesianGrid vertical={false} stroke={theme.palette.divider} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} />
-        <Tooltip cursor={{ fill: theme.palette.action.hover }} />
+        <Tooltip
+          cursor={{ fill: theme.palette.action.hover }}
+          formatter={(value) => [String(value), 'Entries']}
+        />
         <Bar
           dataKey="count"
           fill={theme.palette.primary.main}

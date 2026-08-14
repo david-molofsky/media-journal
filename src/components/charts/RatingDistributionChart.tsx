@@ -28,7 +28,11 @@ export function RatingDistributionChart({ ratingDistribution }: RatingDistributi
         <CartesianGrid vertical={false} stroke={theme.palette.divider} />
         <XAxis dataKey="rating" tickLine={false} axisLine={false} fontSize={11} />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} fontSize={11} />
-        <Tooltip cursor={{ fill: theme.palette.action.hover }} />
+        <Tooltip
+          cursor={{ fill: theme.palette.action.hover }}
+          formatter={(value) => [String(value), 'Entries']}
+          labelFormatter={(rating) => `Rating ${rating}`}
+        />
         <Bar dataKey="count" fill={theme.palette.secondary.main} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

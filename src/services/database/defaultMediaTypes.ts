@@ -249,6 +249,13 @@ export const defaultMediaTypes: MediaType[] = [
     icon: 'sports_esports',
     colour: '#0097A7',
     enabled: false,
+    // Scoped and wireframed with David (see chat, Aug 2026). `source`
+    // is deliberately kept distinct from the new `platform` field:
+    // `source` is "where you access it" (storefront/physical),
+    // `platform` is the specific hardware. ESRB/PEGI rating is
+    // explicitly out of scope. `genres` isn't declared here — it's
+    // already a universal top-level field on every entry regardless of
+    // media type.
     fields: [
       {
         key: 'source',
@@ -257,6 +264,38 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Steam', 'PlayStation', 'Xbox', 'Nintendo Switch', 'Physical'],
       },
+      {
+        key: 'platform',
+        label: 'Platform',
+        type: 'autocomplete',
+        required: false,
+        options: [
+          'PC',
+          'PlayStation 5',
+          'PlayStation 4',
+          'Xbox Series X|S',
+          'Xbox One',
+          'Nintendo Switch',
+          'Nintendo Switch 2',
+          'Steam Deck',
+          'Mobile',
+        ],
+      },
+      { key: 'developer', label: 'Developer', type: 'text', required: false },
+      { key: 'publisher', label: 'Publisher', type: 'text', required: false },
+      { key: 'series', label: 'Series / Franchise', type: 'text', required: false },
+      {
+        key: 'gameMode',
+        label: 'Game Mode',
+        type: 'autocomplete',
+        required: false,
+        options: ['Single-player', 'Multiplayer', 'Co-op', 'Online Multiplayer', 'Split-screen'],
+      },
+      { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
+      { key: 'hoursPlayed', label: 'Hours Played', type: 'number', required: false },
+      { key: 'completionPercent', label: 'Completion %', type: 'number', required: false },
+      { key: 'achievementsEarned', label: 'Achievements Earned', type: 'number', required: false },
+      { key: 'achievementsTotal', label: 'Achievements Total', type: 'number', required: false },
     ],
   },
   {

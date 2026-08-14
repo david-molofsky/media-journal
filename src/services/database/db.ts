@@ -1239,6 +1239,38 @@ export class MediaJournalDatabase extends Dexie {
           }
         }
       });
+
+    // Video Game media type fields (see chat, Aug 2026). Existing
+    // installs already have a 'game' row (from seed.ts or an earlier
+    // migration) with only `source` — this appends the rest of the
+    // canonical field list from defaultMediaTypes.ts, skipping any key
+    // that already exists so re-running is a no-op. New installs get
+    // the full list straight from defaultMediaTypes.ts via seed.ts and
+    // never hit this path.
+    this.version(27)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        const game = await table.get('game');
+        if (game) {
+          const existingKeys = new Set(game.fields.map((f) => f.key));
+          const canonical = defaultMediaTypes.find((type) => type.id === 'game');
+          if (canonical) {
+            const toAdd = canonical.fields.filter((f) => !existingKeys.has(f.key));
+            if (toAdd.length > 0) {
+              await table.put({ ...game, fields: [...game.fields, ...toAdd] });
+            }
+          }
+        }
+      });
   }
 }
 

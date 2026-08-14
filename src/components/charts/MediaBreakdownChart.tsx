@@ -30,7 +30,7 @@ export function MediaBreakdownChart({ totalsByMediaType, mediaTypes }: MediaBrea
             <Cell key={entry.mediaType} fill={getMediaTypeColour(entry.mediaType)} />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip formatter={(value) => [String(value), 'Entries']} />
       </PieChart>
     </ResponsiveContainer>
   );
