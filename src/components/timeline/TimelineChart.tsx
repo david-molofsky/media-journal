@@ -17,6 +17,15 @@ interface TimelineChartProps {
   zoom: TimelineZoomLevel;
   mediaTypes: MediaType[];
   onOpenEntry: (entryId: string) => void;
+  /** Restores a previous scroll position on first mount instead of the
+   * default "scroll to today" behaviour — used by TimelinePage's
+   * scroll restoration (see chat, Aug 2026). Omit for the normal
+   * "jump to today" first paint. */
+  initialScroll?: { left: number; top: number };
+  /** Fired on every scroll (native event, not debounced — TimelinePage
+   * just stashes the latest value in a ref) so the current position
+   * can be persisted when the page unmounts. */
+  onScrollChange?: (position: { left: number; top: number }) => void;
 }
 
 // Row layout: bar/marker sits at the top of the row, its title renders
@@ -100,9 +109,14 @@ export function TimelineChart({
   zoom,
   mediaTypes,
   onOpenEntry,
+  initialScroll,
+  onScrollChange,
 }: TimelineChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollToTodayRef = useRef(true);
+  // Whether the very first "where should we land" scroll (today, or a
+  // restored position — see the effect below) has happened yet.
+  const initialScrollAppliedRef = useRef(false);
 
   // Reveal strip — shows the tapped/clicked/hovered entry's title
   // above the chart, and stays until another entry is tapped/hovered
@@ -265,9 +279,25 @@ export function TimelineChart({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !scrollToTodayRef.current) return;
-    el.scrollLeft = el.scrollWidth;
+    // A restored position (see chat, Aug 2026 — Timeline scroll
+    // restoration) only applies to the very first landing scroll, not
+    // to every future "scroll to today" reset a zoom-preset tap
+    // triggers — those should still jump to today as before.
+    if (!initialScrollAppliedRef.current && initialScroll) {
+      el.scrollLeft = initialScroll.left;
+      el.scrollTop = initialScroll.top;
+    } else {
+      el.scrollLeft = el.scrollWidth;
+    }
+    initialScrollAppliedRef.current = true;
     scrollToTodayRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalWidth]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (el) onScrollChange?.({ left: el.scrollLeft, top: el.scrollTop });
+  };
 
   // Cap the visible viewport at MAX_VISIBLE_ROWS worth of fixed-height
   // rows before scrolling vertically kicks in.
@@ -293,6 +323,7 @@ export function TimelineChart({
       </Typography>
       <Box
         ref={scrollRef}
+        onScroll={handleScroll}
         sx={{
           overflowX: 'auto',
           overflowY: 'auto',

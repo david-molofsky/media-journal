@@ -14,12 +14,17 @@ import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
+import Snackbar from '@mui/material/Snackbar';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import QrCodeScannerOutlinedIcon from '@mui/icons-material/QrCodeScannerOutlined';
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
+import CachedOutlinedIcon from '@mui/icons-material/CachedOutlined';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 import { getIssueDetails } from '@/services/metadata/comicVineService';
+import { reSearchEntry, hasReSearch, reSearchSourceLabel } from '@/services/metadata/reSearchService';
+import { computeReSearchDiffs, type ReSearchDiffSet } from '@/utils/reSearchDiff';
+import type { ReSearchResult } from '@/services/metadata/reSearchService';
 import { comicIssueCount } from '@/utils/comicIssues';
 import { todayIso } from '@/utils/dateUtils';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
@@ -34,6 +39,7 @@ import { UpcScanDialog } from './UpcScanDialog';
 import { ComicUpcScanDialog } from './ComicUpcScanDialog';
 import { AddCoverImageDialog } from './AddCoverImageDialog';
 import { AutocompleteField } from './AutocompleteField';
+import { ReSearchDialog } from './ReSearchDialog';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
@@ -151,6 +157,109 @@ export function EntryForm({
       setUpcScanAvailable(await isUpcScanAvailable());
     })();
   }, [mediaType.id]);
+
+  // "Re-search" (Edit Entry only — see chat, Aug 2026): re-runs the
+  // per-type metadata search using the entry's current title + role
+  // fields (reSearchEntry, entryConversion.ts's fieldRolesFor) and
+  // offers to update only whichever fields actually differ from what's
+  // already saved. Never shown on Add Entry — MetadataSearch above
+  // already covers that case there.
+  const reSearchAvailable = Boolean(initialValues) && hasReSearch(mediaType.id);
+  const [reSearchDialogOpen, setReSearchDialogOpen] = useState(false);
+  const [reSearching, setReSearching] = useState(false);
+  const [reSearchError, setReSearchError] = useState<string | null>(null);
+  const [reSearchResult, setReSearchResult] = useState<ReSearchResult | null>(null);
+  const [reSearchDiffSet, setReSearchDiffSet] = useState<ReSearchDiffSet | null>(null);
+  const [reSearchSelectedKeys, setReSearchSelectedKeys] = useState<Set<string>>(new Set());
+  const [reSearchToast, setReSearchToast] = useState<string | null>(null);
+
+  const handleReSearch = async () => {
+    setReSearchDialogOpen(true);
+    setReSearching(true);
+    setReSearchError(null);
+    setReSearchResult(null);
+    setReSearchDiffSet(null);
+    try {
+      const title = getValues('title') ?? '';
+      const metadata = (getValues('metadata') ?? {}) as Record<string, unknown>;
+      const result = await reSearchEntry(mediaType.id, title, metadata);
+      if (!result) {
+        setReSearchDialogOpen(false);
+        setReSearchToast('No match found.');
+        return;
+      }
+      const genres = getValues('genres') ?? [];
+      const diffs = computeReSearchDiffs(mediaType, title, metadata, genres, result);
+      if (!diffs.hasDiffs) {
+        setReSearchDialogOpen(false);
+        setReSearchToast('Already up to date — no changes found.');
+        return;
+      }
+      const initialSelected = new Set<string>();
+      if (diffs.titleDiff) initialSelected.add('title');
+      diffs.fieldDiffs.forEach((diff) => initialSelected.add(diff.key));
+      if (diffs.genreAdds.length > 0) initialSelected.add('genres');
+      setReSearchResult(result);
+      setReSearchDiffSet(diffs);
+      setReSearchSelectedKeys(initialSelected);
+    } catch {
+      setReSearchError("Couldn't reach the source — try again in a moment.");
+    } finally {
+      setReSearching(false);
+    }
+  };
+
+  const handleToggleReSearchKey = (key: string) => {
+    setReSearchSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const handleCancelReSearch = () => {
+    setReSearchDialogOpen(false);
+    setReSearchResult(null);
+    setReSearchDiffSet(null);
+    setReSearchError(null);
+  };
+
+  const handleApplyReSearch = () => {
+    if (!reSearchResult || !reSearchDiffSet) return;
+    if (reSearchDiffSet.titleDiff && reSearchSelectedKeys.has('title')) {
+      setValue('title', reSearchDiffSet.titleDiff.newValue, { shouldValidate: true });
+    }
+    const visibleKeys = new Set(mediaType.fields.map((f) => f.key));
+    for (const [key, value] of Object.entries(reSearchResult.fields)) {
+      // comicVineVolumeId rides along purely to reach the later "Fetch
+      // issue details" step — same handling as applyMetadataFill.
+      if (key === 'comicVineVolumeId') {
+        setComicVineVolumeId(value);
+        continue;
+      }
+      // A visible field the user unchecked in the dialog — skip it.
+      // Bespoke keys (overview, posterPath, tmdbId, ...) aren't in
+      // visibleKeys at all, so they always apply silently, exactly
+      // like a normal MetadataSearch fill.
+      if (visibleKeys.has(key) && !reSearchSelectedKeys.has(key)) continue;
+      const fieldDef = mediaType.fields.find((f) => f.key === key);
+      const skipTitleCase =
+        key === 'overview' || key === 'posterPath' || key === 'coverImagePath' || key === 'imdbUrl';
+      const nextValue: unknown =
+        fieldDef?.type === 'number' ? Number(value) : skipTitleCase ? value : toTitleCase(value);
+      setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, { shouldValidate: true });
+    }
+    if (reSearchDiffSet.genreAdds.length > 0 && reSearchSelectedKeys.has('genres')) {
+      const existing = getValues('genres') ?? [];
+      const merged = Array.from(new Set([...existing, ...reSearchDiffSet.genreAdds]));
+      setValue('genres', merged, { shouldValidate: true });
+    }
+    setReSearchDialogOpen(false);
+    setReSearchResult(null);
+    setReSearchDiffSet(null);
+    setReSearchToast('Updated from source.');
+  };
 
   const defaultValues = useMemo(
     () => buildDefaultValues(mediaType, initialValues, defaultStatus),
@@ -324,6 +433,18 @@ export function EntryForm({
             sx={{ fontWeight: 600 }}
           />
           <Stack direction="row" spacing={1}>
+            {reSearchAvailable && (
+              <Button
+                onClick={() => void handleReSearch()}
+                disabled={reSearching}
+                size="small"
+                variant="outlined"
+                startIcon={<CachedOutlinedIcon fontSize="small" />}
+                sx={{ borderRadius: 4, textTransform: 'none', fontWeight: 600 }}
+              >
+                Re-search
+              </Button>
+            )}
             {scanAvailable && (
               <Button
                 onClick={() => setScanDialogOpen(true)}
@@ -354,6 +475,29 @@ export function EntryForm({
             )}
           </Stack>
         </Stack>
+
+        <ReSearchDialog
+          open={reSearchDialogOpen}
+          loading={reSearching}
+          error={reSearchError}
+          sourceLabel={reSearchSourceLabel(mediaType.id)}
+          newTitle={reSearchResult?.title ?? getValues('title') ?? ''}
+          diffSet={reSearchDiffSet}
+          selectedKeys={reSearchSelectedKeys}
+          onToggle={handleToggleReSearchKey}
+          onApply={handleApplyReSearch}
+          onCancel={handleCancelReSearch}
+        />
+        <Snackbar
+          open={reSearchToast !== null}
+          autoHideDuration={4000}
+          onClose={() => setReSearchToast(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert severity="success" variant="filled" onClose={() => setReSearchToast(null)}>
+            {reSearchToast}
+          </Alert>
+        </Snackbar>
 
         <IsbnScanDialog
           open={scanDialogOpen}

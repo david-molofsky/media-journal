@@ -47,6 +47,7 @@ import {
   jumpWishlistOrder,
 } from '@/services/database/entryService';
 import { setSetting } from '@/services/database/settingsService';
+import { getLibrarySessionState, setLibrarySessionState } from '@/state/pageSessionState';
 import { editEntryPath } from '@/routes/paths';
 import type { EntryStatus, MediaEntry, MediaType } from '@/models';
 import { todayIso } from '@/utils/dateUtils';
@@ -139,20 +140,103 @@ export default function LibraryPage() {
   const availableGenres = useAvailableGenres();
   const availableSources = useAvailableSources();
 
-  const [statusTab, setStatusTab] = useState<EntryStatus>(incoming?.status ?? 'completed');
-  const [searchText, setSearchText] = useState(incoming?.searchText ?? '');
+  // Restored on mount whenever we arrive without an explicit filter
+  // request (an `incoming` navigation, e.g. from Statistics or
+  // SeriesView, always wins — that's a fresh, intentional filter, not
+  // a "come back to where I was" navigation). See pageSessionState.ts.
+  // A lazy useState initializer (not a ref) — it only runs once, on
+  // mount, and its result is plain state, safe to read during render.
+  const [restored] = useState(() => (incoming ? null : getLibrarySessionState()));
+
+  const [statusTab, setStatusTab] = useState<EntryStatus>(
+    incoming?.status ?? restored?.statusTab ?? 'completed',
+  );
+  const [searchText, setSearchText] = useState(incoming?.searchText ?? restored?.searchText ?? '');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [year, setYear] = useState<string | undefined>(incoming?.year ? String(incoming.year) : undefined);
-  const [month, setMonth] = useState<string | undefined>(incoming?.month ? String(incoming.month) : undefined);
-  const [mediaTypeIds, setMediaTypeIds] = useState<string[]>(incoming?.mediaTypeIds ?? []);
-  const [tags, setTags] = useState<string[]>(incoming?.tags ?? []);
-  const [genres, setGenres] = useState<string[]>(incoming?.genres ?? []);
-  const [sources, setSources] = useState<string[]>(incoming?.sources ?? []);
-  const [sort, setSort] = useState<EntrySortOrder>(defaultSortForStatus(incoming?.status ?? 'completed'));
-  const [viewMode, setViewMode] = useState<'entries' | 'series'>('entries');
+  const [year, setYear] = useState<string | undefined>(
+    incoming?.year ? String(incoming.year) : restored?.year,
+  );
+  const [month, setMonth] = useState<string | undefined>(
+    incoming?.month ? String(incoming.month) : restored?.month,
+  );
+  const [mediaTypeIds, setMediaTypeIds] = useState<string[]>(
+    incoming?.mediaTypeIds ?? restored?.mediaTypeIds ?? [],
+  );
+  const [tags, setTags] = useState<string[]>(incoming?.tags ?? restored?.tags ?? []);
+  const [genres, setGenres] = useState<string[]>(incoming?.genres ?? restored?.genres ?? []);
+  const [sources, setSources] = useState<string[]>(incoming?.sources ?? restored?.sources ?? []);
+  const [sort, setSort] = useState<EntrySortOrder>(
+    incoming
+      ? defaultSortForStatus(incoming.status ?? 'completed')
+      : (restored?.sort ?? defaultSortForStatus(restored?.statusTab ?? 'completed')),
+  );
+  const [viewMode, setViewMode] = useState<'entries' | 'series'>(restored?.viewMode ?? 'entries');
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [reorderMode, setReorderMode] = useState(false);
+
+  // Live scroll position, tracked outside React state (no re-render
+  // needed) so the unmount-save effect below always has an up-to-date
+  // value to persist, however the user leaves the page.
+  const scrollYRef = useRef(0);
+  useEffect(() => {
+    const onScroll = () => {
+      scrollYRef.current = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Mirrors the latest filter/sort/tab state into a ref after every
+  // render (an effect, not a render-time write — refs may only be
+  // read/written outside render) so the unmount cleanup below, which
+  // only runs once, can still read *current* values at the moment the
+  // user actually navigates away rather than a stale mount-time one.
+  const liveStateRef = useRef({
+    statusTab,
+    searchText,
+    year,
+    month,
+    mediaTypeIds,
+    tags,
+    genres,
+    sources,
+    sort,
+    viewMode,
+  });
+  useEffect(() => {
+    liveStateRef.current = {
+      statusTab,
+      searchText,
+      year,
+      month,
+      mediaTypeIds,
+      tags,
+      genres,
+      sources,
+      sort,
+      viewMode,
+    };
+  });
+
+  useEffect(() => {
+    return () => {
+      setLibrarySessionState({ ...liveStateRef.current, scrollY: scrollYRef.current });
+    };
+  }, []);
+
+  // A manual filter/sort/tab/search change resets scroll to the top —
+  // the old offset doesn't correspond to anything once the list
+  // itself has changed (see chat). Skipped on the very first run so
+  // it doesn't fight the restore effect above right after mount.
+  const skipNextScrollResetRef = useRef(true);
+  useEffect(() => {
+    if (skipNextScrollResetRef.current) {
+      skipNextScrollResetRef.current = false;
+      return;
+    }
+    window.scrollTo(0, 0);
+  }, [statusTab, searchText, year, month, mediaTypeIds, tags, genres, sources, sort]);
 
   const hasActiveFilters = Boolean(
     year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
@@ -224,6 +308,18 @@ export default function LibraryPage() {
   }), [year, month, mediaTypeIds, searchText, tags, genres, sources, statusTab]);
 
   const entries = useMediaEntries(filter, sort);
+
+  // Restores scroll position exactly once, after entries have actually
+  // loaded (scrolling before the list has height would just no-op).
+  const appliedScrollRestoreRef = useRef(false);
+  useEffect(() => {
+    (() => {
+      if (appliedScrollRestoreRef.current || entries === undefined) return;
+      appliedScrollRestoreRef.current = true;
+      if (restored) requestAnimationFrame(() => window.scrollTo(0, restored.scrollY));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
 
   // Per-tab counts for badge
   const completedEntries = useMediaEntries({ status: 'completed' }, 'completedDateDesc');

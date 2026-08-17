@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -15,6 +15,7 @@ import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { editEntryPath } from '@/routes/paths';
 import { TIMELINE_ZOOM_ORDER, TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } from '@/utils/timelineZoom';
+import { getTimelineSessionState, setTimelineSessionState } from '@/state/pageSessionState';
 import { SETTINGS_KEYS } from '@/models';
 
 /**
@@ -27,11 +28,51 @@ export default function TimelinePage() {
   const navigate = useNavigate();
   const mediaTypes = useMediaTypes();
   const entries = useTimelineEntries();
-  const [zoom, setZoom] = useState<TimelineZoomLevel>('month');
+
+  // Restored on mount (see chat, Aug 2026 — Timeline scroll
+  // restoration). A lazy useState initializer (not a ref) — it only
+  // runs once, on mount, and its result is plain state, safe to read
+  // during render. Supersedes the old "no persistence across
+  // sessions" note below — that was about persisting across app
+  // reloads, which this in-memory-only store still doesn't do.
+  const [restored] = useState(() => getTimelineSessionState());
+
+  const [zoom, setZoom] = useState<TimelineZoomLevel>(restored?.zoom ?? 'month');
   // Tracks exclusions rather than inclusions so "all types on" needs no
   // initialization once mediaTypes loads, and always starts empty (all
   // on) each visit — no persistence across sessions, per chat.
-  const [excludedTypeIds, setExcludedTypeIds] = useState<Set<string>>(new Set());
+  const [excludedTypeIds, setExcludedTypeIds] = useState<Set<string>>(
+    new Set(restored?.excludedTypeIds ?? []),
+  );
+
+  // Live scroll position from TimelineChart, tracked outside React
+  // state so the unmount-save effect always has an up-to-date value.
+  // Initialized inside an effect (below), never during render — refs
+  // may only be read/written outside render.
+  const scrollPositionRef = useRef({ left: 0, top: 0 });
+  useEffect(() => {
+    scrollPositionRef.current = { left: restored?.scrollLeft ?? 0, top: restored?.scrollTop ?? 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Mirrors the latest zoom/exclusions into a ref after every render
+  // (an effect, not a render-time write) so the unmount cleanup below,
+  // which only runs once, can still read current values.
+  const liveStateRef = useRef({ zoom, excludedTypeIds });
+  useEffect(() => {
+    liveStateRef.current = { zoom, excludedTypeIds };
+  });
+
+  useEffect(() => {
+    return () => {
+      setTimelineSessionState({
+        zoom: liveStateRef.current.zoom,
+        excludedTypeIds: Array.from(liveStateRef.current.excludedTypeIds),
+        scrollLeft: scrollPositionRef.current.left,
+        scrollTop: scrollPositionRef.current.top,
+      });
+    };
+  }, []);
 
   const allTypeIds = useMemo(() => new Set(mediaTypes?.map((mt) => mt.id) ?? []), [mediaTypes]);
 
@@ -117,6 +158,12 @@ export default function TimelinePage() {
               zoom={zoom}
               mediaTypes={mediaTypes}
               onOpenEntry={(entryId) => navigate(editEntryPath(entryId))}
+              initialScroll={
+                restored ? { left: restored.scrollLeft, top: restored.scrollTop } : undefined
+              }
+              onScrollChange={(position) => {
+                scrollPositionRef.current = position;
+              }}
             />
           )}
 
