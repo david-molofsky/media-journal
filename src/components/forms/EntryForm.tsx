@@ -45,7 +45,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
-import type { EntryMetadata, EntryStatus, MediaType, NewMediaEntryInput } from '@/models';
+import type { EntryMetadata, EntryStatus, FieldDefinition, MediaType, NewMediaEntryInput } from '@/models';
 
 /**
  * Form state matches `NewMediaEntryInput` exactly (rather than a
@@ -77,6 +77,29 @@ interface EntryFormProps {
    * form. Used on Edit Entry; Add Entry leaves this off. */
   stickySubmit?: boolean;
 }
+
+/**
+ * Metadata field keys shown side-by-side on one row instead of each
+ * getting its own full-width row — see chat, Aug 2026 (Entry page
+ * layout cleanup). Comic/Magazine's Issue Start/End was the original
+ * ask; David picked TV, Video Games and Anime/Manga too from the
+ * options presented. Order within each pair is left-to-right.
+ * Deliberately NOT applied to Sport's teamA/scoreA + teamB/scoreB or
+ * Podcast's seasonNumber/episodeNumber — those weren't part of what
+ * David selected, and Sport's fields don't map onto a natural "range"
+ * or "X of Y" pairing the way these do anyway.
+ */
+const FIELD_PAIRS: Record<string, [string, string][]> = {
+  comic: [['issueStart', 'issueEnd']],
+  magazine: [['issueStart', 'issueEnd']],
+  tv: [['episodeStart', 'episodeEnd']],
+  game: [['achievementsEarned', 'achievementsTotal']],
+  anime: [['episodesWatched', 'totalEpisodes']],
+  manga: [
+    ['chaptersRead', 'totalChapters'],
+    ['volumesRead', 'totalVolumes'],
+  ],
+};
 
 function emptyMetadata(mediaType: MediaType): EntryMetadata {
   return Object.fromEntries(mediaType.fields.map((field) => [field.key, undefined]));
@@ -422,6 +445,102 @@ export function EntryForm({
     }
   };
 
+  // Renders one metadata field's Controller — extracted out of the
+  // Media Details loop so a paired row (see FIELD_PAIRS above) can
+  // call it twice, once per side, instead of duplicating this whole
+  // block. Behaviour is unchanged from before the extraction.
+  const renderMetadataField = (field: FieldDefinition) => (
+    <Controller
+      key={field.key}
+      name={`metadata.${field.key}` as 'metadata'}
+      control={control}
+      render={({ field: controllerField, fieldState }) =>
+        field.type === 'autocomplete' ? (
+          <AutocompleteField
+            label={field.label}
+            options={field.options ?? []}
+            required={field.required}
+            value={typeof controllerField.value === 'string' ? controllerField.value : undefined}
+            onChange={(newValue) => controllerField.onChange(newValue)}
+            onBlur={controllerField.onBlur}
+            error={Boolean(fieldState.error)}
+            helperText={fieldState.error?.message}
+          />
+        ) : field.type === 'date' ? (
+          <EntryDatePicker
+            label={field.label}
+            required={field.required}
+            value={typeof controllerField.value === 'string' ? controllerField.value : undefined}
+            onChange={(newValue) => controllerField.onChange(newValue)}
+            onBlur={controllerField.onBlur}
+            error={Boolean(fieldState.error)}
+            helperText={fieldState.error?.message}
+          />
+        ) : (
+          <TextField
+            label={field.label}
+            required={field.required}
+            // Deliberately NOT type="number" — native number inputs
+            // have a well-documented mobile Safari bug where a
+            // leading digit can't be backspaced out once more digits
+            // follow it (David hit this on Season Number). Using a
+            // plain text input with a numeric keyboard hint sidesteps
+            // the native number-input parsing entirely; digit-
+            // filtering below does the actual validation instead.
+            //
+            // While typing, the displayed value comes from
+            // numberFieldDrafts (the raw filtered digits) rather than
+            // round-tripping through Number() and back on every
+            // keystroke — that round-trip was the actual cause of the
+            // "first digit/can't clear" bug, since re-deriving the
+            // display string from a coerced number each keystroke
+            // could desync from the cursor position. The draft is
+            // committed to the form's real (numeric) value live so
+            // watchers elsewhere stay in sync, and is cleared on blur.
+            type="text"
+            slotProps={
+              field.type === 'number'
+                ? { htmlInput: { inputMode: 'numeric', pattern: '[0-9]*' } }
+                : undefined
+            }
+            fullWidth
+            value={
+              field.type === 'number'
+                ? (numberFieldDrafts[field.key] ?? controllerField.value ?? '')
+                : (controllerField.value ?? '')
+            }
+            onChange={(event) => {
+              const raw = event.target.value;
+              if (field.type === 'number') {
+                const digitsOnly = raw.replace(/[^0-9]/g, '');
+                setNumberFieldDrafts((prev) => ({ ...prev, [field.key]: digitsOnly }));
+                controllerField.onChange(digitsOnly === '' ? undefined : Number(digitsOnly));
+              } else {
+                controllerField.onChange(raw);
+              }
+            }}
+            onBlur={() => {
+              if (field.type === 'text' && typeof controllerField.value === 'string') {
+                controllerField.onChange(toTitleCase(controllerField.value));
+              }
+              if (field.type === 'number') {
+                setNumberFieldDrafts((prev) => {
+                  if (!(field.key in prev)) return prev;
+                  const next = { ...prev };
+                  delete next[field.key];
+                  return next;
+                });
+              }
+              controllerField.onBlur();
+            }}
+            error={Boolean(fieldState.error)}
+            helperText={fieldState.error?.message}
+          />
+        )
+      }
+    />
+  );
+
   return (
     <Box component="form" onSubmit={submit} noValidate>
       <Stack spacing={3}>
@@ -680,103 +799,27 @@ export function EntryForm({
             <Typography variant="subtitle2" color="text.secondary">
               Media Details
             </Typography>
-            {mediaType.fields.map((field) => (
-              <Controller
-                key={field.key}
-                name={`metadata.${field.key}` as 'metadata'}
-                control={control}
-                render={({ field: controllerField, fieldState }) =>
-                  field.type === 'autocomplete' ? (
-                    <AutocompleteField
-                      label={field.label}
-                      options={field.options ?? []}
-                      required={field.required}
-                      value={
-                        typeof controllerField.value === 'string' ? controllerField.value : undefined
-                      }
-                      onChange={(newValue) => controllerField.onChange(newValue)}
-                      onBlur={controllerField.onBlur}
-                      error={Boolean(fieldState.error)}
-                      helperText={fieldState.error?.message}
-                    />
-                  ) : field.type === 'date' ? (
-                    <EntryDatePicker
-                      label={field.label}
-                      required={field.required}
-                      value={
-                        typeof controllerField.value === 'string' ? controllerField.value : undefined
-                      }
-                      onChange={(newValue) => controllerField.onChange(newValue)}
-                      onBlur={controllerField.onBlur}
-                      error={Boolean(fieldState.error)}
-                      helperText={fieldState.error?.message}
-                    />
-                  ) : (
-                    <TextField
-                      label={field.label}
-                      required={field.required}
-                      // Deliberately NOT type="number" — native number
-                      // inputs have a well-documented mobile Safari bug
-                      // where a leading digit can't be backspaced out
-                      // once more digits follow it (David hit this on
-                      // Season Number). Using a plain text input with a
-                      // numeric keyboard hint sidesteps the native
-                      // number-input parsing entirely; digit-filtering
-                      // below does the actual validation instead.
-                      //
-                      // While typing, the displayed value comes from
-                      // numberFieldDrafts (the raw filtered digits) rather
-                      // than round-tripping through Number() and back on
-                      // every keystroke — that round-trip was the actual
-                      // cause of the "first digit/can't clear" bug, since
-                      // re-deriving the display string from a coerced
-                      // number each keystroke could desync from the
-                      // cursor position. The draft is committed to the
-                      // form's real (numeric) value live so watchers
-                      // elsewhere stay in sync, and is cleared on blur.
-                      type="text"
-                      slotProps={
-                        field.type === 'number'
-                          ? { htmlInput: { inputMode: 'numeric', pattern: '[0-9]*' } }
-                          : undefined
-                      }
-                      fullWidth
-                      value={
-                        field.type === 'number'
-                          ? (numberFieldDrafts[field.key] ?? controllerField.value ?? '')
-                          : (controllerField.value ?? '')
-                      }
-                      onChange={(event) => {
-                        const raw = event.target.value;
-                        if (field.type === 'number') {
-                          const digitsOnly = raw.replace(/[^0-9]/g, '');
-                          setNumberFieldDrafts((prev) => ({ ...prev, [field.key]: digitsOnly }));
-                          controllerField.onChange(digitsOnly === '' ? undefined : Number(digitsOnly));
-                        } else {
-                          controllerField.onChange(raw);
-                        }
-                      }}
-                      onBlur={() => {
-                        if (field.type === 'text' && typeof controllerField.value === 'string') {
-                          controllerField.onChange(toTitleCase(controllerField.value));
-                        }
-                        if (field.type === 'number') {
-                          setNumberFieldDrafts((prev) => {
-                            if (!(field.key in prev)) return prev;
-                            const next = { ...prev };
-                            delete next[field.key];
-                            return next;
-                          });
-                        }
-                        controllerField.onBlur();
-                      }}
-                      error={Boolean(fieldState.error)}
-                      helperText={fieldState.error?.message}
-                    />
-                  )
+            {(() => {
+              const pairs = FIELD_PAIRS[mediaType.id] ?? [];
+              const secondOfPair = new Map(pairs.map(([a, b]) => [a, b]));
+              const consumedAsSecond = new Set(pairs.map(([, b]) => b));
+              const fieldByKey = new Map(mediaType.fields.map((f) => [f.key, f]));
+
+              return mediaType.fields.map((field) => {
+                if (consumedAsSecond.has(field.key)) return null; // rendered as part of its pair below
+                const pairedKey = secondOfPair.get(field.key);
+                const pairedField = pairedKey ? fieldByKey.get(pairedKey) : undefined;
+                if (pairedField) {
+                  return (
+                    <Stack key={field.key} direction="row" spacing={2}>
+                      <Box sx={{ flex: 1 }}>{renderMetadataField(field)}</Box>
+                      <Box sx={{ flex: 1 }}>{renderMetadataField(pairedField)}</Box>
+                    </Stack>
+                  );
                 }
-              />
-            ))}
+                return renderMetadataField(field);
+              });
+            })()}
             {mediaType.id === 'comic' &&
               typeof issueStart === 'number' &&
               typeof issueEnd === 'number' &&

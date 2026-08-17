@@ -248,6 +248,8 @@ export interface EntryListFilter {
 export type EntrySortOrder =
   | 'completedDateDesc'
   | 'completedDateAsc'
+  | 'startedDateDesc'
+  | 'startedDateAsc'
   | 'alphabetical'
   | 'ratingDesc'
   | 'ratingAsc'
@@ -328,6 +330,20 @@ function sortEntries(entries: MediaEntry[], sort: EntrySortOrder): MediaEntry[] 
       return sorted.sort((a, b) => (b.completedDate ?? '').localeCompare(a.completedDate ?? ''));
     case 'completedDateAsc':
       return sorted.sort((a, b) => (a.completedDate ?? '').localeCompare(b.completedDate ?? ''));
+    // In Progress has no completedDate yet — sorts by startedDate
+    // instead (see chat, Aug 2026: In Progress previously defaulted
+    // to completedDateDesc, which is undefined for every in-progress
+    // entry and so didn't produce a real order at all). Entries
+    // without a startedDate fall back to createdAt so they still land
+    // somewhere sensible in the timeline rather than clustering.
+    case 'startedDateDesc':
+      return sorted.sort((a, b) =>
+        (b.startedDate ?? b.createdAt).localeCompare(a.startedDate ?? a.createdAt),
+      );
+    case 'startedDateAsc':
+      return sorted.sort((a, b) =>
+        (a.startedDate ?? a.createdAt).localeCompare(b.startedDate ?? b.createdAt),
+      );
     case 'alphabetical':
       return sorted.sort((a, b) => a.title.localeCompare(b.title));
     case 'ratingDesc':

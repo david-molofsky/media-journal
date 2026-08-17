@@ -60,6 +60,8 @@ const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
   { label: 'My Order', value: 'wishlistOrderAsc' },
   { label: 'Newest completion date', value: 'completedDateDesc' },
   { label: 'Oldest completion date', value: 'completedDateAsc' },
+  { label: 'Newest start date', value: 'startedDateDesc' },
+  { label: 'Oldest start date', value: 'startedDateAsc' },
   { label: 'Alphabetical', value: 'alphabetical' },
   { label: 'Highest rating', value: 'ratingDesc' },
   { label: 'Lowest rating', value: 'ratingAsc' },
@@ -68,16 +70,30 @@ const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
   { label: 'By type', value: 'byType' },
 ];
 
-const DATE_SORTS: EntrySortOrder[] = ['completedDateDesc', 'completedDateAsc', 'createdAtDesc', 'createdAtAsc'];
+const DATE_SORTS: EntrySortOrder[] = [
+  'completedDateDesc',
+  'completedDateAsc',
+  'createdAtDesc',
+  'createdAtAsc',
+  'startedDateDesc',
+  'startedDateAsc',
+];
 
 /** Wishlist entries have no completion date yet, so "Newest completion
  * date" (the default everywhere else) doesn't make sense there —
- * Wishlist defaults to "My Order" (manual reorder) instead. Applied
- * whenever the Library lands on or switches to a tab (see the Tabs
- * onChange handler below and the initial `sort` state), not as a
- * one-time default that then behaves like any other tab. */
+ * Wishlist defaults to "My Order" (manual reorder) instead. In
+ * Progress entries have no completion date either — they default to
+ * "Newest start date" instead (see chat, Aug 2026 — previously fell
+ * through to the completedDateDesc default same as Completed, which
+ * doesn't produce a real order for entries that have no completedDate
+ * at all). Applied whenever the Library lands on or switches to a
+ * tab (see the Tabs onChange handler below and the initial `sort`
+ * state), not as a one-time default that then behaves like any other
+ * tab. */
 function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
-  return status === 'wishlist' ? 'wishlistOrderAsc' : 'completedDateDesc';
+  if (status === 'wishlist') return 'wishlistOrderAsc';
+  if (status === 'in_progress') return 'startedDateDesc';
+  return 'completedDateDesc';
 }
 
 const STATUS_TABS: { value: EntryStatus; label: string; Icon: typeof CheckCircleOutlineIcon }[] = [
@@ -105,7 +121,12 @@ function buildGroups(
   if (DATE_SORTS.includes(sort)) {
     const map = new Map<string, MediaEntry[]>();
     for (const entry of entries) {
-      const dateStr = sort === 'createdAtDesc' || sort === 'createdAtAsc' ? entry.createdAt : (entry.completedDate ?? entry.createdAt);
+      const dateStr =
+        sort === 'createdAtDesc' || sort === 'createdAtAsc'
+          ? entry.createdAt
+          : sort === 'startedDateDesc' || sort === 'startedDateAsc'
+            ? (entry.startedDate ?? entry.createdAt)
+            : (entry.completedDate ?? entry.createdAt);
       const key = dayjs(dateStr).format('MMMM YYYY');
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(entry);
