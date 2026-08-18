@@ -38,10 +38,16 @@ export async function deleteInProgressEntry(id: string): Promise<void> {
  * Creates the `MediaEntry` (with today as the default completed date),
  * then deletes the in-progress record. Returns the new entry so the
  * caller can navigate to it for rating/notes.
+ *
+ * `rating` is optional — the quick-action completion dialog captures
+ * it up front (see chat, Aug 2026), but the caller still lands on the
+ * full edit form afterward, pre-filled, in case they want to adjust
+ * it or add notes.
  */
 export async function finishInProgressEntry(
   id: string,
   completedDate: string = todayIso(),
+  rating?: number,
 ): Promise<MediaEntry> {
   const inProgress = await db.inProgressEntries.get(id);
   if (!inProgress) throw new Error(`In-progress entry not found: ${id}`);
@@ -52,7 +58,7 @@ export async function finishInProgressEntry(
     status: 'completed',
     startedDate: inProgress.startedDate,
     completedDate,
-    rating: undefined,
+    rating,
     notes: inProgress.notes,
     repeatConsumption: false,
     tags: inProgress.tags,

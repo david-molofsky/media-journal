@@ -36,6 +36,7 @@ import { MultiFilterChip } from '@/components/library/MultiFilterChip';
 import { EntryCard } from '@/components/library/EntryCard';
 import { SeriesView } from '@/components/library/SeriesView';
 import { BulkActionBar } from '@/components/library/BulkActionBar';
+import { RatingInput } from '@/components/forms/RatingInput';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
@@ -313,6 +314,7 @@ export default function LibraryPage() {
   // "Mark finished" dialog
   const [finishEntry, setFinishEntry] = useState<MediaEntry | null>(null);
   const [finishDate, setFinishDate] = useState(todayIso());
+  const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
 
   const toggleSelect = (id: string) => setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) { next.delete(id); } else { next.add(id); } return next; });
   const clearSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); };
@@ -404,8 +406,9 @@ export default function LibraryPage() {
 
   const handleMarkFinished = async () => {
     if (!finishEntry) return;
-    await updateEntryStatus(finishEntry.id, 'completed', finishDate || todayIso());
+    await updateEntryStatus(finishEntry.id, 'completed', finishDate || todayIso(), finishRating);
     setFinishEntry(null);
+    setFinishRating(undefined);
   };
 
   const statusPlaceholder = statusTab === 'in_progress'
@@ -432,7 +435,7 @@ export default function LibraryPage() {
       mediaType={mediaTypeById.get(entry.mediaType)}
       onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(editEntryPath(entry.id), { state: currentFilterState })}
       selected={selectionMode ? selectedIds.has(entry.id) : undefined}
-      onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishEntry(entry); } : undefined}
+      onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishRating(undefined); setFinishEntry(entry); } : undefined}
       onStartTracking={entry.status === 'wishlist' ? () => updateEntryStatus(entry.id, 'in_progress') : undefined}
       onMoveToWishlist={entry.status === 'in_progress' ? () => updateEntryStatus(entry.id, 'wishlist') : undefined}
       reorder={
@@ -618,9 +621,17 @@ export default function LibraryPage() {
       )}
 
       {/* Mark finished dialog */}
-      <Dialog open={Boolean(finishEntry)} onClose={() => setFinishEntry(null)} fullWidth maxWidth="xs">
-        <DialogTitle>When did you finish "{finishEntry?.title}"?</DialogTitle>
+      <Dialog
+        open={Boolean(finishEntry)}
+        onClose={() => { setFinishEntry(null); setFinishRating(undefined); }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Mark "{finishEntry?.title}" finished?</DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Confirm the completed date and add a rating if you have one.
+          </Typography>
           <TextField
             label="Completed date"
             type="date"
@@ -628,12 +639,13 @@ export default function LibraryPage() {
             value={finishDate}
             onChange={(e) => setFinishDate(e.target.value)}
             slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ mt: 1 }}
+            sx={{ mb: 2 }}
           />
+          <RatingInput value={finishRating} onChange={setFinishRating} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFinishEntry(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleMarkFinished}>Save</Button>
+          <Button onClick={() => { setFinishEntry(null); setFinishRating(undefined); }}>Cancel</Button>
+          <Button variant="contained" onClick={handleMarkFinished}>Mark finished</Button>
         </DialogActions>
       </Dialog>
     </Box>

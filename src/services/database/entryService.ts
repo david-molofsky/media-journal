@@ -79,6 +79,7 @@ export async function updateEntryStatus(
   id: string,
   status: EntryStatus,
   completedDate?: string,
+  rating?: number,
 ): Promise<void> {
   const existing = await db.mediaEntries.get(id);
   if (!existing) throw new Error(`Entry not found: ${id}`);
@@ -89,6 +90,13 @@ export async function updateEntryStatus(
     const date = completedDate ?? existing.completedDate;
     update.completedDate = date;
     update.completedYear = date ? yearOf(date) : undefined;
+    // Quick-action completion dialog captures rating alongside the
+    // date (see chat, Aug 2026); undefined means "left blank", so we
+    // only touch the field when a value was actually provided —
+    // never clobber an existing rating on a no-op status refresh.
+    if (rating !== undefined) {
+      update.rating = rating;
+    }
   } else {
     update.completedDate = undefined;
     update.completedYear = undefined;

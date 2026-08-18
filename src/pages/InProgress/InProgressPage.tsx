@@ -29,6 +29,7 @@ import {
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { todayIso } from '@/utils/dateUtils';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
+import { RatingInput } from '@/components/forms/RatingInput';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ROUTES, editEntryPath } from '@/routes/paths';
 
@@ -46,6 +47,7 @@ export default function InProgressPage() {
 
   const [finishId, setFinishId] = useState<string | null>(null);
   const [finishDate, setFinishDate] = useState(todayIso());
+  const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -70,8 +72,9 @@ export default function InProgressPage() {
 
   const handleFinish = async () => {
     if (!finishId) return;
-    const created = await finishInProgressEntry(finishId, finishDate || todayIso());
+    const created = await finishInProgressEntry(finishId, finishDate || todayIso(), finishRating);
     setFinishId(null);
+    setFinishRating(undefined);
     navigate(editEntryPath(created.id));
   };
 
@@ -139,7 +142,7 @@ export default function InProgressPage() {
                   <Button
                     size="small"
                     startIcon={<CheckCircleOutlineIcon />}
-                    onClick={() => { setFinishId(entry.id); setFinishDate(todayIso()); }}
+                    onClick={() => { setFinishId(entry.id); setFinishDate(todayIso()); setFinishRating(undefined); }}
                   >
                     Mark as finished
                   </Button>
@@ -213,12 +216,17 @@ export default function InProgressPage() {
       </Dialog>
 
       {/* Finish dialog */}
-      <Dialog open={Boolean(finishId)} onClose={() => setFinishId(null)} fullWidth maxWidth="xs">
+      <Dialog
+        open={Boolean(finishId)}
+        onClose={() => { setFinishId(null); setFinishRating(undefined); }}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Mark as finished</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              When did you finish? You'll be taken to the full edit form to add a rating and notes.
+              Confirm the date and rating. You'll land on the full edit form to add notes.
             </Typography>
             <TextField
               label="Completed date"
@@ -228,10 +236,11 @@ export default function InProgressPage() {
               onChange={(e) => setFinishDate(e.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
             />
+            <RatingInput value={finishRating} onChange={setFinishRating} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFinishId(null)}>Cancel</Button>
+          <Button onClick={() => { setFinishId(null); setFinishRating(undefined); }}>Cancel</Button>
           <Button variant="contained" onClick={handleFinish}>Finish & rate</Button>
         </DialogActions>
       </Dialog>
