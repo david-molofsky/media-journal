@@ -12,13 +12,11 @@ import { ROUTES } from '@/routes/paths';
 const APP_URL = 'https://mediajournal.ap2hyc.com/';
 
 /**
- * Media types that support a shared "add to journal" deep link, and
- * the metadata key their source id is stored under (see
- * MetadataSearch.tsx's getSourceIdKey / AddEntryPage's shared-link
- * handling). Comics and any other type are left out — a comic's
- * ComicVine id identifies a series, not one issue, so it can't be
- * resolved back into a single entry the way a TMDB id or Open Library
- * work key can.
+ * Media types that support a shared "add to journal" deep link via a
+ * single persisted source id, and the metadata key that id is stored
+ * under (see MetadataSearch.tsx's getSourceIdKey / AddEntryPage's
+ * shared-link handling). Comic is handled separately below — a comic
+ * issue needs two pieces of data (volume id + issue number), not one.
  */
 const SHARED_LINK_ID_KEY: Record<string, string> = {
   film: 'tmdbId',
@@ -28,6 +26,36 @@ const SHARED_LINK_ID_KEY: Record<string, string> = {
 };
 
 /**
+ * Comic's smart link (see chat, Aug 2026). Two tiers:
+ *  - Precise: when the entry has a persisted `comicVineVolumeId` (only
+ *    set when the entry was created via ComicVine autofill — see
+ *    entrySchemas.ts) and an `issueStart`, links straight to that
+ *    specific issue, ignoring `issueEnd` per the scoping decision.
+ *  - Fallback: manually-created comics have no volume id, so the link
+ *    instead carries just the series name — AddEntryPage re-runs a
+ *    ComicVine series search from it on the receiving end, same as if
+ *    the recipient had typed it into the search box themselves. Less
+ *    precise (series only, no specific issue), but still better than
+ *    the plain homepage link.
+ */
+function buildComicLink(entry: MediaEntry): string {
+  const volumeId = entry.metadata.comicVineVolumeId;
+  const issueStart = entry.metadata.issueStart;
+  if (typeof volumeId === 'string' && volumeId && issueStart !== undefined && issueStart !== '') {
+    const params = new URLSearchParams({ type: 'comic', id: volumeId, issue: String(issueStart) });
+    return `${APP_URL}#${ROUTES.addEntry}?${params.toString()}`;
+  }
+
+  const series = entry.metadata.series;
+  if (typeof series === 'string' && series.trim()) {
+    const params = new URLSearchParams({ type: 'comic', series: series.trim() });
+    return `${APP_URL}#${ROUTES.addEntry}?${params.toString()}`;
+  }
+
+  return APP_URL;
+}
+
+/**
  * Builds the link that goes at the end of a shared message. If the
  * entry's media type supports it and has a persisted source id, this
  * is a smart link straight to a pre-filled Add Entry screen
@@ -35,6 +63,8 @@ const SHARED_LINK_ID_KEY: Record<string, string> = {
  * URL, same as before this feature existed.
  */
 export function buildEntryLink(entry: MediaEntry): string {
+  if (entry.mediaType === 'comic') return buildComicLink(entry);
+
   const idKey = SHARED_LINK_ID_KEY[entry.mediaType];
   const id = idKey ? entry.metadata[idKey] : undefined;
   if (!idKey || typeof id !== 'string' || !id) return APP_URL;

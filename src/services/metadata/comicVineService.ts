@@ -130,11 +130,16 @@ interface ComicVineImage {
   small_url?: string;
 }
 
+interface ComicVineIssueVolume {
+  name: string;
+}
+
 interface ComicVineIssueDetail {
   name: string | null;
   cover_date: string | null;
   person_credits?: ComicVinePersonCredit[];
   image?: ComicVineImage;
+  volume?: ComicVineIssueVolume;
 }
 
 /** Maps ComicVine's free-text credit roles (a person can hold several,
@@ -165,7 +170,7 @@ const ROLE_FIELD_MAP: Array<{ match: RegExp; fieldKeys: string[] }> = [
 export async function getIssueDetails(
   volumeId: string,
   issueNumber: string,
-): Promise<{ fields: Record<string, string> }> {
+): Promise<{ fields: Record<string, string>; seriesName?: string }> {
   const matchData = await comicVineGet<{ results: Array<{ api_detail_url: string }> }>(
     `/issues/?filter=volume:${volumeId},issue_number:${issueNumber}&field_list=api_detail_url&limit=1`,
   );
@@ -177,7 +182,7 @@ export async function getIssueDetails(
   // hardcode that prefix, reuse the full path ComicVine already gave us.
   const detailPath = match.api_detail_url.replace('https://comicvine.gamespot.com/api', '');
   const detail = await comicVineGet<{ results: ComicVineIssueDetail }>(
-    `${detailPath}?field_list=name,cover_date,person_credits,image`,
+    `${detailPath}?field_list=name,cover_date,person_credits,image,volume`,
   );
   const issue = detail.results;
 
@@ -245,7 +250,7 @@ export async function getIssueDetails(
     if (imageUrl) fields['coverImagePath'] = imageUrl;
   }
 
-  return { fields };
+  return { fields, seriesName: issue.volume?.name };
 }
 
 // ── Find Next in Series ─────────────────────────────────────────────────────

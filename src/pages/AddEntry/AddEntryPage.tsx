@@ -20,6 +20,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { createEntry, normalizeWishlistOrder, jumpWishlistOrder } from '@/services/database/entryService';
 import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
+import { getIssueDetails, searchSeries } from '@/services/metadata/comicVineService';
 import { ROUTES } from '@/routes/paths';
 import { SETTINGS_KEYS } from '@/models';
 import type { MediaType, NewMediaEntryInput } from '@/models';
@@ -76,10 +77,20 @@ export default function AddEntryPage() {
   // Shared "add to journal" link support (see shareMessageService's
   // buildEntryLink). `type`/`id` in the URL identify a source record
   // to fetch and pre-fill — only present when someone opens a link
-  // shared from another entry.
+  // shared from another entry. Comic is handled separately: it either
+  // carries `id` (ComicVine volume id) + `issue` (issue number) for a
+  // precise link, or just `series` for the less-precise fallback (see
+  // shareMessageService's buildComicLink / chat, Aug 2026).
   const sharedType = searchParams.get('type');
   const sharedId = searchParams.get('id');
-  const isSharedLink = Boolean(sharedType && sharedId && SHARED_ID_KEY[sharedType]);
+  const sharedIssue = searchParams.get('issue');
+  const sharedSeries = searchParams.get('series');
+  const isComicPreciseLink = sharedType === 'comic' && Boolean(sharedId && sharedIssue);
+  const isComicSeriesLink = sharedType === 'comic' && !isComicPreciseLink && Boolean(sharedSeries);
+  const isSharedLink =
+    Boolean(sharedType && sharedId && SHARED_ID_KEY[sharedType]) ||
+    isComicPreciseLink ||
+    isComicSeriesLink;
 
   const [sharedValues, setSharedValues] = useState<NewMediaEntryInput | null>(null);
   const [sharedError, setSharedError] = useState(false);
@@ -120,15 +131,81 @@ export default function AddEntryPage() {
   // Resolve the shared id into pre-filled values once the type is known.
   useEffect(() => {
     if (!isSharedLink || !sharedMediaType || sharedValues || sharedError) return;
-    if (!sharedType || !sharedId) return;
-    // isSharedLink already guarantees this key exists for sharedType.
-    const idKey = SHARED_ID_KEY[sharedType];
-    if (!idKey) return;
+    if (!sharedType) return;
 
     let cancelled = false;
 
     (async () => {
       try {
+        // Comic: two possible shapes (see shareMessageService's
+        // buildComicLink) — a precise volumeId+issue link, or a
+        // series-name-only fallback for manually-created entries.
+        if (sharedType === 'comic') {
+          if (isComicPreciseLink && sharedId && sharedIssue) {
+            const { fields, seriesName } = await getIssueDetails(sharedId, sharedIssue);
+            if (cancelled) return;
+            if (!seriesName) {
+              setSharedError(true);
+              return;
+            }
+            setSharedValues({
+              title: `${seriesName} #${sharedIssue}`,
+              mediaType: sharedMediaType.id,
+              status: 'wishlist',
+              startedDate: undefined,
+              completedDate: undefined,
+              rating: undefined,
+              notes: '',
+              repeatConsumption: false,
+              tags: [],
+              genres: [],
+              metadata: {
+                ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
+                ...fields,
+                series: seriesName,
+                issueStart: sharedIssue,
+                comicVineVolumeId: sharedId,
+              },
+            });
+            return;
+          }
+
+          if (isComicSeriesLink && sharedSeries) {
+            // Less-precise fallback: re-run the same ComicVine series
+            // search the recipient would've typed manually. If nothing
+            // matches, still pre-fill the series name as plain text
+            // rather than surfacing an error — the recipient can
+            // search again themselves if they want a different match.
+            const matches = await searchSeries(sharedSeries);
+            const best = matches[0];
+            if (cancelled) return;
+            setSharedValues({
+              title: best?.title ?? sharedSeries,
+              mediaType: sharedMediaType.id,
+              status: 'wishlist',
+              startedDate: undefined,
+              completedDate: undefined,
+              rating: undefined,
+              notes: '',
+              repeatConsumption: false,
+              tags: [],
+              genres: [],
+              metadata: {
+                ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
+                ...(best?.fields ?? { series: sharedSeries }),
+              },
+            });
+            return;
+          }
+
+          return;
+        }
+
+        if (!sharedId) return;
+        // isSharedLink already guarantees this key exists for sharedType.
+        const idKey = SHARED_ID_KEY[sharedType];
+        if (!idKey) return;
+
         let title = '';
         let fields: Record<string, string> = {};
         let genres: string[] | undefined;
@@ -167,7 +244,18 @@ export default function AddEntryPage() {
     return () => {
       cancelled = true;
     };
-  }, [isSharedLink, sharedMediaType, sharedType, sharedId, sharedValues, sharedError]);
+  }, [
+    isSharedLink,
+    sharedMediaType,
+    sharedType,
+    sharedId,
+    sharedIssue,
+    sharedSeries,
+    isComicPreciseLink,
+    isComicSeriesLink,
+    sharedValues,
+    sharedError,
+  ]);
 
   /** Drops the shared-link query params and lets the user carry on
    * manually — used by the fallback screen's "Start a blank entry". */

@@ -190,6 +190,14 @@ const comicMetadataSchema = z
     coverArtist: z.string().optional(),
     editor: z.string().optional(),
     coverImagePath: z.string().optional(),
+    // ComicVine's numeric volume (series) id. Previously travelled only
+    // as transient EntryForm state — deliberately never written to the
+    // entry (see EntryForm's old comment) — but is now persisted so the
+    // shared "add to journal" link can resolve a specific issue back to
+    // its ComicVine source (see chat, Aug 2026 — shareMessageService's
+    // buildEntryLink). Optional: manually-created comics never have it,
+    // and fall back to a series-name-only share link instead.
+    comicVineVolumeId: z.string().optional(),
   })
   .refine(
     (data) =>

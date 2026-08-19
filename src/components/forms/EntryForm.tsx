@@ -144,10 +144,14 @@ export function EntryForm({
   // user is actively editing them — see the Controller render below for why.
   const [numberFieldDrafts, setNumberFieldDrafts] = useState<Record<string, string>>({});
   // Carries the ComicVine series id from the search step (MetadataSearch)
-  // to the later "Fetch issue details" step below. Deliberately local
-  // component state, not a form/metadata field — it's an internal
-  // lookup key, not data that belongs on the saved entry.
-  const [comicVineVolumeId, setComicVineVolumeId] = useState<string | null>(null);
+  // to the later "Fetch issue details" step below. Persisted on the
+  // entry itself too now (see entrySchemas.ts comment) for the shared
+  // "add to journal" link — this local copy remains the source of truth
+  // while the form is open, seeded from the saved value on edit so
+  // "Fetch issue details" keeps working after reopening a comic entry.
+  const [comicVineVolumeId, setComicVineVolumeId] = useState<string | null>(
+    (initialValues?.metadata?.comicVineVolumeId as string | undefined) ?? null,
+  );
   const [fetchingIssueDetails, setFetchingIssueDetails] = useState(false);
   const [issueFetchError, setIssueFetchError] = useState<string | null>(null);
   const Icon = getMediaTypeIcon(mediaType.icon);
@@ -256,9 +260,13 @@ export function EntryForm({
     const visibleKeys = new Set(mediaType.fields.map((f) => f.key));
     for (const [key, value] of Object.entries(reSearchResult.fields)) {
       // comicVineVolumeId rides along purely to reach the later "Fetch
-      // issue details" step — same handling as applyMetadataFill.
+      // issue details" step — same handling as applyMetadataFill, and
+      // now also persisted into form metadata for the same reason.
       if (key === 'comicVineVolumeId') {
         setComicVineVolumeId(value);
+        setValue('metadata.comicVineVolumeId' as 'metadata', value as unknown as EntryMetadata, {
+          shouldValidate: true,
+        });
         continue;
       }
       // A visible field the user unchecked in the dialog — skip it.
@@ -414,11 +422,17 @@ export function EntryForm({
   const applyMetadataFill = (title: string, fields: Record<string, string>, genres?: string[]) => {
     setValue('title', toTitleCase(title), { shouldValidate: true });
     // comicVineVolumeId rides along in `fields` from searchSeries
-    // (comicVineService.ts) purely to reach this handler — it's not a
-    // real metadata field (there's no schema entry for it), so it's
-    // captured into local state and never written to the form/entry.
+    // (comicVineService.ts). It's captured into local state for the
+    // "Fetch issue details" step, and also written into the form's
+    // metadata so it's persisted on save (see entrySchemas.ts comment
+    // — needed for the shared "add to journal" link).
     const { comicVineVolumeId: volumeId, ...restFields } = fields;
-    if (volumeId) setComicVineVolumeId(volumeId);
+    if (volumeId) {
+      setComicVineVolumeId(volumeId);
+      setValue('metadata.comicVineVolumeId' as 'metadata', volumeId as unknown as EntryMetadata, {
+        shouldValidate: true,
+      });
+    }
     setIssueFetchError(null);
     for (const [key, value] of Object.entries(restFields)) {
       // Bug fix: every auto-filled field was being run through

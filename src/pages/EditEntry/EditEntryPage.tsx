@@ -68,7 +68,10 @@ const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
     { key: 'posterPath', label: 'Poster' },
     { key: 'imdbUrl', label: 'IMDb link' },
   ],
-  comic: [{ key: 'coverImagePath', label: 'Cover image' }],
+  comic: [
+    { key: 'coverImagePath', label: 'Cover image' },
+    { key: 'comicVineVolumeId', label: 'ComicVine link' },
+  ],
   book: [{ key: 'coverImagePath', label: 'Cover image' }],
   audiobook: [{ key: 'coverImagePath', label: 'Cover image' }],
 };
