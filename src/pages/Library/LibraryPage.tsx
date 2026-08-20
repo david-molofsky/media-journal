@@ -174,7 +174,7 @@ export default function LibraryPage() {
   const [restored] = useState(() => (incoming ? null : getLibrarySessionState()));
 
   const [statusTab, setStatusTab] = useState<EntryStatus>(
-    incoming?.status ?? restored?.statusTab ?? 'completed',
+    incoming?.status ?? restored?.statusTab ?? 'wishlist',
   );
   const [searchText, setSearchText] = useState(incoming?.searchText ?? restored?.searchText ?? '');
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -192,8 +192,8 @@ export default function LibraryPage() {
   const [sources, setSources] = useState<string[]>(incoming?.sources ?? restored?.sources ?? []);
   const [sort, setSort] = useState<EntrySortOrder>(
     incoming
-      ? defaultSortForStatus(incoming.status ?? 'completed')
-      : (restored?.sort ?? defaultSortForStatus(restored?.statusTab ?? 'completed')),
+      ? defaultSortForStatus(incoming.status ?? 'wishlist')
+      : (restored?.sort ?? defaultSortForStatus(restored?.statusTab ?? 'wishlist')),
   );
   const [viewMode, setViewMode] = useState<'entries' | 'series'>(restored?.viewMode ?? 'entries');
   const [selectionMode, setSelectionMode] = useState(false);
