@@ -15,6 +15,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
 import Tooltip from '@mui/material/Tooltip';
 import AddIcon from '@mui/icons-material/Add';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import { useAllMediaTypes } from '@/hooks/useAllMediaTypes';
@@ -31,6 +32,7 @@ import type { MediaType } from '@/models';
 export function MediaTypeManager() {
   const mediaTypes = useAllMediaTypes();
   const [addOpen, setAddOpen] = useState(false);
+  const [editingType, setEditingType] = useState<MediaType | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MediaType | null>(null);
 
   const handleDelete = async () => {
@@ -70,16 +72,27 @@ export function MediaTypeManager() {
                     // Spacer so the Switch stays aligned with custom rows
                     <Box sx={{ width: 36 }} />
                   ) : (
-                    <Tooltip title="Delete type">
-                      <IconButton
-                        size="small"
-                        aria-label={`Delete ${mediaType.displayName}`}
-                        onClick={() => setPendingDelete(mediaType)}
-                        color="error"
-                      >
-                        <DeleteOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    <>
+                      <Tooltip title="Edit type">
+                        <IconButton
+                          size="small"
+                          aria-label={`Edit ${mediaType.displayName}`}
+                          onClick={() => setEditingType(mediaType)}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete type">
+                        <IconButton
+                          size="small"
+                          aria-label={`Delete ${mediaType.displayName}`}
+                          onClick={() => setPendingDelete(mediaType)}
+                          color="error"
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </>
                   )}
                   <Switch
                     checked={mediaType.enabled}
@@ -108,10 +121,17 @@ export function MediaTypeManager() {
       </List>
 
       <AddMediaTypeDialog
-        open={addOpen}
+        open={addOpen || Boolean(editingType)}
         existingIds={(mediaTypes ?? []).map((type) => type.id)}
-        onClose={() => setAddOpen(false)}
-        onCreated={() => setAddOpen(false)}
+        editingType={editingType}
+        onClose={() => {
+          setAddOpen(false);
+          setEditingType(null);
+        }}
+        onCreated={() => {
+          setAddOpen(false);
+          setEditingType(null);
+        }}
       />
 
       <Dialog open={Boolean(pendingDelete)} onClose={() => setPendingDelete(null)}>

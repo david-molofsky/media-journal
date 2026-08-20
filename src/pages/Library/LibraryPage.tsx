@@ -97,10 +97,13 @@ function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
   return 'completedDateDesc';
 }
 
+// Ordered Wishlist -> In Progress -> Completed (not alphabetical or DB
+// order) so an entry visually progresses left-to-right as it advances
+// through its lifecycle — see chat, Aug 2026.
 const STATUS_TABS: { value: EntryStatus; label: string; Icon: typeof CheckCircleOutlineIcon }[] = [
-  { value: 'completed', label: 'Completed', Icon: CheckCircleOutlineIcon },
-  { value: 'in_progress', label: 'In Progress', Icon: PlayArrowIcon },
   { value: 'wishlist', label: 'Wishlist', Icon: StarBorderIcon },
+  { value: 'in_progress', label: 'In Progress', Icon: PlayArrowIcon },
+  { value: 'completed', label: 'Completed', Icon: CheckCircleOutlineIcon },
 ];
 
 export interface LibraryFilterRequest {

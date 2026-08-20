@@ -56,22 +56,47 @@ const DEFAULT_VALUES: MediaTypeFormValues = {
 interface AddMediaTypeDialogProps {
   open: boolean;
   existingIds: string[];
+  /** When set, the dialog edits this media type instead of creating a
+   * new one — pre-filled from its current values, Id locked (entries
+   * reference it by id, so it can't be changed), title/button text
+   * adjusted accordingly. See chat, Aug 2026. */
+  editingType?: MediaType | null;
   onClose: () => void;
   onCreated: (mediaType: MediaType) => void;
 }
 
+function valuesFromMediaType(mediaType: MediaType): MediaTypeFormValues {
+  return {
+    id: mediaType.id,
+    displayName: mediaType.displayName,
+    icon: mediaType.icon,
+    colour: mediaType.colour,
+    fields: mediaType.fields.map((f) => ({
+      key: f.key,
+      label: f.label,
+      type: f.type === 'number' || f.type === 'date' ? f.type : 'text',
+      required: f.required,
+    })),
+  };
+}
+
 /**
- * "Add media type" form (Settings, Milestone 7). Per Database Schema &
+ * "Add/Edit media type" form (Settings, Milestone 7). Per Database Schema &
  * Data Model section 5, a new media type is just a new `mediaTypes`
  * row — this form is the UI for writing exactly that row, with no
- * code-level branching for what gets created.
+ * code-level branching for what gets created. Editing an existing
+ * custom type (added Aug 2026, see chat) reuses the same form,
+ * pre-filled, since `upsertMediaType` is already a `put` — saving
+ * with the same id just updates the row in place.
  */
 export function AddMediaTypeDialog({
   open,
   existingIds,
+  editingType,
   onClose,
   onCreated,
 }: AddMediaTypeDialogProps) {
+  const isEditing = Boolean(editingType);
   const {
     control,
     register,
@@ -87,22 +112,25 @@ export function AddMediaTypeDialog({
   const { fields, append, remove } = useFieldArray({ control, name: 'fields' });
 
   useEffect(() => {
-    if (open) reset(DEFAULT_VALUES);
-  }, [open, reset]);
+    if (open) reset(editingType ? valuesFromMediaType(editingType) : DEFAULT_VALUES);
+  }, [open, editingType, reset]);
 
   const submit = handleSubmit(async (values) => {
-    if (existingIds.includes(values.id)) {
+    // Id uniqueness only matters when creating — when editing, the id
+    // is locked to the type's own existing id, so it's expected to
+    // already be present in existingIds.
+    if (!isEditing && existingIds.includes(values.id)) {
       setError('id', { message: 'A media type with this id already exists' });
       return;
     }
-    const created = await upsertMediaType({ ...values, enabled: true });
+    const created = await upsertMediaType({ ...values, enabled: editingType?.enabled ?? true });
     onCreated(created);
     onClose();
   });
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>New media type</DialogTitle>
+      <DialogTitle>{isEditing ? 'Edit media type' : 'New media type'}</DialogTitle>
       <Box component="form" onSubmit={submit} noValidate>
         <DialogContent>
           <Stack spacing={2}>
@@ -117,9 +145,15 @@ export function AddMediaTypeDialog({
               label="Id"
               placeholder="e.g. board-game"
               fullWidth
+              disabled={isEditing}
               {...register('id')}
               error={Boolean(errors.id)}
-              helperText={errors.id?.message ?? 'Lowercase, used internally — cannot be changed later'}
+              helperText={
+                errors.id?.message ??
+                (isEditing
+                  ? 'Cannot be changed — entries reference the type by this id'
+                  : 'Lowercase, used internally — cannot be changed later')
+              }
             />
             <Controller
               name="icon"
@@ -203,7 +237,7 @@ export function AddMediaTypeDialog({
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="contained">
-            Create
+            {isEditing ? 'Save' : 'Create'}
           </Button>
         </DialogActions>
       </Box>
