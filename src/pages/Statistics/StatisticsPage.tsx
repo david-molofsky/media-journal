@@ -284,8 +284,8 @@ export default function StatisticsPage() {
                         onSelectItem={(source) =>
                           goToLibrary(
                             typeof year === 'number'
-                              ? { year, sources: [source], mediaTypeIds: [group.mediaTypeId] }
-                              : { sources: [source], mediaTypeIds: [group.mediaTypeId] },
+                              ? { year, status: 'completed', sources: [source], mediaTypeIds: [group.mediaTypeId] }
+                              : { status: 'completed', sources: [source], mediaTypeIds: [group.mediaTypeId] },
                           )
                         }
                       />
@@ -381,7 +381,11 @@ export default function StatisticsPage() {
             weeklyTotals={data.weeklyTotals}
             year={year}
             onSelectMonth={(month) =>
-              goToLibrary(typeof year === 'number' ? { year, month } : { month })
+              goToLibrary(
+                typeof year === 'number'
+                  ? { year, month, status: 'completed' }
+                  : { month, status: 'completed' },
+              )
             }
           />
         </Box>
@@ -445,7 +449,11 @@ export default function StatisticsPage() {
                     topGenresByCount={data.topGenresByCount}
                     averageRatingByGenre={data.averageRatingByGenre}
                     onSelectGenre={(genre) =>
-                      goToLibrary(typeof year === 'number' ? { year, genres: [genre] } : { genres: [genre] })
+                      goToLibrary(
+                        typeof year === 'number'
+                          ? { year, genres: [genre], status: 'completed' }
+                          : { genres: [genre], status: 'completed' },
+                      )
                     }
                   />
                 ) : (

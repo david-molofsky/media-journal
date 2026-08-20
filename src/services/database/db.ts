@@ -1271,6 +1271,42 @@ export class MediaJournalDatabase extends Dexie {
           }
         }
       });
+
+    // Automatic locked Source field for custom media types (see chat,
+    // Aug 2026). Only genuinely user-created types get this — i.e.
+    // anything whose id isn't in defaultMediaTypes.ts's built-in
+    // catalog of 13. That catalog already ships Source on every type
+    // except Sport, which deliberately uses `watchedVia` instead, so
+    // this must not touch it or any other pre-seeded type even if
+    // currently disabled. Existing entries of affected types are left
+    // untouched — the field just renders blank until edited, same as
+    // any other newly-added field.
+    this.version(28)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+        const catalogIds = new Set(defaultMediaTypes.map((type) => type.id));
+        const all = await table.toArray();
+
+        for (const mediaType of all) {
+          if (catalogIds.has(mediaType.id)) continue;
+          if (mediaType.fields.some((f) => f.key === 'source')) continue;
+          await table.put({
+            ...mediaType,
+            fields: [
+              { key: 'source', label: 'Source', type: 'text', required: false },
+              ...mediaType.fields,
+            ],
+          });
+        }
+      });
   }
 }
 

@@ -1,4 +1,5 @@
 import { db } from './db';
+import { defaultMediaTypes } from './defaultMediaTypes';
 import type { MediaType, MediaTypeInput } from '@/models';
 
 /** Lists all configured media types, enabled and disabled alike. Used
@@ -21,9 +22,18 @@ export async function getMediaType(id: string): Promise<MediaType | undefined> {
 
 /** Creates or replaces a media type configuration. Adding a brand new
  * media type is exactly this: a new row, no code changes required
- * (Database Schema & Data Model, section 5). */
+ * (Database Schema & Data Model, section 5).
+ *
+ * Custom types always get a locked `source` field prepended if not
+ * already present — enforced here (not just in the dialog's UI) so
+ * it's guaranteed regardless of call path. See chat, Aug 2026.
+ */
 export async function upsertMediaType(input: MediaTypeInput): Promise<MediaType> {
-  const mediaType: MediaType = { enabled: true, ...input };
+  let fields = input.fields;
+  if (isCustomMediaType(input.id) && !fields.some((f) => f.key === 'source')) {
+    fields = [{ key: 'source', label: 'Source', type: 'text', required: false }, ...fields];
+  }
+  const mediaType: MediaType = { enabled: true, ...input, fields };
   await db.mediaTypes.put(mediaType);
   return mediaType;
 }
@@ -51,6 +61,21 @@ const DEFAULT_MEDIA_TYPE_IDS = new Set(['book', 'audiobook', 'film', 'tv', 'comi
 
 export function isDefaultMediaType(id: string): boolean {
   return DEFAULT_MEDIA_TYPE_IDS.has(id);
+}
+
+const CATALOG_MEDIA_TYPE_IDS = new Set(defaultMediaTypes.map((type) => type.id));
+
+/**
+ * True for a genuinely user-created media type — anything not in the
+ * 13-type built-in catalog (defaultMediaTypes.ts), including the 8
+ * that ship disabled (Anime, Manga, Game, etc.) as well as the 5
+ * undeletable ones `isDefaultMediaType` checks. Used to decide which
+ * types get the automatic locked Source field (see chat, Aug 2026) —
+ * catalog types already have their own deliberate field design (Sport
+ * has no generic Source at all, by design) and must never be touched.
+ */
+export function isCustomMediaType(id: string): boolean {
+  return !CATALOG_MEDIA_TYPE_IDS.has(id);
 }
 
 /**

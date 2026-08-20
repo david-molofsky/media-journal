@@ -98,8 +98,8 @@ export default function DashboardPage() {
                     onClick={() =>
                       goToLibrary(
                         year === null
-                          ? { mediaTypeIds: [mediaType.id] }
-                          : { year, mediaTypeIds: [mediaType.id] },
+                          ? { status: 'completed', mediaTypeIds: [mediaType.id] }
+                          : { year, status: 'completed', mediaTypeIds: [mediaType.id] },
                       )
                     }
                   />

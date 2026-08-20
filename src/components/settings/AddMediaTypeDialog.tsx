@@ -14,6 +14,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import { ICON_OPTIONS } from '@/utils/mediaTypeIcon';
 import { upsertMediaType } from '@/services/database/mediaTypeService';
@@ -71,12 +72,18 @@ function valuesFromMediaType(mediaType: MediaType): MediaTypeFormValues {
     displayName: mediaType.displayName,
     icon: mediaType.icon,
     colour: mediaType.colour,
-    fields: mediaType.fields.map((f) => ({
-      key: f.key,
-      label: f.label,
-      type: f.type === 'number' || f.type === 'date' ? f.type : 'text',
-      required: f.required,
-    })),
+    // The automatic Source field (see chat, Aug 2026) is deliberately
+    // excluded from the editable dynamic list — it's shown separately
+    // as a static locked row below, and upsertMediaType guarantees
+    // it's present on save regardless of what's submitted here.
+    fields: mediaType.fields
+      .filter((f) => f.key !== 'source')
+      .map((f) => ({
+        key: f.key,
+        label: f.label,
+        type: f.type === 'number' || f.type === 'date' ? f.type : 'text',
+        required: f.required,
+      })),
   };
 }
 
@@ -201,6 +208,26 @@ export function AddMediaTypeDialog({
                   Add field
                 </Button>
               </Stack>
+
+              {/* Automatic Source field — always present on every
+                  custom type, enforced in upsertMediaType regardless
+                  of what's submitted here, so this row is purely
+                  informational, not part of the editable field array. */}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 1, py: 0.5 }}
+              >
+                <TextField label="Label" size="small" value="Source" disabled sx={{ opacity: 0.7 }} />
+                <TextField label="Key" size="small" value="source" disabled sx={{ opacity: 0.7 }} />
+                <TextField label="Type" size="small" value="Text" disabled sx={{ minWidth: 90, opacity: 0.7 }} />
+                <LockOutlinedIcon fontSize="small" color="disabled" sx={{ mt: 0.5 }} />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Source is added automatically to every custom media type and can't be removed.
+              </Typography>
+
               {fields.map((field, index) => (
                 <Stack key={field.id} direction="row" spacing={1} alignItems="flex-start">
                   <TextField
