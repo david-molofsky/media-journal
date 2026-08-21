@@ -289,35 +289,6 @@ export default function EntryDetailPage() {
           </Stack>
         )}
 
-        {showRating && (
-          <RatingInput
-            value={liveRating}
-            onChange={setLiveRating}
-            onChangeCommitted={(value) => void updateEntryRating(entry.id, value)}
-          />
-        )}
-
-        {showDates && (
-          <Stack direction="row" spacing={2}>
-            <Box sx={{ flex: 1 }}>
-              <EntryDatePicker
-                label="Started"
-                value={entry.startedDate}
-                onChange={(value) => void updateEntryDate(entry.id, 'startedDate', value)}
-              />
-            </Box>
-            {showCompletedDate && (
-              <Box sx={{ flex: 1 }}>
-                <EntryDatePicker
-                  label="Completed"
-                  value={entry.completedDate}
-                  onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
-                />
-              </Box>
-            )}
-          </Stack>
-        )}
-
         {showOverview && (
           <>
             <Divider />
@@ -380,6 +351,35 @@ export default function EntryDetailPage() {
               ))}
             </Stack>
           </Box>
+        )}
+
+        {showRating && (
+          <RatingInput
+            value={liveRating}
+            onChange={setLiveRating}
+            onChangeCommitted={(value) => void updateEntryRating(entry.id, value)}
+          />
+        )}
+
+        {showDates && (
+          <Stack direction="row" spacing={2}>
+            <Box sx={{ flex: 1 }}>
+              <EntryDatePicker
+                label="Started"
+                value={entry.startedDate}
+                onChange={(value) => void updateEntryDate(entry.id, 'startedDate', value)}
+              />
+            </Box>
+            {showCompletedDate && (
+              <Box sx={{ flex: 1 }}>
+                <EntryDatePicker
+                  label="Completed"
+                  value={entry.completedDate}
+                  onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
+                />
+              </Box>
+            )}
+          </Stack>
         )}
 
         <NextInSeriesSection entry={entry} />
