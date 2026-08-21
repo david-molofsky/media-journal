@@ -392,6 +392,50 @@ export async function getTopPeopleByRole(
   return totals;
 }
 
+/** Average rating per person, grouped by role — mirrors
+ * `getAverageRatingBySource`'s approach: only rated entries count,
+ * each contributing once (not weighted by `getEntryWeight` — a
+ * multi-issue comic run is still one rating, same reasoning as the
+ * module doc comment at the top of this file). Named next to
+ * `getTopPeopleByRole` above since the two are always used together
+ * (see chat, Aug 2026 — People section gained ratings alongside
+ * Sources' existing rating-next-to-count treatment). */
+export async function getAverageRatingByPersonRole(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<PersonRole, Record<string, number>>> {
+  const entries = (await entriesForYear(year, filters)).filter((entry) => entry.rating !== undefined);
+  const sums = Object.fromEntries(
+    (Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]).map((role) => [
+      role,
+      {} as Record<string, { total: number; count: number }>,
+    ]),
+  ) as Record<PersonRole, Record<string, { total: number; count: number }>>;
+
+  for (const entry of entries) {
+    for (const role of Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]) {
+      for (const { mediaTypeId, fieldKey } of PERSON_ROLE_FIELDS[role]) {
+        if (entry.mediaType !== mediaTypeId) continue;
+        const raw = entry.metadata[fieldKey];
+        if (typeof raw !== 'string' || !raw.trim()) continue;
+        for (const name of splitPeople(raw)) {
+          const bucket = sums[role][name] ?? { total: 0, count: 0 };
+          bucket.total += entry.rating ?? 0;
+          bucket.count += 1;
+          sums[role][name] = bucket;
+        }
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    (Object.keys(sums) as PersonRole[]).map((role) => [
+      role,
+      Object.fromEntries(Object.entries(sums[role]).map(([name, { total, count }]) => [name, total / count])),
+    ]),
+  ) as Record<PersonRole, Record<string, number>>;
+}
+
 /** Average rating per Genre within `year`, ignoring unrated entries.
  * Flat, for the same reason as `getTopGenresByCount`. An entry with
  * multiple genres contributes its rating to each genre's average. */

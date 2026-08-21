@@ -39,6 +39,7 @@ import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
 import { PERSON_ROLE_LABELS, type PersonRole } from '@/utils/personRoles';
+import { TopListSortSelect, sortTopListItems, type TopListSortMode } from '@/components/statistics/TopListSort';
 
 /** Orders a grouped-by-media-type Source record (e.g.
  * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
@@ -112,6 +113,12 @@ export default function StatisticsPage() {
   // 2026) — null until data loads, then defaults to the first role
   // that actually has completed-entry data (set in the effect below).
   const [selectedRole, setSelectedRole] = useState<PersonRole | null>(null);
+  // Sort mode for the Sources (watched view) and People ranked lists
+  // — see chat, Aug 2026. Default matches each section's prior fixed
+  // behavior (count descending), so nothing changes until the person
+  // actually picks a different sort.
+  const [sourcesSort, setSourcesSort] = useState<TopListSortMode>('countDesc');
+  const [peopleSort, setPeopleSort] = useState<TopListSortMode>('countDesc');
 
   const data = useStatisticsData(year, filters);
   const favouriteSubscription = useFavouriteSubscription(year, filters);
@@ -267,9 +274,14 @@ export default function StatisticsPage() {
               })}
             </Stack>
 
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3 }} gutterBottom>
-              Sources
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3, mb: 0.5 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Sources
+              </Typography>
+              {sourcesView === 'watched' && Object.keys(data.topSourcesByCount).length > 0 && (
+                <TopListSortSelect value={sourcesSort} onChange={setSourcesSort} />
+              )}
+            </Stack>
             <WatchedWishlistToggle value={sourcesView} onChange={setSourcesView} />
 
             {sourcesView === 'watched' &&
@@ -290,7 +302,7 @@ export default function StatisticsPage() {
                         {group.displayName}
                       </Typography>
                       <TopList
-                        items={group.items}
+                        items={sortTopListItems(group.items, sourcesSort)}
                         onSelectItem={(source) =>
                           goToLibrary(
                             typeof year === 'number'
@@ -506,9 +518,12 @@ export default function StatisticsPage() {
             filtering mechanism. */}
         {activeRole && (
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              People
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                People
+              </Typography>
+              <TopListSortSelect value={peopleSort} onChange={setPeopleSort} />
+            </Stack>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
               {rolesWithData.map((role) => (
                 <Chip
@@ -521,9 +536,14 @@ export default function StatisticsPage() {
               ))}
             </Stack>
             <TopList
-              items={Object.entries(data.topPeopleByRole[activeRole])
-                .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)}
+              items={sortTopListItems(
+                Object.entries(data.topPeopleByRole[activeRole]).map(([name, count]) => ({
+                  name,
+                  count,
+                  rating: data.averageRatingByPersonRole[activeRole][name],
+                })),
+                peopleSort,
+              )}
               onSelectItem={(name) =>
                 goToLibrary(
                   typeof year === 'number'

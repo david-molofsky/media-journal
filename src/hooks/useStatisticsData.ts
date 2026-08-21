@@ -17,6 +17,7 @@ import {
   getWishlistGenreTotals,
   getTopGenreShareByMediaType,
   getTopPeopleByRole,
+  getAverageRatingByPersonRole,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
 import type { TopGenreShareByMediaType, StatsFilters, StatsYearScope } from '@/services/statistics/statisticsService';
@@ -42,6 +43,7 @@ export interface StatisticsData {
   wishlistGenreTotals: Record<string, number>;
   topGenreShareByMediaType: TopGenreShareByMediaType | null;
   topPeopleByRole: Record<PersonRole, Record<string, number>>;
+  averageRatingByPersonRole: Record<PersonRole, Record<string, number>>;
 }
 
 /** Combines every statistics service call the Statistics screen needs
@@ -74,6 +76,7 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       wishlistGenreTotals,
       topGenreShareByMediaType,
       topPeopleByRole,
+      averageRatingByPersonRole,
     ] = await Promise.all([
       getYearSummary(year, filters),
       getMonthlyBreakdown(year, filters),
@@ -95,6 +98,7 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       getWishlistGenreTotals(),
       getTopGenreShareByMediaType(year, filters),
       getTopPeopleByRole(year, filters),
+      getAverageRatingByPersonRole(year, filters),
     ]);
     return {
       totalEntries: summary.totalEntries,
@@ -115,6 +119,7 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       wishlistGenreTotals,
       topGenreShareByMediaType,
       topPeopleByRole,
+      averageRatingByPersonRole,
     };
   }, [year, JSON.stringify(filters)]);
 }
