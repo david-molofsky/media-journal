@@ -3,7 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
+import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
+import TvOutlinedIcon from '@mui/icons-material/TvOutlined';
+import StarOutlineIcon from '@mui/icons-material/StarOutline';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
+import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined';
+import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -11,8 +21,13 @@ import { useAvailableGenres } from '@/hooks/useAvailableGenres';
 import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useStatisticsData, type StatsFilters } from '@/hooks/useStatisticsData';
 import { useFavouriteSubscription } from '@/hooks/useFavouriteSubscription';
+import { useTimelineEntries } from '@/hooks/useTimelineEntries';
+import { packTimelineBars } from '@/utils/timelinePacking';
+import { TimelineChart } from '@/components/timeline/TimelineChart';
+import type { TimelineZoomLevel } from '@/utils/timelineZoom';
 import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
 import { StatsYearSelector } from '@/components/statistics/StatsYearSelector';
+import { StatTile } from '@/components/statistics/StatTile';
 import { MetricCard } from '@/components/statistics/MetricCard';
 import { InsightCard } from '@/components/statistics/InsightCard';
 import { TrendsTabs } from '@/components/statistics/TrendsTabs';
@@ -30,7 +45,6 @@ import {
   WatchedWishlistToggle,
   type WatchedWishlistView,
 } from '@/components/statistics/WatchedWishlistToggle';
-import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -84,6 +98,80 @@ function mergedSourceGroups(
     })),
   }));
 }
+
+/**
+ * Collapsible-tile redesign of the Statistics page (see chat, Aug
+ * 2026). Overview stays as fixed, always-visible cards — it's meant
+ * to be an at-a-glance summary, not something to open/close. Every
+ * other section becomes a tile in a 2-column grid; tapping a tile
+ * toggles its expanded panel below the grid (several can be open at
+ * once — this is a set of independent toggles, not an accordion that
+ * closes others). Panel order follows tile order, not click order.
+ *
+ * Colours are deliberately bright and distinct from all 13 media-type
+ * colours (already-claimed hues would misleadingly suggest a tile is
+ * "about" that media type — see chat) — 8 tiles, 8 unique colours, no
+ * repeats. "Top Rated" was dropped as its own section per David's
+ * call (a highlight reel, not a stat); "Subscription Value" was
+ * split out of the old combined Sources section into its own tile.
+ */
+type StatSectionId =
+  | 'subscriptionValue'
+  | 'sources'
+  | 'ratings'
+  | 'insights'
+  | 'people'
+  | 'genres'
+  | 'timeline'
+  | 'trends';
+
+const STAT_TILES: {
+  id: StatSectionId;
+  icon: typeof StarOutlineIcon;
+  colour: string;
+  title: string;
+  description: string;
+}[] = [
+  {
+    id: 'subscriptionValue',
+    icon: PaidOutlinedIcon,
+    colour: '#FF6F5E',
+    title: 'Subscription value',
+    description: "What you're getting for what you pay",
+  },
+  { id: 'sources', icon: TvOutlinedIcon, colour: '#E0117F', title: 'Sources', description: 'Where you watch, read and play' },
+  { id: 'ratings', icon: StarOutlineIcon, colour: '#00A388', title: 'Ratings', description: 'How you score things, by type' },
+  {
+    id: 'insights',
+    icon: LightbulbOutlinedIcon,
+    colour: '#D9A200',
+    title: 'Insights',
+    description: 'Standout patterns in your habits',
+  },
+  {
+    id: 'people',
+    icon: PeopleOutlineIcon,
+    colour: '#B355D9',
+    title: 'People',
+    description: 'Most-credited actors, directors and more',
+  },
+  { id: 'genres', icon: LocalOfferOutlinedIcon, colour: '#A0C000', title: 'Genres', description: "What you're drawn to most" },
+  {
+    id: 'timeline',
+    icon: TimelineOutlinedIcon,
+    colour: '#00BCD9',
+    title: 'Timeline',
+    description: 'Your history laid out chronologically',
+  },
+  {
+    id: 'trends',
+    icon: TrendingUpOutlinedIcon,
+    colour: '#4C6FEF',
+    title: 'Trends',
+    description: 'How your activity changes over time',
+  },
+];
+
 /**
  * Statistics — detailed analytics, trends, streaks and insights (PRD
  * section 5; UI & UX Specification section 8).
@@ -119,6 +207,29 @@ export default function StatisticsPage() {
   // actually picks a different sort.
   const [sourcesSort, setSourcesSort] = useState<TopListSortMode>('countDesc');
   const [peopleSort, setPeopleSort] = useState<TopListSortMode>('countDesc');
+  // Which tiles are expanded — a set of independent toggles, not an
+  // accordion (several can be open at once). Starts empty; Overview
+  // isn't part of this at all, since it's fixed/always-visible now.
+  const [expandedSections, setExpandedSections] = useState<Set<StatSectionId>>(new Set());
+  const toggleSection = (id: StatSectionId) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+  // Embedded Timeline preview (see chat, Aug 2026) — fixed at Year
+  // zoom, no zoom/type-filter controls; those stay full-page-only.
+  // All-time scope, same as the real Timeline page (not scoped to
+  // this page's selected year — the point of a timeline is seeing
+  // overlap across everything).
+  const timelineZoom: TimelineZoomLevel = 'year';
+  const timelineEntries = useTimelineEntries();
+  const timelineBars = timelineEntries ? packTimelineBars(timelineEntries) : undefined;
 
   const data = useStatisticsData(year, filters);
   const favouriteSubscription = useFavouriteSubscription(year, filters);
@@ -181,12 +292,6 @@ export default function StatisticsPage() {
   }
 
   const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
-  const hasSources =
-    Object.keys(data.topSourcesByCount).length > 0 ||
-    Object.keys(data.wishlistSourceTotals).length > 0;
-  const hasGenres =
-    Object.keys(data.topGenresByCount).length > 0 ||
-    Object.keys(data.wishlistGenreTotals).length > 0;
   const rolesWithData = (Object.keys(PERSON_ROLE_LABELS) as PersonRole[]).filter(
     (role) => Object.keys(data.topPeopleByRole[role]).length > 0,
   );
@@ -214,38 +319,58 @@ export default function StatisticsPage() {
         availableTags={availableTags}
       />
 
-      <Stack spacing={4}>
-        {/* Overview */}
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Overview
-          </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: 1.5,
-            }}
-          >
-            <MetricCard label="Total entries" value={data.totalEntries} />
-            <MetricCard
-              label="Average rating"
-              value={data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}
-            />
-            <MetricCard label="Favourite source" value={data.favouriteSource ?? '—'} />
-            <MetricCard
-              label="Favourite subscription"
-              value={favouriteSubscription ?? '—'}
-            />
-          </Box>
+      {/* Overview — fixed, always visible (not a tile, see chat) */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+          Overview
+        </Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 1.5,
+          }}
+        >
+          <MetricCard label="Total entries" value={data.totalEntries} />
+          <MetricCard
+            label="Average rating"
+            value={data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}
+          />
+          <MetricCard label="Favourite source" value={data.favouriteSource ?? '—'} />
+          <MetricCard
+            label="Favourite subscription"
+            value={favouriteSubscription ?? '—'}
+          />
         </Box>
+      </Box>
 
-        {/* Sources (incl. Subscription Value) */}
-        {hasSources && (
+      {/* Tile grid — tap to expand/collapse; several can be open at
+          once (see STAT_TILES doc comment above). */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 1.5,
+          mb: 3,
+        }}
+      >
+        {STAT_TILES.map((tile) => (
+          <StatTile
+            key={tile.id}
+            icon={tile.icon}
+            colour={tile.colour}
+            title={tile.title}
+            description={tile.description}
+            expanded={expandedSections.has(tile.id)}
+            onClick={() => toggleSection(tile.id)}
+          />
+        ))}
+      </Box>
+
+      <Stack spacing={3}>
+        {/* Subscription Value */}
+        {expandedSections.has('subscriptionValue') && (
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Subscription Value
-            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Which services are earning their keep, based on what you&apos;ve watched and
               rated.
@@ -273,8 +398,13 @@ export default function StatisticsPage() {
                 );
               })}
             </Stack>
+          </Box>
+        )}
 
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 3, mb: 0.5 }}>
+        {/* Sources */}
+        {expandedSections.has('sources') && (
+          <Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
               <Typography variant="subtitle2" color="text.secondary">
                 Sources
               </Typography>
@@ -379,90 +509,103 @@ export default function StatisticsPage() {
           </Box>
         )}
 
-        {/* Insights */}
-        {data.insights.length > 0 && (
+        {/* Ratings */}
+        {expandedSections.has('ratings') && (
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Insights
-            </Typography>
-            <Stack spacing={1}>
-              {data.insights.map((insight) => (
-                <InsightCard key={insight} text={insight} />
-              ))}
+            <Stack spacing={2}>
+              <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
+              {Object.keys(data.averageRatingByMediaType).length > 0 && (
+                <Stack spacing={0.75}>
+                  {Object.entries(data.averageRatingByMediaType)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([mediaType, average]) => (
+                      <Stack key={mediaType} direction="row" justifyContent="space-between">
+                        <Typography variant="body2">
+                          {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {average.toFixed(1)}
+                        </Typography>
+                      </Stack>
+                    ))}
+                </Stack>
+              )}
             </Stack>
           </Box>
         )}
 
-        {/* Trends */}
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Trends
-          </Typography>
-          <TrendsTabs
-            monthlyBreakdown={data.monthlyBreakdown}
-            weeklyTotals={data.weeklyTotals}
-            year={year}
-            onSelectMonth={(month) =>
-              goToLibrary(
-                typeof year === 'number'
-                  ? { year, month, status: 'completed' }
-                  : { month, status: 'completed' },
-              )
-            }
-          />
-        </Box>
-
-        {/* Ratings */}
-        <Box>
-          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-            Ratings
-          </Typography>
-          <Stack spacing={2}>
-            <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
-            {Object.keys(data.averageRatingByMediaType).length > 0 && (
-              <Stack spacing={0.75}>
-                {Object.entries(data.averageRatingByMediaType)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([mediaType, average]) => (
-                    <Stack key={mediaType} direction="row" justifyContent="space-between">
-                      <Typography variant="body2">
-                        {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {average.toFixed(1)}
-                      </Typography>
-                    </Stack>
-                  ))}
-              </Stack>
-            )}
-          </Stack>
-        </Box>
-
-        {/* Top Rated */}
-        {data.highestRated.length > 0 && (
+        {/* Insights */}
+        {expandedSections.has('insights') && (
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Top Rated
-            </Typography>
-            <Stack spacing={1.5}>
-              {data.highestRated.map((entry) => (
-                <EntryCard
-                  key={entry.id}
-                  entry={entry}
-                  mediaType={mediaTypeById.get(entry.mediaType)}
-                  onOpen={() => navigate(entryDetailPath(entry.id))}
+            {data.insights.length > 0 ? (
+              <Stack spacing={1}>
+                {data.insights.map((insight) => (
+                  <InsightCard key={insight} text={insight} />
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No insights yet — check back as you log more entries.
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {/* People — most-credited actors, directors, writers, etc.
+            (see chat, Aug 2026). Completed-only (no watched/wishlist
+            toggle — an uncompleted entry's credits haven't been
+            "watched"/"read" yet). Only roles with actual data show a
+            chip. Clicking a name reuses the existing Library
+            searchText filter (already a case-insensitive substring
+            match across every metadata field), rather than a new
+            filtering mechanism. */}
+        {expandedSections.has('people') && (
+          <Box>
+            {activeRole ? (
+              <>
+                <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 0.5 }}>
+                  <TopListSortSelect value={peopleSort} onChange={setPeopleSort} />
+                </Stack>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+                  {rolesWithData.map((role) => (
+                    <Chip
+                      key={role}
+                      label={PERSON_ROLE_LABELS[role]}
+                      size="small"
+                      color={role === activeRole ? 'primary' : 'default'}
+                      onClick={() => setSelectedRole(role)}
+                    />
+                  ))}
+                </Stack>
+                <TopList
+                  items={sortTopListItems(
+                    Object.entries(data.topPeopleByRole[activeRole]).map(([name, count]) => ({
+                      name,
+                      count,
+                      rating: data.averageRatingByPersonRole[activeRole][name],
+                    })),
+                    peopleSort,
+                  )}
+                  onSelectItem={(name) =>
+                    goToLibrary(
+                      typeof year === 'number'
+                        ? { year, searchText: name, status: 'completed' }
+                        : { searchText: name, status: 'completed' },
+                    )
+                  }
                 />
-              ))}
-            </Stack>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No completed entries with a credited role (actor, director, writer, etc.) yet.
+              </Typography>
+            )}
           </Box>
         )}
 
         {/* Genres */}
-        {hasGenres && (
+        {expandedSections.has('genres') && (
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Genres
-            </Typography>
             <WatchedWishlistToggle value={genresView} onChange={setGenresView} />
             <Stack spacing={2}>
               {genresView === 'watched' &&
@@ -508,47 +651,55 @@ export default function StatisticsPage() {
           </Box>
         )}
 
-        {/* People — most-credited actors, directors, writers, etc.
-            (see chat, Aug 2026). Completed-only (no watched/wishlist
-            toggle — an uncompleted entry's credits haven't been
-            "watched"/"read" yet). Only roles with actual data show a
-            chip. Clicking a name reuses the existing Library
-            searchText filter (already a case-insensitive substring
-            match across every metadata field), rather than a new
-            filtering mechanism. */}
-        {activeRole && (
+        {/* Timeline — condensed preview (see chat, Aug 2026). Fixed
+            Year zoom, no zoom/type-filter controls (those stay
+            full-page-only); "View full Timeline" hands off to the
+            real page for the complete interactive experience. The
+            standalone Timeline page and its bottom-nav tab are
+            unchanged — this is purely an additional preview. */}
+        {expandedSections.has('timeline') && (
           <Box>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                People
+            {timelineBars === undefined ? (
+              <LoadingIndicator />
+            ) : timelineBars.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Nothing completed or in progress yet — your timeline will appear here once you
+                have.
               </Typography>
-              <TopListSortSelect value={peopleSort} onChange={setPeopleSort} />
-            </Stack>
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
-              {rolesWithData.map((role) => (
-                <Chip
-                  key={role}
-                  label={PERSON_ROLE_LABELS[role]}
-                  size="small"
-                  color={role === activeRole ? 'primary' : 'default'}
-                  onClick={() => setSelectedRole(role)}
+            ) : (
+              <Box sx={{ maxHeight: 240, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                <TimelineChart
+                  bars={timelineBars}
+                  zoom={timelineZoom}
+                  mediaTypes={mediaTypes}
+                  onOpenEntry={(entryId) => navigate(entryDetailPath(entryId))}
                 />
-              ))}
-            </Stack>
-            <TopList
-              items={sortTopListItems(
-                Object.entries(data.topPeopleByRole[activeRole]).map(([name, count]) => ({
-                  name,
-                  count,
-                  rating: data.averageRatingByPersonRole[activeRole][name],
-                })),
-                peopleSort,
-              )}
-              onSelectItem={(name) =>
+              </Box>
+            )}
+            <Button
+              fullWidth
+              variant="outlined"
+              endIcon={<ArrowForwardIcon />}
+              onClick={() => navigate(ROUTES.timeline)}
+              sx={{ mt: 1.5, borderColor: '#00BCD9', color: '#00BCD9' }}
+            >
+              View full Timeline
+            </Button>
+          </Box>
+        )}
+
+        {/* Trends */}
+        {expandedSections.has('trends') && (
+          <Box>
+            <TrendsTabs
+              monthlyBreakdown={data.monthlyBreakdown}
+              weeklyTotals={data.weeklyTotals}
+              year={year}
+              onSelectMonth={(month) =>
                 goToLibrary(
                   typeof year === 'number'
-                    ? { year, searchText: name, status: 'completed' }
-                    : { searchText: name, status: 'completed' },
+                    ? { year, month, status: 'completed' }
+                    : { month, status: 'completed' },
                 )
               }
             />
