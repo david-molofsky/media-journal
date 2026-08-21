@@ -12,7 +12,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { useInProgressEntries } from '@/hooks/useInProgressEntries';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { getEntryImageUrl } from '@/utils/entryImage';
-import { ROUTES, editEntryPath } from '@/routes/paths';
+import { ROUTES, entryDetailPath } from '@/routes/paths';
 import type { MediaType } from '@/models';
 
 dayjs.extend(relativeTime);
@@ -61,7 +61,7 @@ export function InProgressSection({ mediaTypes }: InProgressSectionProps) {
               sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}` }}
             >
               <CardActionArea
-                onClick={() => navigate(editEntryPath(entry.id))}
+                onClick={() => navigate(entryDetailPath(entry.id))}
                 sx={{ p: 1.5 }}
               >
                 <Stack direction="row" spacing={1.5} alignItems="center">

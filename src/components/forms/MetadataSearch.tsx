@@ -27,6 +27,17 @@ interface MetadataSearchProps {
    * `genres`, when present, should be merged into the form's existing
    * genres rather than overwriting them. */
   onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
+  /** This field doubles as the Title field (see chat, Aug 2026) — the
+   * parent owns the actual title value via react-hook-form's
+   * Controller, so typing here (whether or not a result gets picked)
+   * writes straight to the form's title, and nothing needs re-typing
+   * if a search comes up empty. */
+  titleValue: string;
+  onTitleChange: (value: string) => void;
+  onTitleBlur?: () => void;
+  required?: boolean;
+  error?: boolean;
+  helperText?: string;
 }
 
 type Source = 'openlibrary' | 'tmdb' | 'comicvine' | null;
@@ -118,10 +129,15 @@ async function fetchDetails(
 }
 
 /**
- * Optional metadata search shown at the top of the entry form for
- * supported media types (book, audiobook, film, tv, comic). The user
- * can type a title, pick a result, and have the form pre-filled — or
- * ignore it entirely and fill the form manually.
+ * Title field for supported media types (book, audiobook, film, tv,
+ * comic) that doubles as a metadata search — the same field the user
+ * types the title into is also what searches Open Library/TMDB/
+ * ComicVine, so nothing needs re-entering if a search comes up empty
+ * (see chat, Aug 2026; was two separate fields before this). The user
+ * can pick a result to pre-fill the form, or just keep typing and
+ * whatever's typed becomes the title directly. Unsupported media
+ * types render nothing here — EntryForm falls back to a plain Title
+ * TextField for those.
  *
  * Books/Audiobooks use Open Library (no key, one API call).
  * Films use TMDB (two calls: search then credits on selection).
@@ -138,7 +154,16 @@ async function fetchDetails(
  * page via `searchPageFn` and appends it, until a source reports no
  * more results are available.
  */
-export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
+export function MetadataSearch({
+  mediaTypeId,
+  onFill,
+  titleValue,
+  onTitleChange,
+  onTitleBlur,
+  required,
+  error,
+  helperText,
+}: MetadataSearchProps) {
   const source = getSource(mediaTypeId);
   const searchFn = getSearchFn(mediaTypeId);
   const searchPageFn = getSearchPageFn(mediaTypeId);
@@ -158,7 +183,6 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
   // results found" text so a hung Open Library request doesn't look
   // identical to a genuinely empty search.
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards against out-of-order responses: typing further input after a
   // search has already fired starts a second in-flight request, and
@@ -177,7 +201,7 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
 
   const handleInputChange = useCallback(
     (_: React.SyntheticEvent, value: string) => {
-      setInputValue(value);
+      onTitleChange(value);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (!value.trim() || !searchFn) {
         requestIdRef.current += 1; // invalidate any still-pending request too
@@ -215,15 +239,15 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
         }
       }, 350);
     },
-    [searchFn, searchPageFn, mediaTypeId],
+    [searchFn, searchPageFn, mediaTypeId, onTitleChange],
   );
 
   const handleLoadMore = useCallback(async () => {
-    if (!hasMore || loadingMore || searching || fetching || !searchPageFn || !inputValue.trim()) return;
+    if (!hasMore || loadingMore || searching || fetching || !searchPageFn || !titleValue.trim()) return;
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
     try {
-      const page = await searchPageFn(inputValue, cursorRef.current);
+      const page = await searchPageFn(titleValue, cursorRef.current);
       if (requestIdRef.current !== requestId) return; // superseded — drop it
       setOptions((prev) => [...prev, ...page.results]);
       cursorRef.current = getNextCursor(mediaTypeId, cursorRef.current, page.results.length);
@@ -238,7 +262,7 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
     } finally {
       if (requestIdRef.current === requestId) setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, searching, fetching, searchPageFn, inputValue, mediaTypeId]);
+  }, [hasMore, loadingMore, searching, fetching, searchPageFn, titleValue, mediaTypeId]);
 
   const handleListboxScroll = useCallback(
     (event: React.UIEvent<HTMLUListElement>) => {
@@ -250,16 +274,14 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
     [handleLoadMore],
   );
 
-  const handleChange = async (_: React.SyntheticEvent, value: SearchResult | null) => {
-    if (!value || isSentinel(value)) return;
+  const handleChange = async (_: React.SyntheticEvent, value: SearchResult | string | null) => {
+    if (!value || typeof value === 'string' || isSentinel(value)) return;
     requestIdRef.current += 1; // invalidate any still-pending search/load-more
     setFetching(true);
     const idKey = getSourceIdKey(mediaTypeId);
     try {
       const { fields, genres } = await fetchDetails(mediaTypeId, value);
       onFill(value.title, idKey ? { ...fields, [idKey]: value.id } : fields, genres);
-      // Clear the search so the field doesn't show the selected title twice.
-      setInputValue('');
       setOptions([]);
       setHasMore(false);
     } catch {
@@ -291,21 +313,23 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
 
   return (
     <Box>
-      <Autocomplete<SearchResult, false, false, false>
+      <Autocomplete<SearchResult, false, false, true>
+        freeSolo
         options={displayOptions}
-        inputValue={inputValue}
+        inputValue={titleValue}
         onInputChange={handleInputChange}
         onChange={handleChange}
+        onBlur={onTitleBlur}
         loading={searching || fetching}
         loadingText={fetching ? 'Fetching details…' : 'Searching…'}
         noOptionsText={
           searchError
             ? searchError
-            : inputValue.trim()
-              ? searching ? 'Searching…' : 'No results found'
+            : titleValue.trim()
+              ? searching ? 'Searching…' : 'No results found — this will be used as the title as typed'
               : 'Type to search'
         }
-        getOptionLabel={(option) => (isSentinel(option) ? '' : option.title)}
+        getOptionLabel={(option) => (typeof option === 'string' ? option : isSentinel(option) ? '' : option.title)}
         isOptionEqualToValue={(a, b) => a.id === b.id}
         getOptionDisabled={(option) => isSentinel(option)}
         filterOptions={(x) => x} // server-side filtering only
@@ -322,7 +346,10 @@ export function MetadataSearch({ mediaTypeId, onFill }: MetadataSearchProps) {
         renderInput={(params) => (
           <TextField
             {...params}
-            label="Search to pre-fill"
+            label="Title"
+            required={required}
+            error={error}
+            helperText={helperText}
             autoFocus
             placeholder={
               source === 'openlibrary'

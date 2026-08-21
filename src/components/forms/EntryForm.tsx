@@ -43,6 +43,7 @@ import { ReSearchDialog } from './ReSearchDialog';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
+import { FIELD_PAIRS } from '@/utils/fieldPairs';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
 import type { EntryMetadata, EntryStatus, FieldDefinition, MediaType, NewMediaEntryInput } from '@/models';
@@ -77,29 +78,6 @@ interface EntryFormProps {
    * form. Used on Edit Entry; Add Entry leaves this off. */
   stickySubmit?: boolean;
 }
-
-/**
- * Metadata field keys shown side-by-side on one row instead of each
- * getting its own full-width row — see chat, Aug 2026 (Entry page
- * layout cleanup). Comic/Magazine's Issue Start/End was the original
- * ask; David picked TV, Video Games and Anime/Manga too from the
- * options presented. Order within each pair is left-to-right.
- * Deliberately NOT applied to Sport's teamA/scoreA + teamB/scoreB or
- * Podcast's seasonNumber/episodeNumber — those weren't part of what
- * David selected, and Sport's fields don't map onto a natural "range"
- * or "X of Y" pairing the way these do anyway.
- */
-const FIELD_PAIRS: Record<string, [string, string][]> = {
-  comic: [['issueStart', 'issueEnd']],
-  magazine: [['issueStart', 'issueEnd']],
-  tv: [['episodeStart', 'episodeEnd']],
-  game: [['achievementsEarned', 'achievementsTotal']],
-  anime: [['episodesWatched', 'totalEpisodes']],
-  manga: [
-    ['chaptersRead', 'totalChapters'],
-    ['volumesRead', 'totalVolumes'],
-  ],
-};
 
 function emptyMetadata(mediaType: MediaType): EntryMetadata {
   return Object.fromEntries(mediaType.fields.map((field) => [field.key, undefined]));
@@ -662,10 +640,33 @@ export function EntryForm({
               available, since starting a search is the fastest path for
               most entries; Title below falls back to autofocus when no
               search source exists for this media type. */}
-          <MetadataSearch
-            mediaTypeId={mediaType.id}
-            onFill={applyMetadataFill}
-          />
+          {/* Title field, doubled as metadata search for supported
+              types (book/audiobook/film/tv/comic) — same field the
+              user types into whether they're searching or just typing
+              a title directly, so nothing needs re-entering if a
+              search comes up empty (see chat, Aug 2026). Non-searchable
+              types fall back to a plain Title TextField further down. */}
+          {hasMetadataSearch(mediaType.id) && (
+            <Controller
+              name="title"
+              control={control}
+              render={({ field, fieldState }) => (
+                <MetadataSearch
+                  mediaTypeId={mediaType.id}
+                  onFill={applyMetadataFill}
+                  titleValue={field.value ?? ''}
+                  onTitleChange={field.onChange}
+                  onTitleBlur={() => {
+                    field.onBlur();
+                    setValue('title', toTitleCase(getValues('title') ?? ''), { shouldValidate: true });
+                  }}
+                  required
+                  error={Boolean(fieldState.error)}
+                  helperText={fieldState.error?.message}
+                />
+              )}
+            />
+          )}
           {(hasCoverValue || showAddCoverButton) && (
             <Stack direction="row" alignItems="center" spacing={1}>
               {hasCoverValue && !coverImageFailed ? (
@@ -749,26 +750,28 @@ export function EntryForm({
               setCoverDialogOpen(false);
             }}
           />
-          <TextField
-            label="Title"
-            required
-            fullWidth
-            autoFocus={!hasMetadataSearch(mediaType.id)}
-            {...register('title')}
-            // MUI normally shrinks the label by detecting a native
-            // `input`/`change` DOM event. Search autofill sets this
-            // field via RHF's setValue(), which writes the DOM value
-            // directly without dispatching one — so MUI never noticed
-            // and the label sat resting on top of the filled-in title.
-            // Watching the field and driving shrink explicitly covers
-            // both that path and normal typing.
-            slotProps={{ inputLabel: { shrink: Boolean(watch('title')) } }}
-            onBlur={(event) => {
-              setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
-            }}
-            error={Boolean(errors.title)}
-            helperText={errors.title?.message}
-          />
+          {!hasMetadataSearch(mediaType.id) && (
+            <TextField
+              label="Title"
+              required
+              fullWidth
+              autoFocus
+              {...register('title')}
+              // MUI normally shrinks the label by detecting a native
+              // `input`/`change` DOM event. Search autofill sets this
+              // field via RHF's setValue(), which writes the DOM value
+              // directly without dispatching one — so MUI never noticed
+              // and the label sat resting on top of the filled-in title.
+              // Watching the field and driving shrink explicitly covers
+              // both that path and normal typing.
+              slotProps={{ inputLabel: { shrink: Boolean(watch('title')) } }}
+              onBlur={(event) => {
+                setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
+              }}
+              error={Boolean(errors.title)}
+              helperText={errors.title?.message}
+            />
+          )}
 
           {/* Status toggle — Completed / In Progress / Wishlist. Sits
               right below Title so it's the next thing filled in after

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useWishlistRecommendations } from '@/hooks/useWishlistRecommendations';
 import { getEntryImageUrl } from '@/utils/entryImage';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
-import { editEntryPath } from '@/routes/paths';
+import { entryDetailPath } from '@/routes/paths';
 import type { MediaEntry, MediaType } from '@/models';
 
 interface WishlistRecommendationsSectionProps {
@@ -56,7 +56,7 @@ export function WishlistRecommendationsSection({ entry, mediaTypes }: WishlistRe
           return (
             <ListItemButton
               key={rec.id}
-              onClick={() => navigate(editEntryPath(rec.id))}
+              onClick={() => navigate(entryDetailPath(rec.id))}
               sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', p: 1 }}
             >
               <Stack direction="row" spacing={1.5} alignItems="center" sx={{ width: '100%' }}>

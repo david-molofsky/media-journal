@@ -13,7 +13,7 @@ import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { editEntryPath } from '@/routes/paths';
+import { entryDetailPath } from '@/routes/paths';
 import { TIMELINE_ZOOM_ORDER, TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } from '@/utils/timelineZoom';
 import { getTimelineSessionState, setTimelineSessionState } from '@/state/pageSessionState';
 import { SETTINGS_KEYS } from '@/models';
@@ -157,7 +157,7 @@ export default function TimelinePage() {
               bars={bars}
               zoom={zoom}
               mediaTypes={mediaTypes}
-              onOpenEntry={(entryId) => navigate(editEntryPath(entryId))}
+              onOpenEntry={(entryId) => navigate(entryDetailPath(entryId))}
               initialScroll={
                 restored ? { left: restored.scrollLeft, top: restored.scrollTop } : undefined
               }

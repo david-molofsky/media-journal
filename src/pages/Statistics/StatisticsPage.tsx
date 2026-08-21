@@ -33,7 +33,7 @@ import { EntryCard } from '@/components/library/EntryCard';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { EmptyStateTip } from '@/components/common/EmptyStateTip';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { ROUTES, editEntryPath } from '@/routes/paths';
+import { ROUTES, entryDetailPath } from '@/routes/paths';
 import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
@@ -428,7 +428,7 @@ export default function StatisticsPage() {
                   key={entry.id}
                   entry={entry}
                   mediaType={mediaTypeById.get(entry.mediaType)}
-                  onOpen={() => navigate(editEntryPath(entry.id))}
+                  onOpen={() => navigate(entryDetailPath(entry.id))}
                 />
               ))}
             </Stack>

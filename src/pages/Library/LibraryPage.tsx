@@ -49,7 +49,7 @@ import {
 } from '@/services/database/entryService';
 import { setSetting } from '@/services/database/settingsService';
 import { getLibrarySessionState, setLibrarySessionState } from '@/state/pageSessionState';
-import { editEntryPath } from '@/routes/paths';
+import { entryDetailPath } from '@/routes/paths';
 import type { EntryStatus, MediaEntry, MediaType } from '@/models';
 import { todayIso } from '@/utils/dateUtils';
 import dayjs from 'dayjs';
@@ -436,7 +436,7 @@ export default function LibraryPage() {
       key={entry.id}
       entry={entry}
       mediaType={mediaTypeById.get(entry.mediaType)}
-      onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(editEntryPath(entry.id), { state: currentFilterState })}
+      onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(entryDetailPath(entry.id), { state: currentFilterState })}
       selected={selectionMode ? selectedIds.has(entry.id) : undefined}
       onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishRating(undefined); setFinishEntry(entry); } : undefined}
       onStartTracking={entry.status === 'wishlist' ? () => updateEntryStatus(entry.id, 'in_progress') : undefined}

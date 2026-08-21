@@ -9,6 +9,7 @@ import { ROUTES } from './paths';
 const DashboardPage = lazy(() => import('@/pages/Dashboard/DashboardPage'));
 const LibraryPage = lazy(() => import('@/pages/Library/LibraryPage'));
 const AddEntryPage = lazy(() => import('@/pages/AddEntry/AddEntryPage'));
+const EntryDetailPage = lazy(() => import('@/pages/EntryDetail/EntryDetailPage'));
 const EditEntryPage = lazy(() => import('@/pages/EditEntry/EditEntryPage'));
 const StatisticsPage = lazy(() => import('@/pages/Statistics/StatisticsPage'));
 const TimelinePage = lazy(() => import('@/pages/Timeline/TimelinePage'));
@@ -29,6 +30,7 @@ export function AppRoutes() {
           <Route path={ROUTES.dashboard} element={<DashboardPage />} />
           <Route path={ROUTES.library} element={<LibraryPage />} />
           <Route path={ROUTES.addEntry} element={<AddEntryPage />} />
+          <Route path={ROUTES.entryDetail} element={<EntryDetailPage />} />
           <Route path={ROUTES.editEntry} element={<EditEntryPage />} />
           <Route path={ROUTES.statistics} element={<StatisticsPage />} />
           <Route path={ROUTES.timeline} element={<TimelinePage />} />

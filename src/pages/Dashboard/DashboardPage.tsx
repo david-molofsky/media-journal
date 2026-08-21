@@ -22,7 +22,7 @@ import { BackupNudgeBanner } from '@/components/dashboard/BackupNudgeBanner';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
 import { SETTINGS_KEYS } from '@/models';
-import { ROUTES, editEntryPath } from '@/routes/paths';
+import { ROUTES, entryDetailPath } from '@/routes/paths';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 
 export default function DashboardPage() {
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                     key={entry.id}
                     entry={entry}
                     mediaType={mediaTypeById.get(entry.mediaType)}
-                    onOpen={() => navigate(editEntryPath(entry.id))}
+                    onOpen={() => navigate(entryDetailPath(entry.id))}
                   />
                 ))}
               </Stack>

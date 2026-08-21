@@ -41,7 +41,7 @@ import {
 import { convertMetadata } from '@/utils/entryConversion';
 import { relogButtonLabel } from '@/utils/relogLabel';
 import { todayIso } from '@/utils/dateUtils';
-import { ROUTES, editEntryPath } from '@/routes/paths';
+import { ROUTES, entryDetailPath } from '@/routes/paths';
 import type { MediaType, NewMediaEntryInput } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import type { RelogNavigationState } from '@/pages/AddEntry/AddEntryPage';
@@ -331,7 +331,7 @@ export default function EditEntryPage() {
                   {previousEntries.map((previous) => (
                     <ListItemButton
                       key={previous.id}
-                      onClick={() => navigate(editEntryPath(previous.id))}
+                      onClick={() => navigate(entryDetailPath(previous.id))}
                       sx={{ borderRadius: 2 }}
                     >
                       <ListItemText
