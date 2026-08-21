@@ -5,12 +5,19 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
-import type { MediaEntry, MediaType } from '@/models';
+import type { EntryStatus, MediaEntry, MediaType } from '@/models';
 import { ROUTES } from '@/routes/paths';
 
 interface SeriesViewProps {
   entries: MediaEntry[];
   mediaTypes: MediaType[];
+  /** The Library tab this SeriesView is currently showing entries
+   * for — passed through to goToSeries so tapping a series stays on
+   * the same tab instead of falling back to Library's default tab
+   * (see chat, Aug 2026 — this was a real bug: viewing Completed
+   * entries grouped by series and tapping one used to land on
+   * Wishlist, since no status was ever passed). */
+  status: EntryStatus;
 }
 
 interface SeriesGroup {
@@ -26,7 +33,7 @@ interface SeriesGroup {
  * name in the Library (no extra route needed). Entries without a
  * series fall into a "Standalone" group at the bottom.
  */
-export function SeriesView({ entries, mediaTypes }: SeriesViewProps) {
+export function SeriesView({ entries, mediaTypes, status }: SeriesViewProps) {
   const navigate = useNavigate();
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
 
@@ -64,7 +71,7 @@ export function SeriesView({ entries, mediaTypes }: SeriesViewProps) {
   }
 
   const goToSeries = (name: string) => {
-    navigate(ROUTES.library, { state: { searchText: name } });
+    navigate(ROUTES.library, { state: { searchText: name, status } });
   };
 
   return (

@@ -599,7 +599,7 @@ export default function LibraryPage() {
       </Stack>
 
       {viewMode === 'series' ? (
-        <SeriesView entries={entries} mediaTypes={mediaTypes} />
+        <SeriesView entries={entries} mediaTypes={mediaTypes} status={statusTab} />
       ) : entries.length === 0 ? (
         <PagePlaceholder title={statusPlaceholder.title} description={statusPlaceholder.description} />
       ) : groups ? (

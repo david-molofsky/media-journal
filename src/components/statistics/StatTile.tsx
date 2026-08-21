@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import ButtonBase from '@mui/material/ButtonBase';
 import type StarIcon from '@mui/icons-material/Star';
@@ -37,26 +38,30 @@ export function StatTile({ icon: Icon, colour, title, description, expanded, onC
         p: 1.5,
       }}
     >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          bgcolor: colour,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mb: 1,
-        }}
-      >
-        <Icon sx={{ color: '#fff', fontSize: 18 }} />
-      </Box>
-      <Typography variant="body2" fontWeight={600}>
-        {title}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.4, mt: 0.25 }}>
-        {description}
-      </Typography>
+      <Stack direction="row" spacing={1.25} alignItems="center">
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            bgcolor: colour,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Icon sx={{ color: '#fff', fontSize: 16 }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={600} noWrap>
+            {title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+            {description}
+          </Typography>
+        </Box>
+      </Stack>
     </ButtonBase>
   );
 }

@@ -7,6 +7,8 @@ import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import dayjs from 'dayjs';
@@ -450,6 +452,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   const colour = mediaType?.colour ?? '#2E7D32';
 
   const [imageFailed, setImageFailed] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const imageUrl = getEntryImageUrl(entry, 'poster');
   const showImage = Boolean(imageUrl) && !imageFailed;
 
@@ -470,17 +473,45 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
     canvas.toBlob(async (blob) => {
       if (!blob) return;
       const file = new File([blob], 'entry.png', { type: 'image/png' });
+
+      // Tier 1: share the image + message together — the ideal case,
+      // supported by most mobile browsers.
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: entry.title, text: message });
-      } else {
-        // Fallback: just download
-        handleDownload();
+        return;
+      }
+
+      // Tier 2: some browsers support the Web Share API for text/URLs
+      // but not files. Rather than silently dropping the message
+      // (the old behaviour — see chat, Aug 2026), try a text-only
+      // share so the link still goes out, just without the image.
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: entry.title, text: message });
+          return;
+        } catch {
+          // AbortError (user cancelled) or any other failure — fall
+          // through to Tier 3 rather than leave the user with nothing.
+        }
+      }
+
+      // Tier 3: no Web Share API at all (or it just failed). Download
+      // the image as before, but also copy the message to the
+      // clipboard and say so — previously this tier lost the message
+      // entirely with no indication anything was missing.
+      handleDownload();
+      try {
+        await navigator.clipboard.writeText(message);
+        setShareToast('Image downloaded — message copied to clipboard');
+      } catch {
+        setShareToast('Image downloaded — copy the message from the preview above to share it');
       }
     }, 'image/png');
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+    <>
+      <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>Share Entry</DialogTitle>
       <DialogContent>
         {/* Card preview — mirrors buildShareCanvas's layout: colour
@@ -626,6 +657,18 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
           Share
         </Button>
       </DialogActions>
-    </Dialog>
+      </Dialog>
+
+      <Snackbar
+        open={shareToast !== null}
+        autoHideDuration={5000}
+        onClose={() => setShareToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="info" variant="filled" onClose={() => setShareToast(null)}>
+          {shareToast}
+        </Alert>
+      </Snackbar>
+    </>
   );
 }
