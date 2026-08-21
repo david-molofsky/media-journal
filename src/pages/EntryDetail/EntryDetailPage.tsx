@@ -353,39 +353,6 @@ export default function EntryDetailPage() {
           </Box>
         )}
 
-        {showRating && (
-          <RatingInput
-            value={liveRating}
-            onChange={setLiveRating}
-            onChangeCommitted={(value) => void updateEntryRating(entry.id, value)}
-          />
-        )}
-
-        {showDates && (
-          <Stack direction="row" spacing={2}>
-            <Box sx={{ flex: 1 }}>
-              <EntryDatePicker
-                label="Started"
-                value={entry.startedDate}
-                onChange={(value) => void updateEntryDate(entry.id, 'startedDate', value)}
-              />
-            </Box>
-            {showCompletedDate && (
-              <Box sx={{ flex: 1 }}>
-                <EntryDatePicker
-                  label="Completed"
-                  value={entry.completedDate}
-                  onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
-                />
-              </Box>
-            )}
-          </Stack>
-        )}
-
-        <NextInSeriesSection entry={entry} />
-
-        <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
-
         <Box>
           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
             Tags
@@ -402,6 +369,35 @@ export default function EntryDetailPage() {
             </Typography>
           )}
         </Box>
+
+        {showRating && (
+          <RatingInput
+            value={liveRating}
+            onChange={setLiveRating}
+            onChangeCommitted={(value) => void updateEntryRating(entry.id, value)}
+          />
+        )}
+
+        {showDates && (
+          <Stack spacing={2}>
+            <EntryDatePicker
+              label="Started"
+              value={entry.startedDate}
+              onChange={(value) => void updateEntryDate(entry.id, 'startedDate', value)}
+            />
+            {showCompletedDate && (
+              <EntryDatePicker
+                label="Completed"
+                value={entry.completedDate}
+                onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
+              />
+            )}
+          </Stack>
+        )}
+
+        <NextInSeriesSection entry={entry} />
+
+        <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
       </Stack>
 
       <ShareEntrySheet
