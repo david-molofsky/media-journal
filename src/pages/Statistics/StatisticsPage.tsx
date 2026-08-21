@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
@@ -37,6 +38,7 @@ import { ROUTES, entryDetailPath } from '@/routes/paths';
 import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
+import { PERSON_ROLE_LABELS, type PersonRole } from '@/utils/personRoles';
 
 /** Orders a grouped-by-media-type Source record (e.g.
  * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
@@ -106,6 +108,10 @@ export default function StatisticsPage() {
   const [filters, setFilters] = useState<StatsFilters>({});
   const [sourcesView, setSourcesView] = useState<WatchedWishlistView>('watched');
   const [genresView, setGenresView] = useState<WatchedWishlistView>('watched');
+  // Which role chip is selected in the People section (see chat, Aug
+  // 2026) — null until data loads, then defaults to the first role
+  // that actually has completed-entry data (set in the effect below).
+  const [selectedRole, setSelectedRole] = useState<PersonRole | null>(null);
 
   const data = useStatisticsData(year, filters);
   const favouriteSubscription = useFavouriteSubscription(year, filters);
@@ -174,6 +180,10 @@ export default function StatisticsPage() {
   const hasGenres =
     Object.keys(data.topGenresByCount).length > 0 ||
     Object.keys(data.wishlistGenreTotals).length > 0;
+  const rolesWithData = (Object.keys(PERSON_ROLE_LABELS) as PersonRole[]).filter(
+    (role) => Object.keys(data.topPeopleByRole[role]).length > 0,
+  );
+  const activeRole = selectedRole && rolesWithData.includes(selectedRole) ? selectedRole : (rolesWithData[0] ?? null);
 
   return (
     <Box>
@@ -483,6 +493,45 @@ export default function StatisticsPage() {
                 />
               )}
             </Stack>
+          </Box>
+        )}
+
+        {/* People — most-credited actors, directors, writers, etc.
+            (see chat, Aug 2026). Completed-only (no watched/wishlist
+            toggle — an uncompleted entry's credits haven't been
+            "watched"/"read" yet). Only roles with actual data show a
+            chip. Clicking a name reuses the existing Library
+            searchText filter (already a case-insensitive substring
+            match across every metadata field), rather than a new
+            filtering mechanism. */}
+        {activeRole && (
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              People
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+              {rolesWithData.map((role) => (
+                <Chip
+                  key={role}
+                  label={PERSON_ROLE_LABELS[role]}
+                  size="small"
+                  color={role === activeRole ? 'primary' : 'default'}
+                  onClick={() => setSelectedRole(role)}
+                />
+              ))}
+            </Stack>
+            <TopList
+              items={Object.entries(data.topPeopleByRole[activeRole])
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)}
+              onSelectItem={(name) =>
+                goToLibrary(
+                  typeof year === 'number'
+                    ? { year, searchText: name, status: 'completed' }
+                    : { searchText: name, status: 'completed' },
+                )
+              }
+            />
           </Box>
         )}
       </Stack>

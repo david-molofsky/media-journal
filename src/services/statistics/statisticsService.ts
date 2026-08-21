@@ -3,6 +3,7 @@ import { db } from '@/services/database/db';
 import type { MediaEntry } from '@/models';
 import type { TvTrackingMode } from '@/models';
 import { comicIssueCount } from '@/utils/comicIssues';
+import { PERSON_ROLE_FIELDS, splitPeople, type PersonRole } from '@/utils/personRoles';
 
 /**
  * Statistics service.
@@ -350,6 +351,42 @@ export async function getTopGenresByCount(
     const weight = getEntryWeight(entry, tvMode);
     for (const genre of entry.genres ?? []) {
       totals[genre] = (totals[genre] ?? 0) + weight;
+    }
+  }
+  return totals;
+}
+
+/** Completed-entry counts by person, grouped by role (Actor, Director,
+ * Writer, etc. — see personRoles.ts), within `year`, weighted by
+ * `getEntryWeight`. One pass over entries computes every role at once
+ * rather than one query per role. Cast/crew fields are comma-separated
+ * free text (TMDB/ComicVine convention); each name split out counts
+ * individually, same "each thing it has gets the entry's full weight"
+ * approach as `getTopGenresByCount` above — a film with 5 listed
+ * actors gives each of them the film's full weight, not a 1/5 share. */
+export async function getTopPeopleByRole(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<PersonRole, Record<string, number>>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
+  const totals = Object.fromEntries(
+    (Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]).map((role) => [role, {} as Record<string, number>]),
+  ) as Record<PersonRole, Record<string, number>>;
+
+  for (const entry of entries) {
+    const weight = getEntryWeight(entry, tvMode);
+    for (const role of Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]) {
+      for (const { mediaTypeId, fieldKey } of PERSON_ROLE_FIELDS[role]) {
+        if (entry.mediaType !== mediaTypeId) continue;
+        const raw = entry.metadata[fieldKey];
+        if (typeof raw !== 'string' || !raw.trim()) continue;
+        for (const name of splitPeople(raw)) {
+          totals[role][name] = (totals[role][name] ?? 0) + weight;
+        }
+      }
     }
   }
   return totals;
