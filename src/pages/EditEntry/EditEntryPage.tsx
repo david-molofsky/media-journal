@@ -29,8 +29,6 @@ import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
-import { WishlistRecommendationsSection } from '@/components/entry/WishlistRecommendationsSection';
-import { NextInSeriesSection } from '@/components/entry/NextInSeriesSection';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
@@ -297,10 +295,6 @@ export default function EditEntryPage() {
                 {relogButtonLabel(effectiveMediaType.id)}
               </Button>
             )}
-
-            <NextInSeriesSection entry={entry} />
-
-            <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
 
             <Divider />
             <Stack direction="row" spacing={2} justifyContent="flex-end">

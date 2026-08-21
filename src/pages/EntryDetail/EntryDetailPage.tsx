@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -18,13 +19,28 @@ import { useMediaEntry } from '@/hooks/useMediaEntry';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
+import { MarkFinishedDialog } from '@/components/entry/MarkFinishedDialog';
+import { NextInSeriesSection } from '@/components/entry/NextInSeriesSection';
+import { WishlistRecommendationsSection } from '@/components/entry/WishlistRecommendationsSection';
+import { RatingInput } from '@/components/forms/RatingInput';
+import { EntryDatePicker } from '@/components/forms/EntryDatePicker';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { getEntryImageUrl } from '@/utils/entryImage';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { todayIso } from '@/utils/dateUtils';
+import { updateEntryStatus, updateEntryRating, updateEntryDate } from '@/services/database/entryService';
 import { ROUTES, editEntryPath } from '@/routes/paths';
 import type { EntryStatus, FieldInputType } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
+
+/** Bespoke metadata keys — present in the per-type Zod schema but not
+ * in defaultMediaTypes.ts's `fields[]`, so the generic Media Details
+ * loop below never sees them (see chat, Aug 2026 — this is why Film/TV
+ * Summaries went missing on this page). `posterPath`/`coverImagePath`
+ * already surface as the cover image and `imdbUrl` as the IMDb chip,
+ * so only `overview` needs its own display row here. */
+const OVERVIEW_MEDIA_TYPES = new Set(['film', 'tv']);
 
 const STATUS_META: Record<EntryStatus, { label: string; Icon: typeof CheckCircleOutlineIcon }> = {
   wishlist: { label: 'Wishlist', Icon: StarBorderIcon },
@@ -64,6 +80,19 @@ export default function EntryDetailPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
   const [shareOpen, setShareOpen] = useState(false);
+  // Quick-action "Mark finished" dialog — same combined Completed
+  // Date + Rating confirmation as the Library card's equivalent
+  // action (see chat, Aug 2026), via the shared MarkFinishedDialog.
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishDate, setFinishDate] = useState(todayIso());
+  const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
+  // Live-drag value for the inline Rating slider — RatingInput's
+  // `value` prop must update on every drag tick for the thumb to
+  // track the touch/cursor responsively; only onChangeCommitted
+  // actually persists (see chat, Aug 2026). Re-seeded from the entry
+  // whenever it changes underneath (e.g. after the commit itself, or
+  // an edit made elsewhere) via the effect below.
+  const [liveRating, setLiveRating] = useState<number | undefined>(entry?.rating);
 
   // Derive unconditionally (before any early returns) — Rules of Hooks.
   const rawMediaType = mediaTypes?.find((type) => type.id === entry?.mediaType);
@@ -77,6 +106,12 @@ export default function EntryDetailPage() {
         }
       : rawMediaType;
   const Icon = effectiveMediaType ? getMediaTypeIcon(effectiveMediaType.icon) : null;
+
+  useEffect(() => {
+    (() => {
+      setLiveRating(entry?.rating);
+    })();
+  }, [entry?.rating]);
 
   if (!id) {
     return (
@@ -132,6 +167,28 @@ export default function EntryDetailPage() {
   const showDates = status !== 'wishlist';
   const showCompletedDate = status !== 'in_progress';
   const showRating = status === 'completed';
+
+  // Bug fix (see chat, Aug 2026): Overview is a bespoke field, not in
+  // effectiveMediaType.fields[], so detailRows above never included
+  // it — Film/TV summaries were silently missing from this page.
+  const overview = entry.metadata.overview;
+  const showOverview = OVERVIEW_MEDIA_TYPES.has(effectiveMediaType.id) && typeof overview === 'string' && overview;
+
+  // Quick-action status buttons — same actions and same conditions as
+  // the Library card's onStartTracking/onMoveToWishlist/onMarkFinished
+  // (EntryCard.tsx), so a Completed entry deliberately shows neither
+  // (matches Library exactly — confirmed in chat, Aug 2026).
+  const handleStartTracking = () => void updateEntryStatus(entry.id, 'in_progress');
+  const handleMoveToWishlist = () => void updateEntryStatus(entry.id, 'wishlist');
+  const openFinishDialog = () => {
+    setFinishDate(todayIso());
+    setFinishRating(undefined);
+    setFinishOpen(true);
+  };
+  const handleMarkFinished = async () => {
+    await updateEntryStatus(entry.id, 'completed', finishDate || todayIso(), finishRating);
+    setFinishOpen(false);
+  };
 
   return (
     <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
@@ -214,40 +271,65 @@ export default function EntryDetailPage() {
           </Stack>
         </Stack>
 
+        {(status === 'wishlist' || status === 'in_progress') && (
+          <Stack direction="row" spacing={1}>
+            {status === 'wishlist' && (
+              <Button fullWidth variant="outlined" size="small" onClick={handleStartTracking}>
+                ▶ Start Tracking
+              </Button>
+            )}
+            {status === 'in_progress' && (
+              <Button fullWidth variant="outlined" size="small" onClick={handleMoveToWishlist}>
+                ☆ Move to Wishlist
+              </Button>
+            )}
+            <Button fullWidth variant="outlined" size="small" onClick={openFinishDialog}>
+              ✓ Mark Finished
+            </Button>
+          </Stack>
+        )}
+
         {showRating && (
-          <Box>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Rating
-              </Typography>
-              <Typography variant="body2" fontWeight={600}>
-                {entry.rating === undefined ? 'Not rated' : `${entry.rating.toFixed(1)}/10`}
-              </Typography>
-            </Stack>
-          </Box>
+          <RatingInput
+            value={liveRating}
+            onChange={setLiveRating}
+            onChangeCommitted={(value) => void updateEntryRating(entry.id, value)}
+          />
         )}
 
         {showDates && (
-          <Stack direction="row" spacing={4}>
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Started
-              </Typography>
-              <Typography variant="body2">
-                {entry.startedDate ? dayjs(entry.startedDate).format('D MMM YYYY') : '—'}
-              </Typography>
+          <Stack direction="row" spacing={2}>
+            <Box sx={{ flex: 1 }}>
+              <EntryDatePicker
+                label="Started"
+                value={entry.startedDate}
+                onChange={(value) => void updateEntryDate(entry.id, 'startedDate', value)}
+              />
             </Box>
             {showCompletedDate && (
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Completed
-                </Typography>
-                <Typography variant="body2">
-                  {entry.completedDate ? dayjs(entry.completedDate).format('D MMM YYYY') : '—'}
-                </Typography>
+              <Box sx={{ flex: 1 }}>
+                <EntryDatePicker
+                  label="Completed"
+                  value={entry.completedDate}
+                  onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
+                />
               </Box>
             )}
           </Stack>
+        )}
+
+        {showOverview && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                Summary
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {overview}
+              </Typography>
+            </Box>
+          </>
         )}
 
         {detailRows.length > 0 && (
@@ -300,6 +382,10 @@ export default function EntryDetailPage() {
           </Box>
         )}
 
+        <NextInSeriesSection entry={entry} />
+
+        <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
+
         <Box>
           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
             Tags
@@ -323,6 +409,17 @@ export default function EntryDetailPage() {
         entry={entry}
         mediaType={effectiveMediaType}
         onClose={() => setShareOpen(false)}
+      />
+
+      <MarkFinishedDialog
+        entryTitle={entry.title}
+        open={finishOpen}
+        date={finishDate}
+        onDateChange={setFinishDate}
+        rating={finishRating}
+        onRatingChange={setFinishRating}
+        onCancel={() => setFinishOpen(false)}
+        onConfirm={() => void handleMarkFinished()}
       />
     </Box>
   );

@@ -6,6 +6,12 @@ import Button from '@mui/material/Button';
 interface RatingInputProps {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
+  /** Fires once when a slider drag ends or Clear is pressed, rather
+   * than continuously during drag (unlike `onChange`) — lets callers
+   * that persist directly (e.g. Entry Detail's inline Rating, see
+   * chat, Aug 2026) avoid a write per drag tick. Optional; EntryForm
+   * doesn't pass this since its persistence only happens on Submit. */
+  onChangeCommitted?: (value: number | undefined) => void;
 }
 
 const MARKS = [0, 2, 4, 6, 8, 10].map((mark) => ({ value: mark, label: String(mark) }));
@@ -17,7 +23,7 @@ const MARKS = [0, 2, 4, 6, 8, 10].map((mark) => ({ value: mark, label: String(ma
  * itself can't represent "no value", so an explicit Clear action is
  * provided alongside it.
  */
-export function RatingInput({ value, onChange }: RatingInputProps) {
+export function RatingInput({ value, onChange, onChangeCommitted }: RatingInputProps) {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -32,6 +38,7 @@ export function RatingInput({ value, onChange }: RatingInputProps) {
         <Slider
           value={value ?? 0}
           onChange={(_event, newValue) => onChange(newValue as number)}
+          onChangeCommitted={(_event, newValue) => onChangeCommitted?.(newValue as number)}
           min={0}
           max={10}
           step={0.5}
@@ -50,7 +57,14 @@ export function RatingInput({ value, onChange }: RatingInputProps) {
           // TimelineChart's bars.
           sx={{ flexGrow: 1, touchAction: 'pan-x' }}
         />
-        <Button size="small" onClick={() => onChange(undefined)} disabled={value === undefined}>
+        <Button
+          size="small"
+          onClick={() => {
+            onChange(undefined);
+            onChangeCommitted?.(undefined);
+          }}
+          disabled={value === undefined}
+        >
           Clear
         </Button>
       </Box>

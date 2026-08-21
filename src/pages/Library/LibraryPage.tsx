@@ -21,10 +21,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import { MarkFinishedDialog } from '@/components/entry/MarkFinishedDialog';
 import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -36,7 +33,6 @@ import { MultiFilterChip } from '@/components/library/MultiFilterChip';
 import { EntryCard } from '@/components/library/EntryCard';
 import { SeriesView } from '@/components/library/SeriesView';
 import { BulkActionBar } from '@/components/library/BulkActionBar';
-import { RatingInput } from '@/components/forms/RatingInput';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
@@ -624,33 +620,16 @@ export default function LibraryPage() {
       )}
 
       {/* Mark finished dialog */}
-      <Dialog
+      <MarkFinishedDialog
+        entryTitle={finishEntry?.title}
         open={Boolean(finishEntry)}
-        onClose={() => { setFinishEntry(null); setFinishRating(undefined); }}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Mark "{finishEntry?.title}" finished?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Confirm the completed date and add a rating if you have one.
-          </Typography>
-          <TextField
-            label="Completed date"
-            type="date"
-            fullWidth
-            value={finishDate}
-            onChange={(e) => setFinishDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={{ mb: 2 }}
-          />
-          <RatingInput value={finishRating} onChange={setFinishRating} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setFinishEntry(null); setFinishRating(undefined); }}>Cancel</Button>
-          <Button variant="contained" onClick={handleMarkFinished}>Mark finished</Button>
-        </DialogActions>
-      </Dialog>
+        date={finishDate}
+        onDateChange={setFinishDate}
+        rating={finishRating}
+        onRatingChange={setFinishRating}
+        onCancel={() => { setFinishEntry(null); setFinishRating(undefined); }}
+        onConfirm={handleMarkFinished}
+      />
     </Box>
   );
 }

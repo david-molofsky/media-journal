@@ -108,6 +108,39 @@ export async function updateEntryStatus(
   await db.mediaEntries.update(id, update);
 }
 
+/**
+ * Sets (or clears, via `undefined`) an entry's rating directly —
+ * used by the Entry Detail page's inline Rating slider (see chat,
+ * Aug 2026) so a rating can be amended without opening the full edit
+ * form. Deliberately NOT built on top of `updateEntry()`, whose
+ * `patch.rating ?? existing.rating` merge would silently ignore an
+ * explicit clear (undefined always falls back to the existing value
+ * there) — `db.mediaEntries.update()` correctly applies an explicit
+ * undefined, same as the completedDate clearing above.
+ */
+export async function updateEntryRating(id: string, rating: number | undefined): Promise<void> {
+  await db.mediaEntries.update(id, { rating, updatedAt: nowIso() });
+}
+
+/**
+ * Sets (or clears) an entry's Started or Completed date directly —
+ * same inline-editing motivation and clearing behaviour as
+ * `updateEntryRating` above. Completed date changes recompute
+ * `completedYear` alongside it, same as `updateEntry`/
+ * `updateEntryStatus` already do.
+ */
+export async function updateEntryDate(
+  id: string,
+  field: 'startedDate' | 'completedDate',
+  value: string | undefined,
+): Promise<void> {
+  const update: Partial<MediaEntry> = { [field]: value, updatedAt: nowIso() };
+  if (field === 'completedDate') {
+    update.completedYear = value ? yearOf(value) : undefined;
+  }
+  await db.mediaEntries.update(id, update);
+}
+
 export async function deleteEntry(id: string): Promise<void> {
   await db.mediaEntries.delete(id);
 }
