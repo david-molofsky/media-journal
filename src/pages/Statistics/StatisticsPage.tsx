@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -54,6 +54,11 @@ import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
 import { PERSON_ROLE_LABELS, type PersonRole } from '@/utils/personRoles';
 import { TopListSortSelect, sortTopListItems, type TopListSortMode } from '@/components/statistics/TopListSort';
+import {
+  getStatisticsSessionState,
+  setStatisticsSessionState,
+  type StatisticsSessionState,
+} from '@/state/pageSessionState';
 
 /** Orders a grouped-by-media-type Source record (e.g.
  * `topSourcesByCount`) into media-type sections — Film & TV, Comics,
@@ -193,24 +198,39 @@ export default function StatisticsPage() {
   const availableYears = useAvailableYears();
   const availableGenres = useAvailableGenres();
   const availableTags = useAvailableTags();
-  const [year, setYear] = useState<StatsYearScope>(() => dayjs().year());
-  const [filters, setFilters] = useState<StatsFilters>({});
-  const [sourcesView, setSourcesView] = useState<WatchedWishlistView>('watched');
-  const [genresView, setGenresView] = useState<WatchedWishlistView>('watched');
+  // Restored once on mount (see chat, Aug 2026) — so navigating away
+  // (e.g. tapping a Person's name through to Library) and coming back
+  // via system/back-gesture navigation lands on the same year,
+  // filters, expanded tiles, and scroll position, rather than a blank
+  // reset page. Resets on an actual app reload, same as Library/
+  // Timeline's equivalent restoration already does.
+  const [restored] = useState(() => getStatisticsSessionState());
+  const [year, setYear] = useState<StatsYearScope>(() => restored?.year ?? dayjs().year());
+  const [filters, setFilters] = useState<StatsFilters>(restored?.filters ?? {});
+  const [sourcesView, setSourcesView] = useState<WatchedWishlistView>(restored?.sourcesView ?? 'watched');
+  const [genresView, setGenresView] = useState<WatchedWishlistView>(restored?.genresView ?? 'watched');
   // Which role chip is selected in the People section (see chat, Aug
   // 2026) — null until data loads, then defaults to the first role
   // that actually has completed-entry data (set in the effect below).
-  const [selectedRole, setSelectedRole] = useState<PersonRole | null>(null);
+  const [selectedRole, setSelectedRole] = useState<PersonRole | null>(
+    (restored?.selectedRole as PersonRole | null) ?? null,
+  );
   // Sort mode for the Sources (watched view) and People ranked lists
   // — see chat, Aug 2026. Default matches each section's prior fixed
   // behavior (count descending), so nothing changes until the person
   // actually picks a different sort.
-  const [sourcesSort, setSourcesSort] = useState<TopListSortMode>('countDesc');
-  const [peopleSort, setPeopleSort] = useState<TopListSortMode>('countDesc');
+  const [sourcesSort, setSourcesSort] = useState<TopListSortMode>(
+    (restored?.sourcesSort as TopListSortMode) ?? 'countDesc',
+  );
+  const [peopleSort, setPeopleSort] = useState<TopListSortMode>(
+    (restored?.peopleSort as TopListSortMode) ?? 'countDesc',
+  );
   // Which tiles are expanded — a set of independent toggles, not an
   // accordion (several can be open at once). Starts empty; Overview
   // isn't part of this at all, since it's fixed/always-visible now.
-  const [expandedSections, setExpandedSections] = useState<Set<StatSectionId>>(new Set());
+  const [expandedSections, setExpandedSections] = useState<Set<StatSectionId>>(
+    new Set((restored?.expandedSections as StatSectionId[] | undefined) ?? []),
+  );
   const toggleSection = (id: StatSectionId) => {
     setExpandedSections((prev) => {
       const next = new Set(prev);
@@ -222,6 +242,51 @@ export default function StatisticsPage() {
       return next;
     });
   };
+
+  // Save the current snapshot on unmount (navigating away), and
+  // restore scroll position once on mount if we have a snapshot to
+  // restore from. Mirrors Library/Timeline's identical pattern.
+  const liveStateRef = useRef<Omit<StatisticsSessionState, 'scrollY'>>({
+    year,
+    filters,
+    expandedSections: Array.from(expandedSections),
+    selectedRole,
+    sourcesView,
+    genresView,
+    sourcesSort,
+    peopleSort,
+  });
+  useEffect(() => {
+    liveStateRef.current = {
+      year,
+      filters,
+      expandedSections: Array.from(expandedSections),
+      selectedRole,
+      sourcesView,
+      genresView,
+      sourcesSort,
+      peopleSort,
+    };
+  });
+  const scrollYRef = useRef(0);
+  useEffect(() => {
+    const handleScroll = () => {
+      scrollYRef.current = window.scrollY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  useEffect(() => {
+    return () => {
+      setStatisticsSessionState({ ...liveStateRef.current, scrollY: scrollYRef.current });
+    };
+  }, []);
+  useEffect(() => {
+    if (restored) requestAnimationFrame(() => window.scrollTo(0, restored.scrollY));
+    // Only ever needs to run once, right after mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Embedded Timeline preview (see chat, Aug 2026) — fixed at Year
   // zoom, no zoom/type-filter controls; those stay full-page-only.
   // All-time scope, same as the real Timeline page (not scoped to
@@ -291,6 +356,12 @@ export default function StatisticsPage() {
     );
   }
 
+  // A fresh binding (not just a narrowed reference to `data`) so its
+  // type stays non-undefined when read inside renderPanel below — a
+  // nested function, where TS's control-flow narrowing of `data`
+  // itself (from the guards above) doesn't apply.
+  const stats = data;
+  const types = mediaTypes;
   const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
   const rolesWithData = (Object.keys(PERSON_ROLE_LABELS) as PersonRole[]).filter(
     (role) => Object.keys(data.topPeopleByRole[role]).length > 0,
@@ -311,13 +382,24 @@ export default function StatisticsPage() {
         <StatsYearSelector year={year} years={availableYears} onChange={setYear} />
       </Stack>
 
-      <StatsFilterBar
-        filters={filters}
-        onChange={setFilters}
-        mediaTypes={mediaTypes}
-        availableGenres={availableGenres}
-        availableTags={availableTags}
-      />
+      <Box
+        sx={{
+          position: 'sticky',
+          top: { xs: 56, sm: 64 },
+          zIndex: (theme) => theme.zIndex.appBar - 1,
+          bgcolor: 'background.default',
+          py: 1,
+          mb: 1,
+        }}
+      >
+        <StatsFilterBar
+          filters={filters}
+          onChange={setFilters}
+          mediaTypes={mediaTypes}
+          availableGenres={availableGenres}
+          availableTags={availableTags}
+        />
+      </Box>
 
       {/* Overview — fixed, always visible (not a tile, see chat) */}
       <Box sx={{ mb: 3 }}>
@@ -344,32 +426,51 @@ export default function StatisticsPage() {
         </Box>
       </Box>
 
-      {/* Tile grid — tap to expand/collapse; several can be open at
-          once (see STAT_TILES doc comment above). */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 1.5,
-          mb: 3,
-        }}
-      >
-        {STAT_TILES.map((tile) => (
-          <StatTile
-            key={tile.id}
-            icon={tile.icon}
-            colour={tile.colour}
-            title={tile.title}
-            description={tile.description}
-            expanded={expandedSections.has(tile.id)}
-            onClick={() => toggleSection(tile.id)}
-          />
+      {/* Tile grid, in rows of 2 — each row's expanded panel(s) render
+          immediately below that row (not lumped below the whole
+          grid), so tapping a tile shows its content right where you
+          tapped instead of scrolling far away to find it (see chat,
+          Aug 2026). Several tiles can be expanded at once; panel order
+          follows tile order within each row, left to right. */}
+      <Stack spacing={1.5} sx={{ mb: 3 }}>
+        {Array.from({ length: Math.ceil(STAT_TILES.length / 2) }, (_, rowIndex) =>
+          STAT_TILES.slice(rowIndex * 2, rowIndex * 2 + 2),
+        ).map((row, rowIndex) => (
+          <Box key={rowIndex}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+              {row.map((tile) => (
+                <StatTile
+                  key={tile.id}
+                  icon={tile.icon}
+                  colour={tile.colour}
+                  title={tile.title}
+                  description={tile.description}
+                  expanded={expandedSections.has(tile.id)}
+                  onClick={() => toggleSection(tile.id)}
+                />
+              ))}
+            </Box>
+            {row.map((tile) =>
+              expandedSections.has(tile.id) ? (
+                <Box key={tile.id} sx={{ mt: 1.5 }}>
+                  {renderPanel(tile.id)}
+                </Box>
+              ) : null,
+            )}
+          </Box>
         ))}
-      </Box>
+      </Stack>
+    </Box>
+  );
 
-      <Stack spacing={3}>
-        {/* Subscription Value */}
-        {expandedSections.has('subscriptionValue') && (
+  /** Returns the expanded-panel content for a given tile id — kept as
+   * a plain function (not a hook) so it can sit in the row-chunked
+   * loop above and still close over all the page's state/data. See
+   * chat, Aug 2026 for why panels moved out of a single flat stack. */
+  function renderPanel(id: StatSectionId) {
+    switch (id) {
+      case 'subscriptionValue':
+        return (
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Which services are earning their keep, based on what you&apos;ve watched and
@@ -383,8 +484,8 @@ export default function StatisticsPage() {
                 // show an empty/misleading one.
                 if (effectiveIds.length === 0) return null;
                 const excludedNames = group.mediaTypeIds
-                  .filter((id) => !effectiveIds.includes(id))
-                  .map((id) => mediaTypeById.get(id)?.displayName ?? id);
+                  .filter((mtId) => !effectiveIds.includes(mtId))
+                  .map((mtId) => mediaTypeById.get(mtId)?.displayName ?? mtId);
                 return (
                   <SubscriptionValueCard
                     key={group.title}
@@ -399,27 +500,27 @@ export default function StatisticsPage() {
               })}
             </Stack>
           </Box>
-        )}
+        );
 
-        {/* Sources */}
-        {expandedSections.has('sources') && (
+      case 'sources':
+        return (
           <Box>
             <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
               <Typography variant="subtitle2" color="text.secondary">
                 Sources
               </Typography>
-              {sourcesView === 'watched' && Object.keys(data.topSourcesByCount).length > 0 && (
+              {sourcesView === 'watched' && Object.keys(stats.topSourcesByCount).length > 0 && (
                 <TopListSortSelect value={sourcesSort} onChange={setSourcesSort} />
               )}
             </Stack>
             <WatchedWishlistToggle value={sourcesView} onChange={setSourcesView} />
 
             {sourcesView === 'watched' &&
-              (Object.keys(data.topSourcesByCount).length > 0 ? (
+              (Object.keys(stats.topSourcesByCount).length > 0 ? (
                 <Stack spacing={1.5}>
                   {mergedSourceGroups(
-                    data.topSourcesByCount,
-                    data.averageRatingBySource,
+                    stats.topSourcesByCount,
+                    stats.averageRatingBySource,
                     mediaTypeById,
                   ).map((group) => (
                     <Box key={group.mediaTypeId}>
@@ -451,9 +552,9 @@ export default function StatisticsPage() {
               ))}
 
             {sourcesView === 'wishlist' &&
-              (Object.keys(data.wishlistSourceTotals).length > 0 ? (
+              (Object.keys(stats.wishlistSourceTotals).length > 0 ? (
                 (() => {
-                  const groups = sortedSourceGroups(data.wishlistSourceTotals, mediaTypeById);
+                  const groups = sortedSourceGroups(stats.wishlistSourceTotals, mediaTypeById);
                   // "Most saved on" is still a single all-time headline —
                   // computed across every group's sources, not per group.
                   const top = groups
@@ -507,16 +608,16 @@ export default function StatisticsPage() {
                 </Typography>
               ))}
           </Box>
-        )}
+        );
 
-        {/* Ratings */}
-        {expandedSections.has('ratings') && (
+      case 'ratings':
+        return (
           <Box>
             <Stack spacing={2}>
-              <RatingDistributionChart ratingDistribution={data.ratingDistribution} />
-              {Object.keys(data.averageRatingByMediaType).length > 0 && (
+              <RatingDistributionChart ratingDistribution={stats.ratingDistribution} />
+              {Object.keys(stats.averageRatingByMediaType).length > 0 && (
                 <Stack spacing={0.75}>
-                  {Object.entries(data.averageRatingByMediaType)
+                  {Object.entries(stats.averageRatingByMediaType)
                     .sort(([, a], [, b]) => b - a)
                     .map(([mediaType, average]) => (
                       <Stack key={mediaType} direction="row" justifyContent="space-between">
@@ -532,14 +633,14 @@ export default function StatisticsPage() {
               )}
             </Stack>
           </Box>
-        )}
+        );
 
-        {/* Insights */}
-        {expandedSections.has('insights') && (
+      case 'insights':
+        return (
           <Box>
-            {data.insights.length > 0 ? (
+            {stats.insights.length > 0 ? (
               <Stack spacing={1}>
-                {data.insights.map((insight) => (
+                {stats.insights.map((insight) => (
                   <InsightCard key={insight} text={insight} />
                 ))}
               </Stack>
@@ -549,17 +650,17 @@ export default function StatisticsPage() {
               </Typography>
             )}
           </Box>
-        )}
+        );
 
-        {/* People — most-credited actors, directors, writers, etc.
-            (see chat, Aug 2026). Completed-only (no watched/wishlist
-            toggle — an uncompleted entry's credits haven't been
-            "watched"/"read" yet). Only roles with actual data show a
-            chip. Clicking a name reuses the existing Library
-            searchText filter (already a case-insensitive substring
-            match across every metadata field), rather than a new
-            filtering mechanism. */}
-        {expandedSections.has('people') && (
+      case 'people':
+        // Most-credited actors, directors, writers, etc. (see chat,
+        // Aug 2026). Completed-only (no watched/wishlist toggle — an
+        // uncompleted entry's credits haven't been "watched"/"read"
+        // yet). Only roles with actual data show a chip. Clicking a
+        // name reuses the existing Library searchText filter (already
+        // a case-insensitive substring match across every metadata
+        // field), rather than a new filtering mechanism.
+        return (
           <Box>
             {activeRole ? (
               <>
@@ -579,10 +680,10 @@ export default function StatisticsPage() {
                 </Stack>
                 <TopList
                   items={sortTopListItems(
-                    Object.entries(data.topPeopleByRole[activeRole]).map(([name, count]) => ({
+                    Object.entries(stats.topPeopleByRole[activeRole]).map(([name, count]) => ({
                       name,
                       count,
-                      rating: data.averageRatingByPersonRole[activeRole][name],
+                      rating: stats.averageRatingByPersonRole[activeRole][name],
                     })),
                     peopleSort,
                   )}
@@ -601,18 +702,18 @@ export default function StatisticsPage() {
               </Typography>
             )}
           </Box>
-        )}
+        );
 
-        {/* Genres */}
-        {expandedSections.has('genres') && (
+      case 'genres':
+        return (
           <Box>
             <WatchedWishlistToggle value={genresView} onChange={setGenresView} />
             <Stack spacing={2}>
               {genresView === 'watched' &&
-                (Object.keys(data.topGenresByCount).length > 0 ? (
+                (Object.keys(stats.topGenresByCount).length > 0 ? (
                   <GenreBarChart
-                    topGenresByCount={data.topGenresByCount}
-                    averageRatingByGenre={data.averageRatingByGenre}
+                    topGenresByCount={stats.topGenresByCount}
+                    averageRatingByGenre={stats.averageRatingByGenre}
                     onSelectGenre={(genre) =>
                       goToLibrary(
                         typeof year === 'number'
@@ -628,9 +729,9 @@ export default function StatisticsPage() {
                 ))}
 
               {genresView === 'wishlist' &&
-                (Object.keys(data.wishlistGenreTotals).length > 0 ? (
+                (Object.keys(stats.wishlistGenreTotals).length > 0 ? (
                   <TopList
-                    items={Object.entries(data.wishlistGenreTotals)
+                    items={Object.entries(stats.wishlistGenreTotals)
                       .map(([name, count]) => ({ name, count }))
                       .sort((a, b) => b.count - a.count)}
                     onSelectItem={(genre) => goToLibrary({ genres: [genre], status: 'wishlist' })}
@@ -641,23 +742,21 @@ export default function StatisticsPage() {
                   </Typography>
                 ))}
 
-              {data.topGenreShareByMediaType && mediaTypes && (
-                <GenreShareByType
-                  data={data.topGenreShareByMediaType}
-                  mediaTypes={mediaTypes}
-                />
+              {stats.topGenreShareByMediaType && mediaTypes && (
+                <GenreShareByType data={stats.topGenreShareByMediaType} mediaTypes={mediaTypes} />
               )}
             </Stack>
           </Box>
-        )}
+        );
 
-        {/* Timeline — condensed preview (see chat, Aug 2026). Fixed
-            Year zoom, no zoom/type-filter controls (those stay
-            full-page-only); "View full Timeline" hands off to the
-            real page for the complete interactive experience. The
-            standalone Timeline page and its bottom-nav tab are
-            unchanged — this is purely an additional preview. */}
-        {expandedSections.has('timeline') && (
+      case 'timeline':
+        // Condensed preview (see chat, Aug 2026). Fixed Year zoom, no
+        // zoom/type-filter controls (those stay full-page-only);
+        // "View full Timeline" hands off to the real page for the
+        // complete interactive experience. The standalone Timeline
+        // page and its bottom-nav tab are unchanged — this is purely
+        // an additional preview.
+        return (
           <Box>
             {timelineBars === undefined ? (
               <LoadingIndicator />
@@ -671,7 +770,7 @@ export default function StatisticsPage() {
                 <TimelineChart
                   bars={timelineBars}
                   zoom={timelineZoom}
-                  mediaTypes={mediaTypes}
+                  mediaTypes={types}
                   onOpenEntry={(entryId) => navigate(entryDetailPath(entryId))}
                 />
               </Box>
@@ -686,14 +785,14 @@ export default function StatisticsPage() {
               View full Timeline
             </Button>
           </Box>
-        )}
+        );
 
-        {/* Trends */}
-        {expandedSections.has('trends') && (
+      case 'trends':
+        return (
           <Box>
             <TrendsTabs
-              monthlyBreakdown={data.monthlyBreakdown}
-              weeklyTotals={data.weeklyTotals}
+              monthlyBreakdown={stats.monthlyBreakdown}
+              weeklyTotals={stats.weeklyTotals}
               year={year}
               onSelectMonth={(month) =>
                 goToLibrary(
@@ -704,8 +803,10 @@ export default function StatisticsPage() {
               }
             />
           </Box>
-        )}
-      </Stack>
-    </Box>
-  );
+        );
+
+      default:
+        return null;
+    }
+  }
 }

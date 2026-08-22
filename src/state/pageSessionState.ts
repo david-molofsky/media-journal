@@ -1,6 +1,7 @@
 import type { EntryStatus } from '@/models';
 import type { EntrySortOrder } from '@/services/database/entryService';
 import type { TimelineZoomLevel } from '@/utils/timelineZoom';
+import type { StatsFilters } from '@/hooks/useStatisticsData';
 
 /**
  * Scroll/filter/sort/tab/search state restoration for Library and
@@ -40,8 +41,28 @@ export interface TimelineSessionState {
   scrollTop: number;
 }
 
+/** Statistics' own session snapshot (added Aug 2026) — same rationale
+ * as Library/Timeline above: returning via back-navigation (e.g. after
+ * tapping a Person's name through to Library) should land back on the
+ * same year/filters/expanded tiles/scroll position, not a blank reset
+ * page. `expandedSections` is stored as an array (Set doesn't survive
+ * structural comparison/serialization cleanly) and converted back to
+ * a Set on restore. */
+export interface StatisticsSessionState {
+  year: number | null | 'last12';
+  filters: StatsFilters;
+  expandedSections: string[];
+  selectedRole: string | null;
+  sourcesView: 'watched' | 'wishlist';
+  genresView: 'watched' | 'wishlist';
+  sourcesSort: string;
+  peopleSort: string;
+  scrollY: number;
+}
+
 let libraryState: LibrarySessionState | null = null;
 let timelineState: TimelineSessionState | null = null;
+let statisticsState: StatisticsSessionState | null = null;
 
 export function getLibrarySessionState(): LibrarySessionState | null {
   return libraryState;
@@ -57,4 +78,12 @@ export function getTimelineSessionState(): TimelineSessionState | null {
 
 export function setTimelineSessionState(state: TimelineSessionState): void {
   timelineState = state;
+}
+
+export function getStatisticsSessionState(): StatisticsSessionState | null {
+  return statisticsState;
+}
+
+export function setStatisticsSessionState(state: StatisticsSessionState): void {
+  statisticsState = state;
 }
