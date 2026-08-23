@@ -31,9 +31,9 @@ export function ImportExportSection() {
     try {
       const payload = await exportLibrary();
       downloadJson(payload, `media-journal-${dayjs().format('YYYY-MM-DD')}.json`);
-      setStatus({ type: 'success', message: 'Library exported.' });
+      setStatus({ type: 'success', message: 'Journal exported.' });
     } catch {
-      setStatus({ type: 'error', message: "Couldn't export your library. Try again." });
+      setStatus({ type: 'error', message: "Couldn't export your journal. Try again." });
     } finally {
       setBusy(false);
     }
@@ -64,7 +64,7 @@ export function ImportExportSection() {
   return (
     <CollapsibleSection title="Import and export" icon={DownloadOutlinedIcon}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Export your library as a JSON file, or restore from a previous export. This is
+        Export your journal as a JSON file, or restore from a previous export. This is
         your backup — there's no cloud copy in version 1.
       </Typography>
       <Stack direction="row" spacing={2}>
