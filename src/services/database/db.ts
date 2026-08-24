@@ -1307,6 +1307,47 @@ export class MediaJournalDatabase extends Dexie {
           });
         }
       });
+
+    // Google Books auto-fill (see chat, Aug 2026) — pageCount unlocks
+    // the "longest book" Statistics tile; isbn is plain metadata.
+    // Existing users' persisted `mediaTypes` rows for book/audiobook
+    // predate these fields, so — same conditional pattern as v28's
+    // 'source' backfill above — this only appends a field if the
+    // user's own row doesn't already have one with that key, never
+    // overwriting anything they've customised.
+    this.version(29)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        const book = await table.get('book');
+        if (book) {
+          const fields = [...book.fields];
+          if (!fields.some((f) => f.key === 'pageCount')) {
+            fields.push({ key: 'pageCount', label: 'Page Count', type: 'number', required: false });
+          }
+          if (!fields.some((f) => f.key === 'isbn')) {
+            fields.push({ key: 'isbn', label: 'ISBN', type: 'text', required: false });
+          }
+          await table.put({ ...book, fields });
+        }
+
+        const audiobook = await table.get('audiobook');
+        if (audiobook) {
+          const fields = [...audiobook.fields];
+          if (!fields.some((f) => f.key === 'isbn')) {
+            fields.push({ key: 'isbn', label: 'ISBN', type: 'text', required: false });
+          }
+          await table.put({ ...audiobook, fields });
+        }
+      });
   }
 }
 

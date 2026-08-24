@@ -87,7 +87,7 @@ interface OpenLibrarySearchPage {
  * matchers, fuzzy-match, etc. — keeps working unmodified) and the new
  * `searchBooksPage` (arbitrary offset, used by MetadataSearch.tsx's
  * infinite scroll). */
-async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrarySearchPage> {
+async function fetchBooksPage(query: string, offset: number, author = ''): Promise<OpenLibrarySearchPage> {
   if (!query.trim()) return { results: [], numFound: 0 };
 
   const params = new URLSearchParams({
@@ -96,6 +96,12 @@ async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrar
     offset: String(offset),
     fields: `key,title,author_name,series,first_publish_year,editions,cover_i${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
+  // Author narrowing — see chat, Aug 2026 (short/common titles like
+  // "Wicked" or "Villain" otherwise return an unmanageable number of
+  // unrelated matches). Open Library's search.json accepts `author`
+  // as a separate scoped parameter, same idea as `title` above rather
+  // than folding it into a single free-text `q`.
+  if (author.trim()) params.set('author', author);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
@@ -177,8 +183,8 @@ async function fetchBooksPage(query: string, offset: number): Promise<OpenLibrar
  * fetch on selection) because the search endpoint supports field
  * projection.
  */
-export async function searchBooks(query: string): Promise<SearchResult[]> {
-  return (await fetchBooksPage(query, 0)).results;
+export async function searchBooks(query: string, author = ''): Promise<SearchResult[]> {
+  return (await fetchBooksPage(query, 0, author)).results;
 }
 
 /**
@@ -190,8 +196,9 @@ export async function searchBooks(query: string): Promise<SearchResult[]> {
 export async function searchBooksPage(
   query: string,
   offset: number,
+  author = '',
 ): Promise<{ results: SearchResult[]; hasMore: boolean }> {
-  const { results, numFound } = await fetchBooksPage(query, offset);
+  const { results, numFound } = await fetchBooksPage(query, offset, author);
   return { results, hasMore: offset + results.length < numFound };
 }
 

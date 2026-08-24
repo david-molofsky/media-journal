@@ -95,6 +95,23 @@ const bookMetadataSchema = z.object({
   // the source, done below, but this keeps the schema robust either
   // way).
   releaseYear: z.coerce.number().optional(),
+  // Google Books auto-fill (Settings > Metadata auto-fill (Google
+  // Books) — see chat, Aug 2026). Unlocks the "longest book" Statistics
+  // tile, which was previously blocked on this field not existing.
+  // z.coerce.number() for the same reason as releaseYear above:
+  // defaultMediaTypes.ts declares this `type: 'number'`, so
+  // EntryForm's Controller passes a real number, not a string.
+  pageCount: z.coerce.number().min(0).optional(),
+  // Google Books auto-fill — plain text field (not bespoke UI unlike
+  // Film's overview/posterPath), since it's just displayed/edited like
+  // Author or Series with no special rendering needed.
+  isbn: z.string().optional(),
+  // Google Books auto-fill — bespoke multiline field, same reasoning
+  // and same 2000-char cap as filmMetadataSchema's overview below (not
+  // in defaultMediaTypes.ts's `fields[]`; hand-placed in EntryForm.tsx
+  // reusing the exact same Controller block Film/TV/Podcast already
+  // use for `metadata.overview`).
+  overview: z.string().max(2000).optional(),
 });
 
 const filmMetadataSchema = z.object({

@@ -17,6 +17,7 @@ import {
   getTVDetails,
 } from '@/services/metadata/tmdbService';
 import { searchSeries, searchSeriesPage } from '@/services/metadata/comicVineService';
+import { searchGoogleBooksPage } from '@/services/metadata/googleBooksService';
 import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 
@@ -75,52 +76,34 @@ function getSource(mediaTypeId: string): Source {
   return 'tmdb'; // film or tv — the only other types hasMetadataSearch allows
 }
 
-function getSearchFn(
-  mediaTypeId: string,
-): ((q: string) => Promise<SearchResult[]>) | null {
-  if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return searchBooks;
-  if (mediaTypeId === 'film') return searchFilms;
-  if (mediaTypeId === 'tv') return searchTV;
-  if (mediaTypeId === 'comic') return searchSeries;
-  return null;
+/** Whether this source's own pagination, once exhausted, should pivot
+ * to a Google Books fallback rather than just stopping — see chat,
+ * Aug 2026. TMDB (film/tv) has no fallback: Google Books doesn't cover
+ * films/TV, so there's nothing to pivot to. */
+function supportsGoogleBooksFallback(source: Source): boolean {
+  return source === 'openlibrary' || source === 'comicvine';
 }
 
-/** Paginated counterpart of `getSearchFn`, used for every page after
- * the first (see infinite-scroll comment on the component below).
- * `cursor` means "TMDB page number" for film/tv and "row offset" for
- * Open Library/ComicVine — `getStartCursor`/`getNextCursor` below hide
- * that difference from the rest of the component. */
-function getSearchPageFn(
-  mediaTypeId: string,
-): ((q: string, cursor: number) => Promise<{ results: SearchResult[]; hasMore: boolean }>) | null {
-  if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') return searchBooksPage;
-  if (mediaTypeId === 'film') return searchFilmsPage;
-  if (mediaTypeId === 'tv') return searchTVPage;
-  if (mediaTypeId === 'comic') return searchSeriesPage;
-  return null;
-}
-
-function getStartCursor(mediaTypeId: string): number {
-  return mediaTypeId === 'film' || mediaTypeId === 'tv' ? 1 : 0;
-}
-
-function getNextCursor(mediaTypeId: string, currentCursor: number, resultsCount: number): number {
-  // TMDB pages are a fixed size server-side, so the next request is
-  // simply "page + 1" regardless of how many results came back. Open
-  // Library/ComicVine are offset-based, so the next request starts
-  // right after the rows just received.
-  return mediaTypeId === 'film' || mediaTypeId === 'tv' ? currentCursor + 1 : currentCursor + resultsCount;
+/** Whether this source's *primary* search benefits from an author
+ * filter on the initial/paginated call itself, not just the Google
+ * Books fallback. Open Library's search.json accepts a scoped
+ * `author` param directly (see openLibraryService.ts). ComicVine's
+ * volume/series search has no author-equivalent concept — for comics,
+ * the Author field only narrows the Google Books fallback once
+ * ComicVine's own results are exhausted. */
+function primarySearchAcceptsAuthor(source: Source): boolean {
+  return source === 'openlibrary';
 }
 
 async function fetchDetails(
   mediaTypeId: string,
   result: SearchResult,
 ): Promise<{ fields: Record<string, string>; genres?: string[] }> {
-  // Open Library and ComicVine results already contain all fields (and
-  // any genre guesses) in one call — ComicVine series search returns
-  // series + publisher directly, with credits/cover date/cover image
-  // deferred to a separate "Fetch issue details" step in EntryForm
-  // once an issue number is known (see comicVineService.ts).
+  // Open Library, ComicVine and Google Books results already contain
+  // all fields (and any genre guesses) in one call — ComicVine series
+  // search returns series + publisher directly, with credits/cover
+  // date/cover image deferred to a separate "Fetch issue details" step
+  // in EntryForm once an issue number is known (see comicVineService.ts).
   if (Object.keys(result.fields).length > 0) return { fields: result.fields, genres: result.genres };
   // TMDB results need a second call to get director/cast/creator/genres.
   if (mediaTypeId === 'film') return getFilmDetails(result.id);
@@ -147,12 +130,26 @@ async function fetchDetails(
  * known yet at this point in the form, so that's a separate "Fetch
  * issue details" step further down EntryForm instead).
  *
- * Infinite scroll: the initial debounced search still uses the plain
- * `searchFn` (page 1 / offset 0, capped at 15 — unchanged from
- * before), so the first paint is identical to before this was added.
- * Scrolling near the bottom of the results listbox fetches a further
- * page via `searchPageFn` and appends it, until a source reports no
- * more results are available.
+ * Author field (book/audiobook + comic only — see chat, Aug 2026):
+ * narrows short/common titles ("Wicked", "Villain") that otherwise
+ * return an unmanageable number of unrelated matches. For Open
+ * Library this narrows the primary search itself; for ComicVine
+ * (which has no author-equivalent search parameter) it only narrows
+ * the Google Books fallback once ComicVine's own results run out.
+ * This field is search-only — typing here doesn't write to the
+ * entry's own persisted Author field; that's still filled from
+ * whichever result gets selected, same as before.
+ *
+ * Infinite scroll + Google Books fallback: the initial debounced
+ * search still uses the plain `searchFn` (page 1, capped at 15 —
+ * unchanged from before this was added). Scrolling near the bottom of
+ * the results listbox fetches a further page via `searchPageFn` and
+ * appends it. Once the primary source (Open Library/ComicVine) itself
+ * reports no more results, the *next* scroll-triggered fetch pivots
+ * to Google Books instead — same listbox, same footer row, no visible
+ * seam or source label (see chat: "I don't think the user will
+ * actually care" which source a result came from). TMDB (film/tv) has
+ * no fallback and just stops once exhausted, as before.
  */
 export function MetadataSearch({
   mediaTypeId,
@@ -165,14 +162,20 @@ export function MetadataSearch({
   helperText,
 }: MetadataSearchProps) {
   const source = getSource(mediaTypeId);
-  const searchFn = getSearchFn(mediaTypeId);
-  const searchPageFn = getSearchPageFn(mediaTypeId);
+  const fallbackApplicable = supportsGoogleBooksFallback(source);
+  const showAuthorField = source === 'openlibrary' || source === 'comicvine';
 
   const [options, setOptions] = useState<SearchResult[]>([]);
+  const [authorFilter, setAuthorFilter] = useState('');
   const [searching, setSearching] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  // True once any Google Books result has actually appeared in the
+  // current result set — drives the attribution caption switch (see
+  // chat: switches as soon as a result appears, not deferred until
+  // one's selected, since the Worker/key were confirmed live first).
+  const [usedGoogleBooksFallback, setUsedGoogleBooksFallback] = useState(false);
   // Only shows the "No more results" footer once the user has actually
   // scrolled for more at least once — a short first page (e.g. a TV
   // search with 3 matches) shouldn't immediately claim there's "no
@@ -195,15 +198,75 @@ export function MetadataSearch({
   // load-more requests the same way — a fresh search invalidates any
   // in-flight "load more" for the previous query.
   const requestIdRef = useRef(0);
-  // Where the *next* load-more request should start (TMDB page number,
-  // or an Open Library/ComicVine row offset — see getStartCursor).
+  // Where the *next* primary-source load-more request should start
+  // (TMDB page number, or an Open Library/ComicVine row offset).
   const cursorRef = useRef(0);
+  // Which source the *next* load-more call should hit. Starts at
+  // 'primary' every fresh search; flips to 'googlebooks' once the
+  // primary source reports exhausted and a fallback pivot happens.
+  const activeSourceRef = useRef<'primary' | 'googlebooks'>('primary');
+  // Separate Google Books startIndex cursor — independent of the
+  // primary source's own cursor/offset scheme.
+  const googleBooksCursorRef = useRef(0);
+
+  const runInitialSearch = useCallback(
+    async (value: string, author: string) => {
+      const requestId = ++requestIdRef.current;
+      setSearching(true);
+      setSearchError(null);
+      setEverLoadedMore(false);
+      activeSourceRef.current = 'primary';
+      googleBooksCursorRef.current = 0;
+      setUsedGoogleBooksFallback(false);
+      try {
+        let results: SearchResult[];
+        if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') {
+          results = await searchBooks(value, author);
+        } else if (mediaTypeId === 'film') {
+          results = await searchFilms(value);
+        } else if (mediaTypeId === 'tv') {
+          results = await searchTV(value);
+        } else if (mediaTypeId === 'comic') {
+          results = await searchSeries(value);
+        } else {
+          results = [];
+        }
+        if (requestIdRef.current !== requestId) return; // superseded — drop it
+        setOptions(results);
+        cursorRef.current =
+          mediaTypeId === 'film' || mediaTypeId === 'tv' ? 2 : results.length;
+        // A fresh search only knows whether a further page exists
+        // once it's actually requested one — a full first page (15
+        // results) is a reasonable signal there's probably more,
+        // without an extra request just to find out for certain. When
+        // a Google Books fallback is applicable, `hasMore` stays true
+        // even on a short/empty primary page, so the very first
+        // scroll (or immediate load-more, for a genuinely empty
+        // result) still gets one chance at Google Books before
+        // declaring "no results" for real.
+        const primaryFull = results.length >= 15;
+        setHasMore(primaryFull || fallbackApplicable);
+      } catch (err) {
+        if (requestIdRef.current !== requestId) return;
+        if (err instanceof OpenLibraryTimeoutError) {
+          setSearchError("Open Library isn't responding — try again in a moment.");
+        }
+        setOptions([]);
+        // Even a failed primary search still leaves a fallback worth
+        // trying, rather than dead-ending immediately.
+        setHasMore(fallbackApplicable);
+      } finally {
+        if (requestIdRef.current === requestId) setSearching(false);
+      }
+    },
+    [mediaTypeId, fallbackApplicable],
+  );
 
   const handleInputChange = useCallback(
     (_: React.SyntheticEvent, value: string) => {
       onTitleChange(value);
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      if (!value.trim() || !searchFn) {
+      if (!value.trim() || !source) {
         requestIdRef.current += 1; // invalidate any still-pending request too
         setOptions([]);
         setSearchError(null);
@@ -211,47 +274,80 @@ export function MetadataSearch({
         setEverLoadedMore(false);
         return;
       }
-
-      debounceRef.current = setTimeout(async () => {
-        const requestId = ++requestIdRef.current;
-        setSearching(true);
-        setSearchError(null);
-        setEverLoadedMore(false);
-        try {
-          const results = await searchFn(value);
-          if (requestIdRef.current !== requestId) return; // superseded — drop it
-          setOptions(results);
-          cursorRef.current = getNextCursor(mediaTypeId, getStartCursor(mediaTypeId), results.length);
-          // A fresh search only knows whether a further page exists
-          // once it's actually requested one — a full first page (15
-          // results) is a reasonable signal there's probably more,
-          // without an extra request just to find out for certain.
-          setHasMore(results.length >= 15 && !!searchPageFn);
-        } catch (err) {
-          if (requestIdRef.current !== requestId) return;
-          if (err instanceof OpenLibraryTimeoutError) {
-            setSearchError("Open Library isn't responding — try again in a moment.");
-          }
-          setOptions([]);
-          setHasMore(false);
-        } finally {
-          if (requestIdRef.current === requestId) setSearching(false);
-        }
+      debounceRef.current = setTimeout(() => {
+        void runInitialSearch(value, authorFilter);
       }, 350);
     },
-    [searchFn, searchPageFn, mediaTypeId, onTitleChange],
+    [source, runInitialSearch, authorFilter, onTitleChange],
+  );
+
+  /** Author field changes re-fire the search the same debounced way
+   * Title does, using whatever title is currently entered — narrowing
+   * (or widening, if cleared) the existing query rather than requiring
+   * the user to retype the title. */
+  const handleAuthorChange = useCallback(
+    (value: string) => {
+      setAuthorFilter(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (!titleValue.trim() || !source) return;
+      debounceRef.current = setTimeout(() => {
+        void runInitialSearch(titleValue, value);
+      }, 350);
+    },
+    [titleValue, source, runInitialSearch],
   );
 
   const handleLoadMore = useCallback(async () => {
-    if (!hasMore || loadingMore || searching || fetching || !searchPageFn || !titleValue.trim()) return;
+    if (!hasMore || loadingMore || searching || fetching || !titleValue.trim()) return;
     const requestId = ++requestIdRef.current;
     setLoadingMore(true);
     try {
-      const page = await searchPageFn(titleValue, cursorRef.current);
-      if (requestIdRef.current !== requestId) return; // superseded — drop it
-      setOptions((prev) => [...prev, ...page.results]);
-      cursorRef.current = getNextCursor(mediaTypeId, cursorRef.current, page.results.length);
-      setHasMore(page.hasMore);
+      if (activeSourceRef.current === 'primary') {
+        let page: { results: SearchResult[]; hasMore: boolean } | null = null;
+        if (mediaTypeId === 'book' || mediaTypeId === 'audiobook') {
+          page = await searchBooksPage(titleValue, cursorRef.current, authorFilter);
+        } else if (mediaTypeId === 'film') {
+          page = await searchFilmsPage(titleValue, cursorRef.current);
+        } else if (mediaTypeId === 'tv') {
+          page = await searchTVPage(titleValue, cursorRef.current);
+        } else if (mediaTypeId === 'comic') {
+          page = await searchSeriesPage(titleValue, cursorRef.current);
+        }
+        if (requestIdRef.current !== requestId) return; // superseded — drop it
+
+        if (page) {
+          setOptions((prev) => [...prev, ...page.results]);
+          cursorRef.current =
+            mediaTypeId === 'film' || mediaTypeId === 'tv'
+              ? cursorRef.current + 1
+              : cursorRef.current + page.results.length;
+        }
+
+        if (page?.hasMore) {
+          setHasMore(true);
+        } else if (fallbackApplicable) {
+          // Primary source just ran out — pivot to Google Books within
+          // this same load-more call (see chat: the wireframe shows
+          // this as one continuous scroll, not a second scroll event).
+          const gbPage = await searchGoogleBooksPage(titleValue, authorFilter, 0);
+          if (requestIdRef.current !== requestId) return;
+          activeSourceRef.current = 'googlebooks';
+          googleBooksCursorRef.current = gbPage.results.length;
+          if (gbPage.results.length > 0) setUsedGoogleBooksFallback(true);
+          setOptions((prev) => [...prev, ...gbPage.results]);
+          setHasMore(gbPage.hasMore);
+        } else {
+          setHasMore(false);
+        }
+      } else {
+        // Already pivoted — keep paging Google Books.
+        const gbPage = await searchGoogleBooksPage(titleValue, authorFilter, googleBooksCursorRef.current);
+        if (requestIdRef.current !== requestId) return;
+        googleBooksCursorRef.current += gbPage.results.length;
+        if (gbPage.results.length > 0) setUsedGoogleBooksFallback(true);
+        setOptions((prev) => [...prev, ...gbPage.results]);
+        setHasMore(gbPage.hasMore);
+      }
       setEverLoadedMore(true);
     } catch {
       if (requestIdRef.current !== requestId) return;
@@ -262,7 +358,7 @@ export function MetadataSearch({
     } finally {
       if (requestIdRef.current === requestId) setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, searching, fetching, searchPageFn, titleValue, mediaTypeId]);
+  }, [hasMore, loadingMore, searching, fetching, titleValue, mediaTypeId, authorFilter, fallbackApplicable]);
 
   const handleListboxScroll = useCallback(
     (event: React.UIEvent<HTMLUListElement>) => {
@@ -298,8 +394,12 @@ export function MetadataSearch({
     source === 'tmdb'
       ? 'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data provided by JustWatch.'
       : source === 'comicvine'
-        ? 'Data provided by ComicVine. Search a series first, then use Fetch issue details for credits.'
-        : 'Search powered by Open Library.';
+        ? usedGoogleBooksFallback
+          ? 'Data provided by ComicVine and Google Books. Search a series first, then use Fetch issue details for credits.'
+          : 'Data provided by ComicVine. Search a series first, then use Fetch issue details for credits.'
+        : usedGoogleBooksFallback
+          ? 'Search powered by Open Library and Google Books.'
+          : 'Search powered by Open Library.';
 
   // The loading/end-of-results footer is appended as a non-selectable
   // "option" rather than rendered outside the Autocomplete, since MUI
@@ -420,6 +520,22 @@ export function MetadataSearch({
           );
         }}
       />
+      {showAuthorField && (
+        <TextField
+          fullWidth
+          size="small"
+          margin="dense"
+          label="Author"
+          placeholder="e.g. Andy Weir — optional, narrows results"
+          value={authorFilter}
+          onChange={(e) => handleAuthorChange(e.target.value)}
+          helperText={
+            primarySearchAcceptsAuthor(source)
+              ? undefined
+              : 'Narrows the Google Books fallback once ComicVine results run out'
+          }
+        />
+      )}
       <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
         {attribution}
       </Typography>

@@ -727,6 +727,13 @@ export function EntryForm({
           <AddCoverImageDialog
             open={coverDialogOpen}
             onClose={() => setCoverDialogOpen(false)}
+            mediaTypeId={mediaType.id}
+            initialTitle={watch('title') ?? ''}
+            initialAuthor={
+              typeof (watch('metadata') as Record<string, unknown> | undefined)?.author === 'string'
+                ? ((watch('metadata') as Record<string, unknown>).author as string)
+                : ''
+            }
             onSelect={(url) => {
               // A pasted replacement always lands in coverImagePath —
               // if the entry currently shows a TMDB `posterPath`
@@ -951,14 +958,30 @@ export function EntryForm({
                 populated from itunes:summary/<description> instead of
                 TMDB — see chat) rather than a separate field, since the
                 underlying need (a free-text multiline blurb, auto-filled
-                but editable) is identical. */}
-            {(mediaType.id === 'film' || mediaType.id === 'tv' || mediaType.id === 'podcast') && (
+                but editable) is identical. Extended to Book/Audiobook
+                Aug 2026 — populated from Google Books' `description`
+                when a search result is selected (see
+                googleBooksService.ts); Open Library's search index
+                doesn't return a description at all, so this stays empty
+                for an Open Library-only match, same as it would for any
+                manually-typed entry. */}
+            {(mediaType.id === 'film' ||
+              mediaType.id === 'tv' ||
+              mediaType.id === 'podcast' ||
+              mediaType.id === 'book' ||
+              mediaType.id === 'audiobook') && (
               <Controller
                 name={'metadata.overview' as 'metadata'}
                 control={control}
                 render={({ field: controllerField, fieldState }) => (
                   <TextField
-                    label={mediaType.id === 'podcast' ? 'Show Notes' : 'Overview'}
+                    label={
+                      mediaType.id === 'podcast'
+                        ? 'Show Notes'
+                        : mediaType.id === 'book' || mediaType.id === 'audiobook'
+                          ? 'Description'
+                          : 'Overview'
+                    }
                     multiline
                     minRows={3}
                     fullWidth

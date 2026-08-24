@@ -45,6 +45,11 @@ export const defaultMediaTypes: MediaType[] = [
       // Year-only — see matching comment on releaseYear in
       // entrySchemas.ts's bookMetadataSchema.
       { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
+      // Added for Google Books auto-fill — see chat, Aug 2026. Unlocks
+      // the "longest book" Statistics tile. Book only, not Audiobook —
+      // "pages" isn't a meaningful unit for an audio format.
+      { key: 'pageCount', label: 'Page Count', type: 'number', required: false },
+      { key: 'isbn', label: 'ISBN', type: 'text', required: false },
     ],
   },
   {
@@ -64,6 +69,8 @@ export const defaultMediaTypes: MediaType[] = [
         required: false,
         options: ['Audible', 'Spotify', 'Libby', 'Physical CD'],
       },
+      // Added for Google Books auto-fill — see chat, Aug 2026.
+      { key: 'isbn', label: 'ISBN', type: 'text', required: false },
     ],
   },
   {
