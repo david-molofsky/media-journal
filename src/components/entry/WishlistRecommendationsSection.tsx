@@ -88,11 +88,19 @@ export function WishlistRecommendationsSection({ entry, mediaTypes }: WishlistRe
                     <Icon fontSize="small" sx={{ color: recType?.colour ?? 'action.active' }} />
                   )}
                 </Box>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body2" fontWeight={500} noWrap>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={500}
+                    sx={{ overflowWrap: 'break-word' }}
+                  >
                     {rec.title}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" noWrap>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', overflowWrap: 'break-word' }}
+                  >
                     {reason}
                   </Typography>
                 </Box>

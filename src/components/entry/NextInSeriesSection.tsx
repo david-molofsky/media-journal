@@ -143,7 +143,7 @@ export function NextInSeriesSection({ entry }: NextInSeriesSectionProps) {
           )}
 
           {popup?.step === 'found' && (
-            <Stack direction="row" spacing={1.5} sx={{ py: 1 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 1 }}>
               <Box
                 sx={{
                   width: 56,
@@ -163,12 +163,20 @@ export function NextInSeriesSection({ entry }: NextInSeriesSectionProps) {
                   />
                 )}
               </Box>
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Typography variant="subtitle1" fontWeight={600} noWrap>
+              <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight={600}
+                  sx={{ overflowWrap: 'break-word' }}
+                >
                   {popup.found.title}
                 </Typography>
                 {popup.found.subtitle && (
-                  <Typography variant="body2" color="text.secondary" noWrap>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ overflowWrap: 'break-word' }}
+                  >
                     {popup.found.subtitle}
                   </Typography>
                 )}
