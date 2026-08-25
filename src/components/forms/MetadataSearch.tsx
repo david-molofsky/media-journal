@@ -28,6 +28,27 @@ interface MetadataSearchProps {
    * `genres`, when present, should be merged into the form's existing
    * genres rather than overwriting them. */
   onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
+  /** Called on every keystroke in the search-narrowing field below
+   * Title (labeled "Writer" for Comic, "Author" everywhere else it
+   * appears — see chat, Aug 2026) — mirrors it live into the entry's
+   * actual persisted Author (Book/Audiobook) or Writer (Comic) field, the
+   * same way titleValue/onTitleChange already mirror the Title field,
+   * so the person doesn't have to type the name twice. If a search
+   * result is later selected, onFill's own `fields.author` (or, for
+   * Comic, a later "Fetch issue details" call's `fields.writer`)
+   * still overwrites this with the authoritative value — same
+   * precedence Title already has. Omitted entirely for media types
+   * with no Author field (Film/TV), same as the Author TextField
+   * itself.
+   */
+  onAuthorTyped?: (value: string) => void;
+  /** Seeds the Author search-narrowing field's initial value — for
+   * Edit Entry, where metadata.author/writer may already be set. Only
+   * read once on mount (matches how the Author box is otherwise
+   * self-contained, ephemeral state); doesn't stay reactive to
+   * external changes after that, same as titleValue does stay
+   * reactive (it's the actual controlled field) but this isn't. */
+  initialAuthor?: string;
   /** This field doubles as the Title field (see chat, Aug 2026) — the
    * parent owns the actual title value via react-hook-form's
    * Controller, so typing here (whether or not a result gets picked)
@@ -154,6 +175,8 @@ async function fetchDetails(
 export function MetadataSearch({
   mediaTypeId,
   onFill,
+  onAuthorTyped,
+  initialAuthor,
   titleValue,
   onTitleChange,
   onTitleBlur,
@@ -166,7 +189,7 @@ export function MetadataSearch({
   const showAuthorField = source === 'openlibrary' || source === 'comicvine';
 
   const [options, setOptions] = useState<SearchResult[]>([]);
-  const [authorFilter, setAuthorFilter] = useState('');
+  const [authorFilter, setAuthorFilter] = useState(initialAuthor ?? '');
   const [searching, setSearching] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -288,13 +311,14 @@ export function MetadataSearch({
   const handleAuthorChange = useCallback(
     (value: string) => {
       setAuthorFilter(value);
+      onAuthorTyped?.(value);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (!titleValue.trim() || !source) return;
       debounceRef.current = setTimeout(() => {
         void runInitialSearch(titleValue, value);
       }, 350);
     },
-    [titleValue, source, runInitialSearch],
+    [titleValue, source, runInitialSearch, onAuthorTyped],
   );
 
   const handleLoadMore = useCallback(async () => {
@@ -525,8 +549,12 @@ export function MetadataSearch({
           fullWidth
           size="small"
           margin="dense"
-          label="Author"
-          placeholder="e.g. Andy Weir — optional, narrows results"
+          label={mediaTypeId === 'comic' ? 'Writer' : 'Author'}
+          placeholder={
+            mediaTypeId === 'comic'
+              ? 'e.g. M. Alvarez — optional, narrows results'
+              : 'e.g. Andy Weir — optional, narrows results'
+          }
           value={authorFilter}
           onChange={(e) => handleAuthorChange(e.target.value)}
           helperText={

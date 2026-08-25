@@ -654,6 +654,26 @@ export function EntryForm({
                 <MetadataSearch
                   mediaTypeId={mediaType.id}
                   onFill={applyMetadataFill}
+                  onAuthorTyped={(value) => {
+                    // Comic's real field is 'writer', not 'author' — see
+                    // chat, Aug 2026. Everything else that shows the
+                    // Author search box (Book, Audiobook) uses 'author'.
+                    // Deliberately NOT run through toTitleCase here —
+                    // Title itself only cases on blur, not on every
+                    // keystroke (see onTitleBlur below); doing it live
+                    // here would fight with normal typing the same way.
+                    // A manually-typed author's exact casing is left
+                    // as-is, same tradeoff Title accepts before blur.
+                    const key = mediaType.id === 'comic' ? 'writer' : 'author';
+                    setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
+                      shouldValidate: true,
+                    });
+                  }}
+                  initialAuthor={
+                    (mediaType.id === 'comic'
+                      ? getValues('metadata.writer' as 'metadata')
+                      : getValues('metadata.author' as 'metadata')) as unknown as string | undefined
+                  }
                   titleValue={field.value ?? ''}
                   onTitleChange={field.onChange}
                   onTitleBlur={() => {
