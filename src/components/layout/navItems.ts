@@ -1,5 +1,5 @@
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined';
+import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined';
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
@@ -21,10 +21,16 @@ export interface NavItem {
  * Note: label is 'Journal' (user-facing) while the underlying route,
  * page component, and folder remain LibraryPage/ROUTES.library —
  * intentional, see chat 2026-08-23 (rename scoped to visible strings only).
+ *
+ * Icon changed from VideoLibraryOutlined to CollectionsBookmarkOutlined
+ * Aug 2026 — see chat. Chosen over a custom SVG traced from the app's
+ * actual logo (spine/cover/elastic-band silhouette), which was also
+ * considered and wireframed, in favor of a real, already-available
+ * MUI icon.
  */
 export const navItems: NavItem[] = [
   { label: 'Dashboard', path: ROUTES.dashboard, icon: DashboardOutlinedIcon },
-  { label: 'Journal', path: ROUTES.library, icon: VideoLibraryOutlinedIcon },
+  { label: 'Journal', path: ROUTES.library, icon: CollectionsBookmarkOutlinedIcon },
   { label: 'Add', path: ROUTES.addEntry, icon: AddCircleOutlinedIcon },
   { label: 'Statistics', path: ROUTES.statistics, icon: InsightsOutlinedIcon },
   { label: 'Timeline', path: ROUTES.timeline, icon: ViewTimelineOutlinedIcon },
