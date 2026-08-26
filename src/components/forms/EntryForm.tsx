@@ -22,11 +22,15 @@ import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import CachedOutlinedIcon from '@mui/icons-material/CachedOutlined';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 import { getIssueDetails } from '@/services/metadata/comicVineService';
-import { reSearchEntry, hasReSearch, reSearchSourceLabel } from '@/services/metadata/reSearchService';
+import {
+  reSearchEntry,
+  hasReSearch,
+  reSearchSourceLabel,
+} from '@/services/metadata/reSearchService';
 import { computeReSearchDiffs, type ReSearchDiffSet } from '@/utils/reSearchDiff';
 import type { ReSearchResult } from '@/services/metadata/reSearchService';
 import { comicIssueCount } from '@/utils/comicIssues';
-import { todayIso } from '@/utils/dateUtils';
+import { todayIso, isMoreThanSixMonthsAgo } from '@/utils/dateUtils';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { RatingInput } from './RatingInput';
@@ -46,7 +50,13 @@ import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { FIELD_PAIRS } from '@/utils/fieldPairs';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
-import type { EntryMetadata, EntryStatus, FieldDefinition, MediaType, NewMediaEntryInput } from '@/models';
+import type {
+  EntryMetadata,
+  EntryStatus,
+  FieldDefinition,
+  MediaType,
+  NewMediaEntryInput,
+} from '@/models';
 
 /**
  * Form state matches `NewMediaEntryInput` exactly (rather than a
@@ -175,7 +185,9 @@ export function EntryForm({
   const [reSearchError, setReSearchError] = useState<string | null>(null);
   const [reSearchResult, setReSearchResult] = useState<ReSearchResult | null>(null);
   const [reSearchDiffSet, setReSearchDiffSet] = useState<ReSearchDiffSet | null>(null);
-  const [reSearchSelectedKeys, setReSearchSelectedKeys] = useState<Set<string>>(new Set());
+  const [reSearchSelectedKeys, setReSearchSelectedKeys] = useState<Set<string>>(
+    new Set(),
+  );
   const [reSearchToast, setReSearchToast] = useState<string | null>(null);
 
   const handleReSearch = async () => {
@@ -242,9 +254,13 @@ export function EntryForm({
       // now also persisted into form metadata for the same reason.
       if (key === 'comicVineVolumeId') {
         setComicVineVolumeId(value);
-        setValue('metadata.comicVineVolumeId' as 'metadata', value as unknown as EntryMetadata, {
-          shouldValidate: true,
-        });
+        setValue(
+          'metadata.comicVineVolumeId' as 'metadata',
+          value as unknown as EntryMetadata,
+          {
+            shouldValidate: true,
+          },
+        );
         continue;
       }
       // A visible field the user unchecked in the dialog — skip it.
@@ -254,10 +270,19 @@ export function EntryForm({
       if (visibleKeys.has(key) && !reSearchSelectedKeys.has(key)) continue;
       const fieldDef = mediaType.fields.find((f) => f.key === key);
       const skipTitleCase =
-        key === 'overview' || key === 'posterPath' || key === 'coverImagePath' || key === 'imdbUrl';
+        key === 'overview' ||
+        key === 'posterPath' ||
+        key === 'coverImagePath' ||
+        key === 'imdbUrl';
       const nextValue: unknown =
-        fieldDef?.type === 'number' ? Number(value) : skipTitleCase ? value : toTitleCase(value);
-      setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, { shouldValidate: true });
+        fieldDef?.type === 'number'
+          ? Number(value)
+          : skipTitleCase
+            ? value
+            : toTitleCase(value);
+      setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, {
+        shouldValidate: true,
+      });
     }
     if (reSearchDiffSet.genreAdds.length > 0 && reSearchSelectedKeys.has('genres')) {
       const existing = getValues('genres') ?? [];
@@ -300,7 +325,9 @@ export function EntryForm({
   // relevant for Film/TV, the only types TMDB auto-fill touches.
   const posterPath = watch('metadata.posterPath' as 'metadata');
   const showPoster =
-    (mediaType.id === 'film' || mediaType.id === 'tv') && typeof posterPath === 'string' && posterPath;
+    (mediaType.id === 'film' || mediaType.id === 'tv') &&
+    typeof posterPath === 'string' &&
+    posterPath;
   // Cover image only ever renders here, in Edit Entry — never in the
   // Library card or grid, same reasoning as the Film/TV poster above.
   // Unlike posterPath (a TMDB path fragment), coverImagePath already
@@ -312,7 +339,8 @@ export function EntryForm({
   // somehow set, matching getEntryImageUrl's (entryImage.ts)
   // posterPath-first precedence.
   const coverImagePath = watch('metadata.coverImagePath' as 'metadata');
-  const showCoverImage = !showPoster && typeof coverImagePath === 'string' && coverImagePath;
+  const showCoverImage =
+    !showPoster && typeof coverImagePath === 'string' && coverImagePath;
   // Tracks a src that failed to load (e.g. an Open Library cover_i
   // that no longer resolves to a real image — see chat, the
   // "A Rare Book of Cunning Device" broken-icon report). Same pattern
@@ -328,7 +356,9 @@ export function EntryForm({
   // field would just invite a broken link.
   const imdbUrl = watch('metadata.imdbUrl' as 'metadata');
   const showImdbLink =
-    (mediaType.id === 'film' || mediaType.id === 'tv') && typeof imdbUrl === 'string' && imdbUrl;
+    (mediaType.id === 'film' || mediaType.id === 'tv') &&
+    typeof imdbUrl === 'string' &&
+    imdbUrl;
 
   // "Add cover image" (see chat) — icon only appears once *both*
   // fields are empty, for every media type, not just the ones
@@ -387,7 +417,9 @@ export function EntryForm({
       } as NewMediaEntryInput);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : 'Something went wrong. Please try again.',
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please try again.',
       );
     } finally {
       setSubmitting(false);
@@ -397,7 +429,11 @@ export function EntryForm({
   // Shared by MetadataSearch (typed search) and IsbnScanDialog (barcode
   // scan) — both hand off a result in the exact same shape, so the form
   // doesn't need to know or care which one produced it.
-  const applyMetadataFill = (title: string, fields: Record<string, string>, genres?: string[]) => {
+  const applyMetadataFill = (
+    title: string,
+    fields: Record<string, string>,
+    genres?: string[],
+  ) => {
     setValue('title', toTitleCase(title), { shouldValidate: true });
     // comicVineVolumeId rides along in `fields` from searchSeries
     // (comicVineService.ts). It's captured into local state for the
@@ -407,9 +443,13 @@ export function EntryForm({
     const { comicVineVolumeId: volumeId, ...restFields } = fields;
     if (volumeId) {
       setComicVineVolumeId(volumeId);
-      setValue('metadata.comicVineVolumeId' as 'metadata', volumeId as unknown as EntryMetadata, {
-        shouldValidate: true,
-      });
+      setValue(
+        'metadata.comicVineVolumeId' as 'metadata',
+        volumeId as unknown as EntryMetadata,
+        {
+          shouldValidate: true,
+        },
+      );
     }
     setIssueFetchError(null);
     for (const [key, value] of Object.entries(restFields)) {
@@ -423,9 +463,14 @@ export function EntryForm({
       // toTitleCase is meant for short proper-noun-style fields like
       // Director or Cast).
       const fieldDef = mediaType.fields.find((f) => f.key === key);
-      const skipTitleCase = key === 'overview' || key === 'posterPath' || key === 'coverImagePath';
+      const skipTitleCase =
+        key === 'overview' || key === 'posterPath' || key === 'coverImagePath';
       const nextValue: unknown =
-        fieldDef?.type === 'number' ? Number(value) : skipTitleCase ? value : toTitleCase(value);
+        fieldDef?.type === 'number'
+          ? Number(value)
+          : skipTitleCase
+            ? value
+            : toTitleCase(value);
       setValue(`metadata.${key}` as 'metadata', nextValue as EntryMetadata, {
         shouldValidate: true,
       });
@@ -452,7 +497,11 @@ export function EntryForm({
             label={field.label}
             options={field.options ?? []}
             required={field.required}
-            value={typeof controllerField.value === 'string' ? controllerField.value : undefined}
+            value={
+              typeof controllerField.value === 'string'
+                ? controllerField.value
+                : undefined
+            }
             onChange={(newValue) => controllerField.onChange(newValue)}
             onBlur={controllerField.onBlur}
             error={Boolean(fieldState.error)}
@@ -462,7 +511,11 @@ export function EntryForm({
           <EntryDatePicker
             label={field.label}
             required={field.required}
-            value={typeof controllerField.value === 'string' ? controllerField.value : undefined}
+            value={
+              typeof controllerField.value === 'string'
+                ? controllerField.value
+                : undefined
+            }
             onChange={(newValue) => controllerField.onChange(newValue)}
             onBlur={controllerField.onBlur}
             error={Boolean(fieldState.error)}
@@ -506,7 +559,9 @@ export function EntryForm({
               if (field.type === 'number') {
                 const digitsOnly = raw.replace(/[^0-9]/g, '');
                 setNumberFieldDrafts((prev) => ({ ...prev, [field.key]: digitsOnly }));
-                controllerField.onChange(digitsOnly === '' ? undefined : Number(digitsOnly));
+                controllerField.onChange(
+                  digitsOnly === '' ? undefined : Number(digitsOnly),
+                );
               } else {
                 controllerField.onChange(raw);
               }
@@ -605,7 +660,11 @@ export function EntryForm({
           onClose={() => setReSearchToast(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <Alert severity="success" variant="filled" onClose={() => setReSearchToast(null)}>
+          <Alert
+            severity="success"
+            variant="filled"
+            onClose={() => setReSearchToast(null)}
+          >
             {reSearchToast}
           </Alert>
         </Snackbar>
@@ -665,20 +724,27 @@ export function EntryForm({
                     // A manually-typed author's exact casing is left
                     // as-is, same tradeoff Title accepts before blur.
                     const key = mediaType.id === 'comic' ? 'writer' : 'author';
-                    setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
-                      shouldValidate: true,
-                    });
+                    setValue(
+                      `metadata.${key}` as 'metadata',
+                      value as unknown as EntryMetadata,
+                      {
+                        shouldValidate: true,
+                      },
+                    );
                   }}
                   initialAuthor={
                     (mediaType.id === 'comic'
                       ? getValues('metadata.writer' as 'metadata')
-                      : getValues('metadata.author' as 'metadata')) as unknown as string | undefined
+                      : getValues('metadata.author' as 'metadata')) as unknown as
+                      string | undefined
                   }
                   titleValue={field.value ?? ''}
                   onTitleChange={field.onChange}
                   onTitleBlur={() => {
                     field.onBlur();
-                    setValue('title', toTitleCase(getValues('title') ?? ''), { shouldValidate: true });
+                    setValue('title', toTitleCase(getValues('title') ?? ''), {
+                      shouldValidate: true,
+                    });
                   }}
                   required
                   error={Boolean(fieldState.error)}
@@ -708,7 +774,11 @@ export function EntryForm({
                     <DownloadOutlinedIcon fontSize="small" />
                   )
                 }
-                disabled={!comicVineVolumeId || typeof issueStart !== 'number' || fetchingIssueDetails}
+                disabled={
+                  !comicVineVolumeId ||
+                  typeof issueStart !== 'number' ||
+                  fetchingIssueDetails
+                }
                 onClick={async () => {
                   if (!comicVineVolumeId || typeof issueStart !== 'number') return;
                   setFetchingIssueDetails(true);
@@ -725,17 +795,24 @@ export function EntryForm({
                   // ComicVine calls returned 200).
                   let fields: Record<string, string>;
                   try {
-                    const result = await getIssueDetails(comicVineVolumeId, String(issueStart));
+                    const result = await getIssueDetails(
+                      comicVineVolumeId,
+                      String(issueStart),
+                    );
                     fields = result.fields;
                   } catch (err) {
                     console.error('ComicVine issue detail fetch failed:', err);
-                    setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
+                    setIssueFetchError(
+                      'Could not reach ComicVine. Check your connection and try again.',
+                    );
                     setFetchingIssueDetails(false);
                     return;
                   }
 
                   if (Object.keys(fields).length === 0) {
-                    setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
+                    setIssueFetchError(
+                      `No ComicVine match found for issue #${issueStart} in this series.`,
+                    );
                     setFetchingIssueDetails(false);
                     return;
                   }
@@ -746,12 +823,19 @@ export function EntryForm({
                     // TMDB onFill path above, this doesn't run values
                     // through toTitleCase.
                     for (const [key, value] of Object.entries(fields)) {
-                      setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
-                        shouldValidate: true,
-                      });
+                      setValue(
+                        `metadata.${key}` as 'metadata',
+                        value as unknown as EntryMetadata,
+                        {
+                          shouldValidate: true,
+                        },
+                      );
                     }
                   } catch (err) {
-                    console.error('ComicVine issue detail fetch succeeded, but filling the form failed:', err);
+                    console.error(
+                      'ComicVine issue detail fetch succeeded, but filling the form failed:',
+                      err,
+                    );
                     setIssueFetchError(
                       'ComicVine details were fetched, but something went wrong filling in the form. Check the console for details.',
                     );
@@ -772,13 +856,22 @@ export function EntryForm({
                   explanation at all for why the button stayed
                   disabled. */}
               {!comicVineVolumeId ? (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mt: 0.5 }}
+                >
                   Search for the series above to enable this.
                 </Typography>
               ) : (
                 typeof issueStart !== 'number' && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    Enter an issue number in Media Details below, then come back up here to fetch.
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 0.5 }}
+                  >
+                    Enter an issue number in Media Details below, then come back up here
+                    to fetch.
                   </Typography>
                 )
               )}
@@ -797,7 +890,13 @@ export function EntryForm({
                   src={activeCoverSrc}
                   alt=""
                   onError={() => setFailedImageUrl(activeCoverSrc ?? null)}
-                  sx={{ width: 56, height: 84, borderRadius: 1, objectFit: 'cover', alignSelf: 'flex-start' }}
+                  sx={{
+                    width: 56,
+                    height: 84,
+                    borderRadius: 1,
+                    objectFit: 'cover',
+                    alignSelf: 'flex-start',
+                  }}
                 />
               ) : (
                 <Box
@@ -852,7 +951,8 @@ export function EntryForm({
             mediaTypeId={mediaType.id}
             initialTitle={watch('title') ?? ''}
             initialAuthor={
-              typeof (watch('metadata') as Record<string, unknown> | undefined)?.author === 'string'
+              typeof (watch('metadata') as Record<string, unknown> | undefined)
+                ?.author === 'string'
                 ? ((watch('metadata') as Record<string, unknown>).author as string)
                 : ''
             }
@@ -864,13 +964,21 @@ export function EntryForm({
               // precedence would keep showing the old TMDB poster
               // forever regardless of what gets pasted here.
               if (showPoster) {
-                setValue('metadata.posterPath' as 'metadata', undefined as unknown as EntryMetadata, {
-                  shouldValidate: true,
-                });
+                setValue(
+                  'metadata.posterPath' as 'metadata',
+                  undefined as unknown as EntryMetadata,
+                  {
+                    shouldValidate: true,
+                  },
+                );
               }
-              setValue('metadata.coverImagePath' as 'metadata', url as unknown as EntryMetadata, {
-                shouldValidate: true,
-              });
+              setValue(
+                'metadata.coverImagePath' as 'metadata',
+                url as unknown as EntryMetadata,
+                {
+                  shouldValidate: true,
+                },
+              );
               // A fresh replacement deserves a fresh attempt to load —
               // otherwise if the new URL happens to equal a previously
               // failed one (unlikely, but free to guard against) the
@@ -895,7 +1003,9 @@ export function EntryForm({
               // both that path and normal typing.
               slotProps={{ inputLabel: { shrink: Boolean(watch('title')) } }}
               onBlur={(event) => {
-                setValue('title', toTitleCase(event.target.value), { shouldValidate: true });
+                setValue('title', toTitleCase(event.target.value), {
+                  shouldValidate: true,
+                });
               }}
               error={Boolean(errors.title)}
               helperText={errors.title?.message}
@@ -916,7 +1026,8 @@ export function EntryForm({
                   if (!v) return;
                   field.onChange(v);
                   // Clear completedDate when switching away from completed
-                  if (v !== 'completed') setValue('completedDate', undefined as unknown as string);
+                  if (v !== 'completed')
+                    setValue('completedDate', undefined as unknown as string);
                   // Restore today when switching back to completed
                   if (v === 'completed') setValue('completedDate', todayIso());
                   // In Progress needs a start date to place it on the
@@ -979,7 +1090,8 @@ export function EntryForm({
             {mediaType.id === 'tv' &&
               typeof episodeStart === 'number' &&
               typeof episodeEnd === 'number' &&
-              episodeEnd >= episodeStart && (() => {
+              episodeEnd >= episodeStart &&
+              (() => {
                 const count = (episodeEnd as number) - (episodeStart as number) + 1;
                 return (
                   <Alert severity="info" variant="outlined">
@@ -1024,7 +1136,11 @@ export function EntryForm({
                     multiline
                     minRows={3}
                     fullWidth
-                    value={typeof controllerField.value === 'string' ? controllerField.value : ''}
+                    value={
+                      typeof controllerField.value === 'string'
+                        ? controllerField.value
+                        : ''
+                    }
                     onChange={(event) => controllerField.onChange(event.target.value)}
                     onBlur={controllerField.onBlur}
                     error={Boolean(fieldState.error)}
@@ -1051,7 +1167,26 @@ export function EntryForm({
                   <EntryDatePicker
                     label="Started"
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      // A Started date more than 6 months ago is almost
+                      // certainly being backfilled after the fact, so
+                      // default Completed to match it instead of
+                      // leaving it blank/today (David's instruction,
+                      // Aug 2026). Only fills a still-empty Completed
+                      // date — never overwrites one already typed in —
+                      // and only while status is Completed, since
+                      // that's the only status showing a Completed
+                      // field at all.
+                      if (
+                        value &&
+                        status === 'completed' &&
+                        !getValues('completedDate') &&
+                        isMoreThanSixMonthsAgo(value)
+                      ) {
+                        setValue('completedDate', value, { shouldValidate: true });
+                      }
+                    }}
                     onBlur={field.onBlur}
                     error={Boolean(fieldState.error)}
                     helperText={fieldState.error?.message}
@@ -1083,24 +1218,24 @@ export function EntryForm({
           <>
             <Divider />
 
-        <Controller
-          name="rating"
-          control={control}
-          render={({ field }) => (
-            <RatingInput value={field.value ?? undefined} onChange={field.onChange} />
-          )}
-        />
-
-        <Controller
-          name="repeatConsumption"
-          control={control}
-          render={({ field }) => (
-            <FormControlLabel
-              control={<Switch checked={field.value} onChange={field.onChange} />}
-              label="Re-read / Re-watch"
+            <Controller
+              name="rating"
+              control={control}
+              render={({ field }) => (
+                <RatingInput value={field.value ?? undefined} onChange={field.onChange} />
+              )}
             />
-          )}
-        />
+
+            <Controller
+              name="repeatConsumption"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={field.onChange} />}
+                  label="Re-read / Re-watch"
+                />
+              )}
+            />
           </>
         )}
 
@@ -1155,7 +1290,13 @@ export function EntryForm({
               zIndex: 1,
             }}
           >
-            <Button type="submit" variant="contained" size="large" disabled={submitting} fullWidth>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={submitting}
+              fullWidth
+            >
               {submitLabel}
             </Button>
           </Box>

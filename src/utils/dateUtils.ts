@@ -30,3 +30,12 @@ export function isCompletedBeforeStarted(
   if (!startedDate) return false;
   return dayjs(completedDate).isBefore(dayjs(startedDate), 'day');
 }
+
+/** True if `isoDate` falls more than 6 months before today. Used by
+ * EntryForm to decide whether a newly-entered Started date is old
+ * enough that Completed should default to match it rather than
+ * defaulting to today — likely backfilling something finished long ago
+ * (David's instruction, Aug 2026). */
+export function isMoreThanSixMonthsAgo(isoDate: string): boolean {
+  return dayjs(isoDate).isBefore(dayjs().subtract(6, 'month'), 'day');
+}

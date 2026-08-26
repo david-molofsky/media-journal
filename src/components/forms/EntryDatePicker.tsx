@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import type { FieldSelectedSections } from '@mui/x-date-pickers/models';
 
 interface EntryDatePickerProps {
   label: string;
@@ -47,6 +49,11 @@ export function EntryDatePicker({
   const minDate = dayjs().subtract(YEAR_RANGE_SPAN, 'year').startOf('year');
   const maxDate = dayjs().add(YEAR_RANGE_SPAN, 'year').endOf('year');
 
+  // Tracks which section is currently selected so the very first tap
+  // into an unfocused field can be forced onto Day (see below) — `null`
+  // means "unfocused", matching MUI's own convention for this prop.
+  const [selectedSections, setSelectedSections] = useState<FieldSelectedSections>(null);
+
   return (
     <DatePicker
       label={label}
@@ -56,7 +63,40 @@ export function EntryDatePicker({
       maxDate={maxDate}
       value={value ? dayjs(value) : null}
       onChange={(newValue: Dayjs | null) => {
-        onChange(newValue && newValue.isValid() ? newValue.format('YYYY-MM-DD') : undefined);
+        // Only propagate a genuine clear (`null`, e.g. the field's own
+        // clear button) or a fully-typed, valid date. A date that's
+        // merely mid-edit — some sections filled in, others not yet —
+        // also comes through as non-null-but-invalid on every keystroke;
+        // previously that was treated the same as a clear and wiped the
+        // field back to blank underneath whatever the user had already
+        // typed (see chat, Aug 2026 — "Completed dates not being
+        // accepted/input properly"). Silently ignoring that transient
+        // state instead leaves `value` (and therefore what's displayed)
+        // untouched until typing actually finishes.
+        if (newValue === null) {
+          onChange(undefined);
+          return;
+        }
+        if (newValue.isValid()) {
+          onChange(newValue.format('YYYY-MM-DD'));
+        }
+      }}
+      selectedSections={selectedSections}
+      onSelectedSectionsChange={(newSections) => {
+        // MUI's own default lands the very first tap into an unfocused
+        // field on the Year section rather than Day (confirmed via
+        // screen recording, Aug 2026 — happens on both empty and
+        // already-filled fields). Override just that one transition:
+        // unfocused (`null`) -> newly selecting something that isn't
+        // Day. A direct, explicit tap on a specific section while the
+        // field is already focused is a later, separate change and is
+        // left alone, so re-editing e.g. just the year still works
+        // normally once you're in the field.
+        if (selectedSections === null && newSections !== null && newSections !== 'day') {
+          setSelectedSections('day');
+          return;
+        }
+        setSelectedSections(newSections);
       }}
       slotProps={{
         textField: {
@@ -64,7 +104,13 @@ export function EntryDatePicker({
           required,
           error,
           helperText,
-          onBlur,
+          onBlur: () => {
+            // Unfocusing resets the "just focused" tracking above, so
+            // the next tap into the field is treated as a fresh focus
+            // again rather than as a continuation of this session.
+            setSelectedSections(null);
+            onBlur?.();
+          },
         },
       }}
     />
