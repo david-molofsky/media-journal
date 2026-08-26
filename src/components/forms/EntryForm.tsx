@@ -687,6 +687,108 @@ export function EntryForm({
               )}
             />
           )}
+          {/* ComicVine credits/cover date/cover image need a specific
+              issue number, which isn't known at search time (the
+              search box above only resolves the series) — so this is
+              a deliberate second step, enabled once both a series has
+              been selected via search and an issue number is typed
+              further down in Media Details. Positioned just above the
+              cover image (David's instruction, Aug 2026) rather than
+              at the bottom of the form, since fetching is what fills
+              the cover image shown right below it. */}
+          {mediaType.id === 'comic' && (
+            <Box>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={
+                  fetchingIssueDetails ? (
+                    <CircularProgress size={14} />
+                  ) : (
+                    <DownloadOutlinedIcon fontSize="small" />
+                  )
+                }
+                disabled={!comicVineVolumeId || typeof issueStart !== 'number' || fetchingIssueDetails}
+                onClick={async () => {
+                  if (!comicVineVolumeId || typeof issueStart !== 'number') return;
+                  setFetchingIssueDetails(true);
+                  setIssueFetchError(null);
+
+                  // Split into two try/catches deliberately: only a
+                  // failure in the actual network call should produce
+                  // the "Could not reach ComicVine" message. A prior
+                  // version wrapped the setValue loop below in the
+                  // same catch, so any error while writing fetched
+                  // fields into the form got mislabeled as a
+                  // connectivity problem even when the fetch itself
+                  // succeeded (confirmed via Network tab: both
+                  // ComicVine calls returned 200).
+                  let fields: Record<string, string>;
+                  try {
+                    const result = await getIssueDetails(comicVineVolumeId, String(issueStart));
+                    fields = result.fields;
+                  } catch (err) {
+                    console.error('ComicVine issue detail fetch failed:', err);
+                    setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
+                    setFetchingIssueDetails(false);
+                    return;
+                  }
+
+                  if (Object.keys(fields).length === 0) {
+                    setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
+                    setFetchingIssueDetails(false);
+                    return;
+                  }
+
+                  try {
+                    // ComicVine's own values (creator names, issue
+                    // title) are already correctly cased — unlike the
+                    // TMDB onFill path above, this doesn't run values
+                    // through toTitleCase.
+                    for (const [key, value] of Object.entries(fields)) {
+                      setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
+                        shouldValidate: true,
+                      });
+                    }
+                  } catch (err) {
+                    console.error('ComicVine issue detail fetch succeeded, but filling the form failed:', err);
+                    setIssueFetchError(
+                      'ComicVine details were fetched, but something went wrong filling in the form. Check the console for details.',
+                    );
+                  } finally {
+                    setFetchingIssueDetails(false);
+                  }
+                }}
+              >
+                Fetch issue details from ComicVine
+              </Button>
+              {/* Two distinct prompts depending on what's missing — a
+                  series (search box directly above) or an issue number
+                  (Issue Start field, further down in Media Details,
+                  since the button now sits above the cover image
+                  rather than next to that field). Previously this only
+                  ever mentioned the series, so someone who'd already
+                  searched but not yet typed an issue number saw no
+                  explanation at all for why the button stayed
+                  disabled. */}
+              {!comicVineVolumeId ? (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  Search for the series above to enable this.
+                </Typography>
+              ) : (
+                typeof issueStart !== 'number' && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    Enter an issue number in Media Details below, then come back up here to fetch.
+                  </Typography>
+                )
+              )}
+              {issueFetchError && (
+                <Alert severity="warning" variant="outlined" sx={{ mt: 1 }}>
+                  {issueFetchError}
+                </Alert>
+              )}
+            </Box>
+          )}
           {(hasCoverValue || showAddCoverButton) && (
             <Stack direction="row" alignItems="center" spacing={1}>
               {hasCoverValue && !coverImageFailed ? (
@@ -874,89 +976,6 @@ export function EntryForm({
                   {comicIssueCount(issueStart, issueEnd) === 1 ? '' : 's'}.
                 </Alert>
               )}
-            {/* ComicVine credits/cover date/cover image need a specific
-                issue number, which isn't known at search time (the
-                search box above only resolves the series) — so this is
-                a deliberate second step, enabled once both a series has
-                been selected via search and an issue number is typed. */}
-            {mediaType.id === 'comic' && (
-              <Box>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={
-                    fetchingIssueDetails ? (
-                      <CircularProgress size={14} />
-                    ) : (
-                      <DownloadOutlinedIcon fontSize="small" />
-                    )
-                  }
-                  disabled={!comicVineVolumeId || typeof issueStart !== 'number' || fetchingIssueDetails}
-                  onClick={async () => {
-                    if (!comicVineVolumeId || typeof issueStart !== 'number') return;
-                    setFetchingIssueDetails(true);
-                    setIssueFetchError(null);
-
-                    // Split into two try/catches deliberately: only a
-                    // failure in the actual network call should produce
-                    // the "Could not reach ComicVine" message. A prior
-                    // version wrapped the setValue loop below in the
-                    // same catch, so any error while writing fetched
-                    // fields into the form got mislabeled as a
-                    // connectivity problem even when the fetch itself
-                    // succeeded (confirmed via Network tab: both
-                    // ComicVine calls returned 200).
-                    let fields: Record<string, string>;
-                    try {
-                      const result = await getIssueDetails(comicVineVolumeId, String(issueStart));
-                      fields = result.fields;
-                    } catch (err) {
-                      console.error('ComicVine issue detail fetch failed:', err);
-                      setIssueFetchError('Could not reach ComicVine. Check your connection and try again.');
-                      setFetchingIssueDetails(false);
-                      return;
-                    }
-
-                    if (Object.keys(fields).length === 0) {
-                      setIssueFetchError(`No ComicVine match found for issue #${issueStart} in this series.`);
-                      setFetchingIssueDetails(false);
-                      return;
-                    }
-
-                    try {
-                      // ComicVine's own values (creator names, issue
-                      // title) are already correctly cased — unlike the
-                      // TMDB onFill path above, this doesn't run values
-                      // through toTitleCase.
-                      for (const [key, value] of Object.entries(fields)) {
-                        setValue(`metadata.${key}` as 'metadata', value as unknown as EntryMetadata, {
-                          shouldValidate: true,
-                        });
-                      }
-                    } catch (err) {
-                      console.error('ComicVine issue detail fetch succeeded, but filling the form failed:', err);
-                      setIssueFetchError(
-                        'ComicVine details were fetched, but something went wrong filling in the form. Check the console for details.',
-                      );
-                    } finally {
-                      setFetchingIssueDetails(false);
-                    }
-                  }}
-                >
-                  Fetch issue details from ComicVine
-                </Button>
-                {!comicVineVolumeId && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                    Search for the series above, then enter an issue number, to enable this.
-                  </Typography>
-                )}
-                {issueFetchError && (
-                  <Alert severity="warning" variant="outlined" sx={{ mt: 1 }}>
-                    {issueFetchError}
-                  </Alert>
-                )}
-              </Box>
-            )}
             {mediaType.id === 'tv' &&
               typeof episodeStart === 'number' &&
               typeof episodeEnd === 'number' &&
