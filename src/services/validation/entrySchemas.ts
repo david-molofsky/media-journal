@@ -322,6 +322,15 @@ const gameMetadataSchema = z.object({
   completionPercent: z.coerce.number().min(0).max(100).optional(),
   achievementsEarned: z.coerce.number().min(0).optional(),
   achievementsTotal: z.coerce.number().min(0).optional(),
+  // Cover image / poster — BUG FIX (see chat, Aug 2026, "don't remove
+  // images if they're already there"): every other media type declares
+  // these (see matching comment on filmMetadataSchema/bookMetadataSchema),
+  // but Game never did, even though EntryForm.tsx's "Add cover image"
+  // UI isn't type-gated and lets you set one on any entry. Without this,
+  // a Game entry's manually-added cover image was silently stripped by
+  // this schema on every single save, not just Convert.
+  coverImagePath: z.string().optional(),
+  posterPath: z.string().optional(),
 });
 
 const genericMetadataSchema = z.record(

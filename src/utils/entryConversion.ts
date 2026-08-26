@@ -1,4 +1,5 @@
 import type { EntryMetadata } from '@/models';
+import { resolvePosterPathUrl } from '@/utils/entryImage';
 
 /**
  * Canonical "roles" that metadata fields across different media types
@@ -15,6 +16,19 @@ import type { EntryMetadata } from '@/models';
  * `runtime` are both minutes). Fields with no natural equivalent
  * elsewhere (Comic's `penciller`, TV's `network`, ...) are left
  * roleless — they never carry over, in either direction.
+ *
+ * Cover images (`posterPath`/`coverImagePath`) are deliberately NOT
+ * part of this role system — see the dedicated step at the end of
+ * convertMetadata below. Every media type can end up with one (the
+ * cover image UI in EntryForm.tsx isn't type-gated) regardless of
+ * whether its own field list mentions either key, so image handling
+ * always runs unconditionally instead of needing a per-type role entry
+ * that's easy to forget for a new or custom type. `posterPath` is a
+ * raw TMDB path fragment rather than a full URL, so converting *to* a
+ * type with no `posterPath` field of its own (anything but Film/TV)
+ * resolves it to a full URL first — see resolvePosterPathUrl,
+ * entryImage.ts — rather than copying an unusable fragment into
+ * `coverImagePath`, which every other type treats as already-complete.
  */
 export type FieldRole =
   | 'creator'
@@ -25,8 +39,7 @@ export type FieldRole =
   | 'unitStart'
   | 'unitEnd'
   | 'runtime'
-  | 'overview'
-  | 'posterPath';
+  | 'overview';
 
 /** metadata field key -> role, per media type id. Kept in sync with
  * defaultMediaTypes.ts's `fields[]` plus the bespoke (non-fields[])
@@ -41,7 +54,6 @@ const FIELD_ROLES: Record<string, Record<string, FieldRole>> = {
     runtime: 'runtime',
     series: 'series',
     overview: 'overview',
-    posterPath: 'posterPath',
   },
   tv: {
     episodeStart: 'unitStart',
@@ -52,7 +64,6 @@ const FIELD_ROLES: Record<string, Record<string, FieldRole>> = {
     runtime: 'runtime',
     series: 'series',
     overview: 'overview',
-    posterPath: 'posterPath',
   },
   comic: {
     series: 'series',
@@ -61,7 +72,12 @@ const FIELD_ROLES: Record<string, Record<string, FieldRole>> = {
     source: 'source',
     writer: 'creator',
   },
-  magazine: { series: 'series', issueStart: 'unitStart', issueEnd: 'unitEnd', source: 'source' },
+  magazine: {
+    series: 'series',
+    issueStart: 'unitStart',
+    issueEnd: 'unitEnd',
+    source: 'source',
+  },
   game: { source: 'source' },
   podcast: { source: 'source' },
   art: { source: 'source' },
@@ -132,9 +148,72 @@ export function convertMetadata(
     }
   }
 
+  // Cover image is stored under one of two universal keys regardless of
+  // media type — `posterPath` (a TMDB path fragment, Film/TV only) or
+  // `coverImagePath` (a complete hosted URL, every type) — and
+  // getEntryImageUrl (entryImage.ts) reads both the same way for every
+  // type. Handled independently of the role system above, and
+  // regardless of whether either type's field list even mentions them:
+  // images shouldn't be dropped on convert just because a type has no
+  // explicit role mapping for them (David's instruction, Aug 2026 —
+  // "don't remove images if they're already there").
+  const removeFromBlank = (key: string) => {
+    const index = blank.indexOf(key);
+    if (index !== -1) blank.splice(index, 1);
+  };
+  const sourcePosterPath =
+    typeof sourceMetadata['posterPath'] === 'string' && sourceMetadata['posterPath']
+      ? sourceMetadata['posterPath']
+      : undefined;
+  const sourceCoverImagePath =
+    typeof sourceMetadata['coverImagePath'] === 'string' &&
+    sourceMetadata['coverImagePath']
+      ? sourceMetadata['coverImagePath']
+      : undefined;
+  // Only Film/TV's field lists include `posterPath` at all (see
+  // BESPOKE_FIELD_KEYS, EditEntryPage.tsx) — every other type only
+  // understands `coverImagePath`, a complete URL, so a raw TMDB path
+  // fragment can't just be copied across verbatim to one of those; it
+  // has to be resolved to a full URL first (below).
+  const targetSupportsPosterPath = targetFieldKeys.includes('posterPath');
+
+  if (
+    targetSupportsPosterPath &&
+    sourcePosterPath &&
+    metadata['posterPath'] === undefined
+  ) {
+    metadata['posterPath'] = sourcePosterPath;
+    matchedSourceKeys.add('posterPath');
+    carried.push({ targetKey: 'posterPath', sourceKey: 'posterPath' });
+    removeFromBlank('posterPath');
+  }
+
+  if (
+    targetFieldKeys.includes('coverImagePath') &&
+    metadata['coverImagePath'] === undefined
+  ) {
+    if (!targetSupportsPosterPath && sourcePosterPath) {
+      // Target has no posterPath field of its own — resolve the
+      // fragment to a full URL (same size/base as the share-card
+      // poster, entryImage.ts) so it lands somewhere the target type
+      // can actually display and re-save without losing it again.
+      metadata['coverImagePath'] = resolvePosterPathUrl(sourcePosterPath, 'poster');
+      matchedSourceKeys.add('posterPath');
+      renamed.push({ targetKey: 'coverImagePath', sourceKey: 'posterPath' });
+      removeFromBlank('coverImagePath');
+    } else if (sourceCoverImagePath) {
+      metadata['coverImagePath'] = sourceCoverImagePath;
+      matchedSourceKeys.add('coverImagePath');
+      carried.push({ targetKey: 'coverImagePath', sourceKey: 'coverImagePath' });
+      removeFromBlank('coverImagePath');
+    }
+  }
+
   const dropped = Object.keys(sourceMetadata).filter(
     (key) =>
-      sourceMetadata[key] !== undefined && sourceMetadata[key] !== '' && !matchedSourceKeys.has(key),
+      sourceMetadata[key] !== undefined &&
+      sourceMetadata[key] !== '' &&
+      !matchedSourceKeys.has(key),
   );
 
   return { carried, renamed, dropped, blank, metadata };

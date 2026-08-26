@@ -14,6 +14,19 @@ const TMDB_IMAGE_BASE: Record<EntryImageSize, string> = {
 
 export type EntryImageSize = 'thumb' | 'poster';
 
+/** Turns a raw TMDB `posterPath` path fragment (e.g. "/abc123.jpg")
+ * into a complete, standalone, hosted URL at the given size. Exported
+ * separately from getEntryImageUrl below so entryConversion.ts's
+ * Convert step can produce a real, storable URL for a target media
+ * type that only understands `coverImagePath` (a complete URL) and
+ * has no `posterPath` field of its own — see the comment there. */
+export function resolvePosterPathUrl(
+  posterPath: string,
+  size: EntryImageSize = 'poster',
+): string {
+  return `${TMDB_IMAGE_BASE[size]}${posterPath}`;
+}
+
 /**
  * Resolves the poster/cover image URL for an entry, if it has one (see
  * chat — replacing EntryCard's icon with a poster thumbnail, later
@@ -38,7 +51,7 @@ export function getEntryImageUrl(
 ): string | undefined {
   const posterPath = entry.metadata.posterPath;
   if (typeof posterPath === 'string' && posterPath) {
-    return `${TMDB_IMAGE_BASE[size]}${posterPath}`;
+    return resolvePosterPathUrl(posterPath, size);
   }
 
   const coverImagePath = entry.metadata.coverImagePath;

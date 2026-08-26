@@ -31,11 +31,7 @@ import { EntryForm } from '@/components/forms/EntryForm';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import {
-  updateEntry,
-  deleteEntry,
-  listEntries,
-} from '@/services/database/entryService';
+import { updateEntry, deleteEntry, listEntries } from '@/services/database/entryService';
 import { convertMetadata } from '@/utils/entryConversion';
 import { relogButtonLabel } from '@/utils/relogLabel';
 import { todayIso } from '@/utils/dateUtils';
@@ -52,9 +48,18 @@ const IMPORTED_TAG_PREFIX = 'imported from ';
 
 /** Metadata keys that exist per-type but aren't in defaultMediaTypes.ts's
  * `fields[]` (they get bespoke UI in EntryForm — poster thumbnail,
- * cover image, Overview block) yet are still valid, mappable schema
- * keys. Included here so conversion between e.g. Film and TV carries
- * Overview/poster over like any other shared-role field. */
+ * Overview block) yet are still valid, mappable schema keys. Included
+ * here so conversion between e.g. Film and TV carries Overview/poster
+ * over like any other shared-role field.
+ *
+ * Cover image (`coverImagePath`) is deliberately NOT listed per-type
+ * here — metadataFieldsFor appends it for every media type below,
+ * since the "Add cover image" UI in EntryForm.tsx isn't type-gated and
+ * any type (including a custom one a person adds in Settings) can end
+ * up with one set. Listing it per-type here would mean a type missing
+ * from this map loses its cover image's label in the Convert dialog —
+ * and, before entryConversion.ts's fix (Aug 2026, "don't remove images
+ * if they're already there"), the image itself too. */
 const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
   film: [
     { key: 'overview', label: 'Overview' },
@@ -66,16 +71,15 @@ const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
     { key: 'posterPath', label: 'Poster' },
     { key: 'imdbUrl', label: 'IMDb link' },
   ],
-  comic: [
-    { key: 'coverImagePath', label: 'Cover image' },
-    { key: 'comicVineVolumeId', label: 'ComicVine link' },
-  ],
-  book: [{ key: 'coverImagePath', label: 'Cover image' }],
-  audiobook: [{ key: 'coverImagePath', label: 'Cover image' }],
+  comic: [{ key: 'comicVineVolumeId', label: 'ComicVine link' }],
 };
 
 function metadataFieldsFor(mediaType: MediaType): { key: string; label: string }[] {
-  return [...mediaType.fields.map((f) => ({ key: f.key, label: f.label })), ...(BESPOKE_FIELD_KEYS[mediaType.id] ?? [])];
+  return [
+    ...mediaType.fields.map((f) => ({ key: f.key, label: f.label })),
+    ...(BESPOKE_FIELD_KEYS[mediaType.id] ?? []),
+    { key: 'coverImagePath', label: 'Cover image' },
+  ];
 }
 
 /** "A, B and 3 others" once past `max` items, so the convert-confirm
@@ -137,7 +141,9 @@ export default function EditEntryPage() {
     if (!entry) return [];
     const all = await listEntries({}, 'completedDateDesc');
     return all.filter(
-      (candidate) => candidate.id !== entry.id && candidate.title.toLowerCase() === entry.title.toLowerCase(),
+      (candidate) =>
+        candidate.id !== entry.id &&
+        candidate.title.toLowerCase() === entry.title.toLowerCase(),
     );
   }, [entry?.id, entry?.title]);
 
@@ -199,7 +205,9 @@ export default function EditEntryPage() {
       rating: undefined,
       notes: '',
       repeatConsumption: true,
-      tags: (entry.tags ?? []).filter((tag) => !tag.trim().toLowerCase().startsWith(IMPORTED_TAG_PREFIX)),
+      tags: (entry.tags ?? []).filter(
+        (tag) => !tag.trim().toLowerCase().startsWith(IMPORTED_TAG_PREFIX),
+      ),
       genres: entry.genres ?? [],
       metadata: entry.metadata,
     };
@@ -214,7 +222,9 @@ export default function EditEntryPage() {
   // pair avoids offering a conversion that immediately locks the entry
   // behind "Media type unavailable" (see placeholder above).
   const convertCandidates = mediaTypes.filter((t) => t.id !== entry.mediaType);
-  const convertTargetType = convertTargetId ? mediaTypes.find((t) => t.id === convertTargetId) : undefined;
+  const convertTargetType = convertTargetId
+    ? mediaTypes.find((t) => t.id === convertTargetId)
+    : undefined;
 
   const conversionPreview =
     rawMediaType && convertTargetType
@@ -230,12 +240,17 @@ export default function EditEntryPage() {
     ? Object.fromEntries(metadataFieldsFor(rawMediaType).map((f) => [f.key, f.label]))
     : {};
   const targetFieldLabels = convertTargetType
-    ? Object.fromEntries(metadataFieldsFor(convertTargetType).map((f) => [f.key, f.label]))
+    ? Object.fromEntries(
+        metadataFieldsFor(convertTargetType).map((f) => [f.key, f.label]),
+      )
     : {};
 
   const handleConvert = async () => {
     if (!convertTargetType || !conversionPreview) return;
-    await updateEntry(entry.id, { mediaType: convertTargetType.id, metadata: conversionPreview.metadata });
+    await updateEntry(entry.id, {
+      mediaType: convertTargetType.id,
+      metadata: conversionPreview.metadata,
+    });
     setConvertTargetId(null);
   };
 
@@ -251,7 +266,10 @@ export default function EditEntryPage() {
     // (delete/convert dialogs left open) from the previous entry.
     <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton aria-label="Back to library" onClick={() => navigate(ROUTES.library, { state: incomingFilters })}>
+        <IconButton
+          aria-label="Back to library"
+          onClick={() => navigate(ROUTES.library, { state: incomingFilters })}
+        >
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h6" component="h1" fontWeight={600}>
@@ -331,7 +349,9 @@ export default function EditEntryPage() {
                       <ListItemText
                         primary={previous.completedDate}
                         secondary={
-                          previous.rating !== undefined ? `Rated ${previous.rating}/10` : 'Not rated'
+                          previous.rating !== undefined
+                            ? `Rated ${previous.rating}/10`
+                            : 'Not rated'
                         }
                       />
                     </ListItemButton>
@@ -357,7 +377,9 @@ export default function EditEntryPage() {
             }}
           >
             <ListItemIcon>
-              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }} />
+              <Box
+                sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }}
+              />
             </ListItemIcon>
             <ListItemText>{type.displayName}</ListItemText>
           </MenuItem>
@@ -379,18 +401,24 @@ export default function EditEntryPage() {
               ))}
               {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
                 <Typography key={targetKey} variant="body2" color="text.secondary">
-                  {sourceFieldLabels[sourceKey] ?? sourceKey} becomes {targetFieldLabels[targetKey] ?? targetKey}
+                  {sourceFieldLabels[sourceKey] ?? sourceKey} becomes{' '}
+                  {targetFieldLabels[targetKey] ?? targetKey}
                 </Typography>
               ))}
               {conversionPreview.dropped.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key))} won't
-                  carry over
+                  {formatFieldList(
+                    conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key),
+                  )}{' '}
+                  won't carry over
                 </Typography>
               )}
               {conversionPreview.blank.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key))} start
+                  {formatFieldList(
+                    conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key),
+                  )}{' '}
+                  start
                   {conversionPreview.blank.length === 1 ? 's' : ''} blank
                 </Typography>
               )}
@@ -407,7 +435,8 @@ export default function EditEntryPage() {
         <DialogTitle>Delete this entry?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes “{entry.title}” from your library. This can't be undone.
+            This permanently removes “{entry.title}” from your library. This can't be
+            undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
