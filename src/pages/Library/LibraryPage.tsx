@@ -29,7 +29,10 @@ import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useAvailableGenres } from '@/hooks/useAvailableGenres';
 import { useAvailableSources } from '@/hooks/useAvailableSources';
 import { FilterChip, type FilterChipOption } from '@/components/library/FilterChip';
-import { MultiFilterChip } from '@/components/library/MultiFilterChip';
+import {
+  MultiFilterChip,
+  type TriStateSelection,
+} from '@/components/library/MultiFilterChip';
 import { EntryCard } from '@/components/library/EntryCard';
 import { SeriesView } from '@/components/library/SeriesView';
 import { BulkActionBar } from '@/components/library/BulkActionBar';
@@ -50,8 +53,24 @@ import type { EntryStatus, MediaEntry, MediaType } from '@/models';
 import { todayIso } from '@/utils/dateUtils';
 import dayjs from 'dayjs';
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTH_OPTIONS: FilterChipOption[] = MONTH_NAMES.map((name, index) => ({ label: name, value: String(index + 1) }));
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const MONTH_OPTIONS: FilterChipOption[] = MONTH_NAMES.map((name, index) => ({
+  label: name,
+  value: String(index + 1),
+}));
 
 const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
   { label: 'My Order', value: 'wishlistOrderAsc' },
@@ -96,7 +115,11 @@ function defaultSortForStatus(status: EntryStatus): EntrySortOrder {
 // Ordered Wishlist -> In Progress -> Completed (not alphabetical or DB
 // order) so an entry visually progresses left-to-right as it advances
 // through its lifecycle — see chat, Aug 2026.
-const STATUS_TABS: { value: EntryStatus; label: string; Icon: typeof CheckCircleOutlineIcon }[] = [
+const STATUS_TABS: {
+  value: EntryStatus;
+  label: string;
+  Icon: typeof CheckCircleOutlineIcon;
+}[] = [
   { value: 'wishlist', label: 'Wishlist', Icon: StarBorderIcon },
   { value: 'in_progress', label: 'In Progress', Icon: PlayArrowIcon },
   { value: 'completed', label: 'Completed', Icon: CheckCircleOutlineIcon },
@@ -106,9 +129,13 @@ export interface LibraryFilterRequest {
   year?: number;
   month?: number;
   mediaTypeIds?: string[];
+  mediaTypeIdsExclude?: string[];
   tags?: string[];
+  tagsExclude?: string[];
   genres?: string[];
+  genresExclude?: string[];
   sources?: string[];
+  sourcesExclude?: string[];
   searchText?: string;
   status?: EntryStatus;
 }
@@ -131,7 +158,10 @@ function buildGroups(
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(entry);
     }
-    return Array.from(map.entries()).map(([header, group]) => ({ header, entries: group }));
+    return Array.from(map.entries()).map(([header, group]) => ({
+      header,
+      entries: group,
+    }));
   }
   if (sort === 'byType') {
     const map = new Map<string, MediaEntry[]>();
@@ -172,7 +202,9 @@ export default function LibraryPage() {
   const [statusTab, setStatusTab] = useState<EntryStatus>(
     incoming?.status ?? restored?.statusTab ?? 'wishlist',
   );
-  const [searchText, setSearchText] = useState(incoming?.searchText ?? restored?.searchText ?? '');
+  const [searchText, setSearchText] = useState(
+    incoming?.searchText ?? restored?.searchText ?? '',
+  );
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [year, setYear] = useState<string | undefined>(
     incoming?.year ? String(incoming.year) : restored?.year,
@@ -183,15 +215,33 @@ export default function LibraryPage() {
   const [mediaTypeIds, setMediaTypeIds] = useState<string[]>(
     incoming?.mediaTypeIds ?? restored?.mediaTypeIds ?? [],
   );
+  const [mediaTypeIdsExclude, setMediaTypeIdsExclude] = useState<string[]>(
+    incoming?.mediaTypeIdsExclude ?? restored?.mediaTypeIdsExclude ?? [],
+  );
   const [tags, setTags] = useState<string[]>(incoming?.tags ?? restored?.tags ?? []);
-  const [genres, setGenres] = useState<string[]>(incoming?.genres ?? restored?.genres ?? []);
-  const [sources, setSources] = useState<string[]>(incoming?.sources ?? restored?.sources ?? []);
+  const [tagsExclude, setTagsExclude] = useState<string[]>(
+    incoming?.tagsExclude ?? restored?.tagsExclude ?? [],
+  );
+  const [genres, setGenres] = useState<string[]>(
+    incoming?.genres ?? restored?.genres ?? [],
+  );
+  const [genresExclude, setGenresExclude] = useState<string[]>(
+    incoming?.genresExclude ?? restored?.genresExclude ?? [],
+  );
+  const [sources, setSources] = useState<string[]>(
+    incoming?.sources ?? restored?.sources ?? [],
+  );
+  const [sourcesExclude, setSourcesExclude] = useState<string[]>(
+    incoming?.sourcesExclude ?? restored?.sourcesExclude ?? [],
+  );
   const [sort, setSort] = useState<EntrySortOrder>(
     incoming
       ? defaultSortForStatus(incoming.status ?? 'wishlist')
       : (restored?.sort ?? defaultSortForStatus(restored?.statusTab ?? 'wishlist')),
   );
-  const [viewMode, setViewMode] = useState<'entries' | 'series'>(restored?.viewMode ?? 'entries');
+  const [viewMode, setViewMode] = useState<'entries' | 'series'>(
+    restored?.viewMode ?? 'entries',
+  );
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [reorderMode, setReorderMode] = useState(false);
@@ -219,9 +269,13 @@ export default function LibraryPage() {
     year,
     month,
     mediaTypeIds,
+    mediaTypeIdsExclude,
     tags,
+    tagsExclude,
     genres,
+    genresExclude,
     sources,
+    sourcesExclude,
     sort,
     viewMode,
   });
@@ -232,9 +286,13 @@ export default function LibraryPage() {
       year,
       month,
       mediaTypeIds,
+      mediaTypeIdsExclude,
       tags,
+      tagsExclude,
       genres,
+      genresExclude,
       sources,
+      sourcesExclude,
       sort,
       viewMode,
     };
@@ -257,11 +315,54 @@ export default function LibraryPage() {
       return;
     }
     window.scrollTo(0, 0);
-  }, [statusTab, searchText, year, month, mediaTypeIds, tags, genres, sources, sort]);
+  }, [
+    statusTab,
+    searchText,
+    year,
+    month,
+    mediaTypeIds,
+    mediaTypeIdsExclude,
+    tags,
+    tagsExclude,
+    genres,
+    genresExclude,
+    sources,
+    sourcesExclude,
+    sort,
+  ]);
 
   const hasActiveFilters = Boolean(
-    year || month || mediaTypeIds.length > 0 || tags.length > 0 || genres.length > 0 || sources.length > 0 || searchText,
+    year ||
+    month ||
+    mediaTypeIds.length > 0 ||
+    mediaTypeIdsExclude.length > 0 ||
+    tags.length > 0 ||
+    tagsExclude.length > 0 ||
+    genres.length > 0 ||
+    genresExclude.length > 0 ||
+    sources.length > 0 ||
+    sourcesExclude.length > 0 ||
+    searchText,
   );
+
+  /** Resets search text and every filter (both Include and Exclude
+   * sides of Type/Source/Genre/Tag, plus Year/Month) back to nothing.
+   * Distinct from each chip's own "Clear" link, which only clears that
+   * one category — this clears the whole page in one tap (see chat,
+   * Aug 2026). */
+  const clearAllFilters = () => {
+    setSearchText('');
+    setYear(undefined);
+    setMonth(undefined);
+    setMediaTypeIds([]);
+    setMediaTypeIdsExclude([]);
+    setTags([]);
+    setTagsExclude([]);
+    setGenres([]);
+    setGenresExclude([]);
+    setSources([]);
+    setSourcesExclude([]);
+  };
 
   // Picks up `incoming` on every navigation to this route, not just the
   // first mount. Needed because SeriesView navigates here via
@@ -284,9 +385,13 @@ export default function LibraryPage() {
       setYear(incoming.year ? String(incoming.year) : undefined);
       setMonth(incoming.month ? String(incoming.month) : undefined);
       setMediaTypeIds(incoming.mediaTypeIds ?? []);
+      setMediaTypeIdsExclude(incoming.mediaTypeIdsExclude ?? []);
       setTags(incoming.tags ?? []);
+      setTagsExclude(incoming.tagsExclude ?? []);
       setGenres(incoming.genres ?? []);
+      setGenresExclude(incoming.genresExclude ?? []);
       setSources(incoming.sources ?? []);
+      setSourcesExclude(incoming.sourcesExclude ?? []);
       setStatusTab(incoming.status ?? 'completed');
       setSort(defaultSortForStatus(incoming.status ?? 'completed'));
       // Arriving via a filter always means "show me a matching entries
@@ -308,26 +413,59 @@ export default function LibraryPage() {
   // separately, per-card, since swapping visually-adjacent filtered
   // items isn't meaningful against true full-list order — see
   // renderCard below). Still requires Wishlist tab + "My Order" sort.
-  const isReordering = reorderMode && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
+  const isReordering =
+    reorderMode && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
 
   // "Mark finished" dialog
   const [finishEntry, setFinishEntry] = useState<MediaEntry | null>(null);
   const [finishDate, setFinishDate] = useState(todayIso());
   const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
 
-  const toggleSelect = (id: string) => setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) { next.delete(id); } else { next.add(id); } return next; });
-  const clearSelection = () => { setSelectionMode(false); setSelectedIds(new Set()); };
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  const clearSelection = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
 
-  const filter = useMemo(() => ({
-    year: year ? Number(year) : undefined,
-    month: month ? Number(month) : undefined,
-    mediaTypeIds,
-    searchText,
-    tags,
-    genres,
-    sources,
-    status: statusTab,
-  }), [year, month, mediaTypeIds, searchText, tags, genres, sources, statusTab]);
+  const filter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      statusTab,
+    ],
+  );
 
   const entries = useMediaEntries(filter, sort);
 
@@ -355,28 +493,48 @@ export default function LibraryPage() {
   // 12th overall) even while filtered, per the search-while-reordering
   // spec — computing them from the filtered array's own index would
   // silently give the wrong number.
-  const wishlistOrderedEntries = useMediaEntries({ status: 'wishlist' }, 'wishlistOrderAsc');
+  const wishlistOrderedEntries = useMediaEntries(
+    { status: 'wishlist' },
+    'wishlistOrderAsc',
+  );
   const wishlistPositionById = useMemo(
     () => new Map((wishlistOrderedEntries ?? []).map((e, i) => [e.id, i + 1])),
     [wishlistOrderedEntries],
   );
 
-  const yearOptions = useMemo(() => (availableYears ?? []).map((y) => ({ label: String(y), value: String(y) })), [availableYears]);
-  const mediaTypeOptions = useMemo(() => (mediaTypes ?? []).map((t) => ({ label: t.displayName, value: t.id })), [mediaTypes]);
-  const tagOptions = useMemo(() => availableTags.map((t) => ({ label: t, value: t })), [availableTags]);
-  const genreOptions = useMemo(() => availableGenres.map((g) => ({ label: g, value: g })), [availableGenres]);
-  const sourceOptions = useMemo(() => availableSources.map((s) => ({ label: s, value: s })), [availableSources]);
+  const yearOptions = useMemo(
+    () => (availableYears ?? []).map((y) => ({ label: String(y), value: String(y) })),
+    [availableYears],
+  );
+  const mediaTypeOptions = useMemo(
+    () => (mediaTypes ?? []).map((t) => ({ label: t.displayName, value: t.id })),
+    [mediaTypes],
+  );
+  const tagOptions = useMemo(
+    () => availableTags.map((t) => ({ label: t, value: t })),
+    [availableTags],
+  );
+  const genreOptions = useMemo(
+    () => availableGenres.map((g) => ({ label: g, value: g })),
+    [availableGenres],
+  );
+  const sourceOptions = useMemo(
+    () => availableSources.map((s) => ({ label: s, value: s })),
+    [availableSources],
+  );
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
-  const groups = viewMode === 'entries' ? buildGroups(entries, sort, mediaTypeById) : null;
+  const groups =
+    viewMode === 'entries' ? buildGroups(entries, sort, mediaTypeById) : null;
 
   // Select all / Deselect all operates on every entry the current
   // filters + search resolve to — not just whichever group is
   // scrolled into view when sorted by month or by type — since the
   // whole point (per David) is "filter to a given month of films,
   // then select all of them" in one step.
-  const allVisibleSelected = entries.length > 0 && entries.every((e) => selectedIds.has(e.id));
+  const allVisibleSelected =
+    entries.length > 0 && entries.every((e) => selectedIds.has(e.id));
   const toggleSelectAll = () => {
     setSelectedIds(allVisibleSelected ? new Set() : new Set(entries.map((e) => e.id)));
   };
@@ -395,7 +553,9 @@ export default function LibraryPage() {
   // an inactive tab's true filtered count isn't known without running
   // its filters, and showing its unfiltered total avoids implying a
   // filter applies where none has been set for that tab.
-  const tabCount = (tab: EntryStatus): { count: number | undefined; filteredOf: number | undefined } => {
+  const tabCount = (
+    tab: EntryStatus,
+  ): { count: number | undefined; filteredOf: number | undefined } => {
     const total = tabTotal(tab);
     if (tab === statusTab && hasActiveFilters) {
       return { count: entries.length, filteredOf: total };
@@ -405,24 +565,48 @@ export default function LibraryPage() {
 
   const handleMarkFinished = async () => {
     if (!finishEntry) return;
-    await updateEntryStatus(finishEntry.id, 'completed', finishDate || todayIso(), finishRating);
+    await updateEntryStatus(
+      finishEntry.id,
+      'completed',
+      finishDate || todayIso(),
+      finishRating,
+    );
     setFinishEntry(null);
     setFinishRating(undefined);
   };
 
-  const statusPlaceholder = statusTab === 'in_progress'
-    ? { title: 'Nothing in progress', description: "Use ▶ In Progress when adding an entry to track what you've started." }
-    : statusTab === 'wishlist'
-    ? { title: 'Wishlist is empty', description: "Use ★ Wishlist when adding an entry to save things for later." }
-    : { title: hasActiveFilters ? 'No matching entries' : 'Start building your Media Journal', description: hasActiveFilters ? 'Try adjusting or clearing your filters.' : "Finished entries will appear here." };
+  const statusPlaceholder =
+    statusTab === 'in_progress'
+      ? {
+          title: 'Nothing in progress',
+          description:
+            "Use ▶ In Progress when adding an entry to track what you've started.",
+        }
+      : statusTab === 'wishlist'
+        ? {
+            title: 'Wishlist is empty',
+            description: 'Use ★ Wishlist when adding an entry to save things for later.',
+          }
+        : {
+            title: hasActiveFilters
+              ? 'No matching entries'
+              : 'Start building your Media Journal',
+            description: hasActiveFilters
+              ? 'Try adjusting or clearing your filters.'
+              : 'Finished entries will appear here.',
+          };
 
   const currentFilterState: LibraryFilterRequest = {
     year: year ? Number(year) : undefined,
     month: month ? Number(month) : undefined,
     mediaTypeIds,
+    mediaTypeIdsExclude,
     tags,
+    tagsExclude,
     genres,
+    genresExclude,
     sources,
+    sourcesExclude,
     searchText,
     status: statusTab,
   };
@@ -432,11 +616,31 @@ export default function LibraryPage() {
       key={entry.id}
       entry={entry}
       mediaType={mediaTypeById.get(entry.mediaType)}
-      onOpen={() => selectionMode ? toggleSelect(entry.id) : navigate(entryDetailPath(entry.id), { state: currentFilterState })}
+      onOpen={() =>
+        selectionMode
+          ? toggleSelect(entry.id)
+          : navigate(entryDetailPath(entry.id), { state: currentFilterState })
+      }
       selected={selectionMode ? selectedIds.has(entry.id) : undefined}
-      onMarkFinished={entry.status !== 'completed' ? () => { setFinishDate(todayIso()); setFinishRating(undefined); setFinishEntry(entry); } : undefined}
-      onStartTracking={entry.status === 'wishlist' ? () => updateEntryStatus(entry.id, 'in_progress') : undefined}
-      onMoveToWishlist={entry.status === 'in_progress' ? () => updateEntryStatus(entry.id, 'wishlist') : undefined}
+      onMarkFinished={
+        entry.status !== 'completed'
+          ? () => {
+              setFinishDate(todayIso());
+              setFinishRating(undefined);
+              setFinishEntry(entry);
+            }
+          : undefined
+      }
+      onStartTracking={
+        entry.status === 'wishlist'
+          ? () => updateEntryStatus(entry.id, 'in_progress')
+          : undefined
+      }
+      onMoveToWishlist={
+        entry.status === 'in_progress'
+          ? () => updateEntryStatus(entry.id, 'wishlist')
+          : undefined
+      }
       reorder={
         isReordering
           ? {
@@ -452,15 +656,20 @@ export default function LibraryPage() {
                 ? undefined
                 : (() => {
                     const prev = entries[index - 1];
-                    return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
+                    return prev
+                      ? () => void swapWishlistOrder(entry.id, prev.id)
+                      : undefined;
                   })(),
               onMoveDown: hasActiveFilters
                 ? undefined
                 : (() => {
                     const next = entries[index + 1];
-                    return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
+                    return next
+                      ? () => void swapWishlistOrder(entry.id, next.id)
+                      : undefined;
                   })(),
-              onJumpToPosition: (newPosition) => void jumpWishlistOrder(entry.id, newPosition),
+              onJumpToPosition: (newPosition) =>
+                void jumpWishlistOrder(entry.id, newPosition),
             }
           : undefined
       }
@@ -471,7 +680,14 @@ export default function LibraryPage() {
     <Box>
       <Tabs
         value={statusTab}
-        onChange={(_, v) => { const next = v as EntryStatus; setStatusTab(next); setSort(defaultSortForStatus(next)); setSelectedIds(new Set()); setSelectionMode(false); setReorderMode(false); }}
+        onChange={(_, v) => {
+          const next = v as EntryStatus;
+          setStatusTab(next);
+          setSort(defaultSortForStatus(next));
+          setSelectedIds(new Set());
+          setSelectionMode(false);
+          setReorderMode(false);
+        }}
         // Note: switching tabs deliberately does NOT clear filters —
         // matches existing single-select behavior (filters persisted
         // across tab changes already; unchanged by multi-select).
@@ -484,7 +700,14 @@ export default function LibraryPage() {
         // badge are unchanged. The active tab is distinguished purely
         // by MUI's built-in selected-tab text colour (primary) plus a
         // bolder weight added below; no underline.
-        sx={{ mb: 2, mx: -2, px: 2, borderBottom: 1, borderColor: 'divider', '& .MuiTabs-indicator': { display: 'none' } }}
+        sx={{
+          mb: 2,
+          mx: -2,
+          px: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          '& .MuiTabs-indicator': { display: 'none' },
+        }}
         variant="fullWidth"
       >
         {STATUS_TABS.map((tab, index) => {
@@ -506,12 +729,24 @@ export default function LibraryPage() {
                   {count !== undefined && (count > 0 || isFiltered) && (
                     <Box
                       sx={{
-                        fontSize: 10, fontWeight: 700,
-                        bgcolor: isFiltered ? 'primary.main' : (tab.value === statusTab ? 'primary.main' : 'action.hover'),
-                        color: isFiltered ? 'primary.contrastText' : (tab.value === statusTab ? 'primary.contrastText' : 'text.secondary'),
+                        fontSize: 10,
+                        fontWeight: 700,
+                        bgcolor: isFiltered
+                          ? 'primary.main'
+                          : tab.value === statusTab
+                            ? 'primary.main'
+                            : 'action.hover',
+                        color: isFiltered
+                          ? 'primary.contrastText'
+                          : tab.value === statusTab
+                            ? 'primary.contrastText'
+                            : 'text.secondary',
                         border: isFiltered ? '1px solid' : undefined,
                         borderColor: isFiltered ? 'primary.light' : undefined,
-                        borderRadius: 10, px: 0.75, py: 0.1, lineHeight: 1.6,
+                        borderRadius: 10,
+                        px: 0.75,
+                        py: 0.1,
+                        lineHeight: 1.6,
                       }}
                     >
                       {isFiltered ? `${count}/${filteredOf}` : count}
@@ -530,11 +765,16 @@ export default function LibraryPage() {
             placeholder="Search by title, author, cast…"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            fullWidth size="small"
+            fullWidth
+            size="small"
             slotProps={{
               htmlInput: { ref: searchInputRef },
               input: {
-                startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment>,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
                 endAdornment: searchText && (
                   <InputAdornment position="end">
                     <IconButton
@@ -571,28 +811,109 @@ export default function LibraryPage() {
               {isReordering ? 'Done' : 'Reorder'}
             </Button>
           )}
-          <Button size="small" variant={selectionMode ? 'contained' : 'outlined'} onClick={() => { setSelectionMode((v) => !v); if (selectionMode) clearSelection(); }} sx={{ flexShrink: 0 }}>
+          <Button
+            size="small"
+            variant={selectionMode ? 'contained' : 'outlined'}
+            onClick={() => {
+              setSelectionMode((v) => !v);
+              if (selectionMode) clearSelection();
+            }}
+            sx={{ flexShrink: 0 }}
+          >
             {selectionMode ? 'Done' : 'Select'}
           </Button>
         </Stack>
 
-        <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5 }}>
-          <FilterChip label="Year" value={year} options={yearOptions} onChange={setYear} />
-          <FilterChip label="Month" value={month} options={MONTH_OPTIONS} onChange={setMonth} />
-          <MultiFilterChip label="Type" values={mediaTypeIds} options={mediaTypeOptions} onChange={setMediaTypeIds} />
-          {sourceOptions.length > 0 && <MultiFilterChip label="Source" values={sources} options={sourceOptions} onChange={setSources} />}
-          {genreOptions.length > 0 && <MultiFilterChip label="Genre" values={genres} options={genreOptions} onChange={setGenres} />}
-          {tagOptions.length > 0 && <MultiFilterChip label="Tag" values={tags} options={tagOptions} onChange={setTags} />}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: 0.5, flex: 1 }}>
+            <FilterChip
+              label="Year"
+              value={year}
+              options={yearOptions}
+              onChange={setYear}
+            />
+            <FilterChip
+              label="Month"
+              value={month}
+              options={MONTH_OPTIONS}
+              onChange={setMonth}
+            />
+            <MultiFilterChip
+              label="Type"
+              value={{ include: mediaTypeIds, exclude: mediaTypeIdsExclude }}
+              options={mediaTypeOptions}
+              onChange={(v: TriStateSelection) => {
+                setMediaTypeIds(v.include);
+                setMediaTypeIdsExclude(v.exclude);
+              }}
+            />
+            {sourceOptions.length > 0 && (
+              <MultiFilterChip
+                label="Source"
+                value={{ include: sources, exclude: sourcesExclude }}
+                options={sourceOptions}
+                onChange={(v: TriStateSelection) => {
+                  setSources(v.include);
+                  setSourcesExclude(v.exclude);
+                }}
+              />
+            )}
+            {genreOptions.length > 0 && (
+              <MultiFilterChip
+                label="Genre"
+                value={{ include: genres, exclude: genresExclude }}
+                options={genreOptions}
+                onChange={(v: TriStateSelection) => {
+                  setGenres(v.include);
+                  setGenresExclude(v.exclude);
+                }}
+              />
+            )}
+            {tagOptions.length > 0 && (
+              <MultiFilterChip
+                label="Tag"
+                value={{ include: tags, exclude: tagsExclude }}
+                options={tagOptions}
+                onChange={(v: TriStateSelection) => {
+                  setTags(v.include);
+                  setTagsExclude(v.exclude);
+                }}
+              />
+            )}
+          </Stack>
+          {hasActiveFilters && (
+            <Button size="small" onClick={clearAllFilters} sx={{ flexShrink: 0 }}>
+              Clear all
+            </Button>
+          )}
         </Stack>
 
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <ToggleButtonGroup size="small" value={viewMode} exclusive onChange={(_, v) => { if (v) setViewMode(v); }}>
-            <ToggleButton value="entries"><ViewListOutlinedIcon fontSize="small" /></ToggleButton>
-            <ToggleButton value="series"><BookmarksOutlinedIcon fontSize="small" /></ToggleButton>
+          <ToggleButtonGroup
+            size="small"
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => {
+              if (v) setViewMode(v);
+            }}
+          >
+            <ToggleButton value="entries">
+              <ViewListOutlinedIcon fontSize="small" />
+            </ToggleButton>
+            <ToggleButton value="series">
+              <BookmarksOutlinedIcon fontSize="small" />
+            </ToggleButton>
           </ToggleButtonGroup>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <Select value={sort} onChange={(e) => setSort(e.target.value as EntrySortOrder)}>
-              {SORT_OPTIONS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
+            <Select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as EntrySortOrder)}
+            >
+              {SORT_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>
+                  {o.label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Stack>
@@ -601,12 +922,28 @@ export default function LibraryPage() {
       {viewMode === 'series' ? (
         <SeriesView entries={entries} mediaTypes={mediaTypes} status={statusTab} />
       ) : entries.length === 0 ? (
-        <PagePlaceholder title={statusPlaceholder.title} description={statusPlaceholder.description} />
+        <PagePlaceholder
+          title={statusPlaceholder.title}
+          description={statusPlaceholder.description}
+        />
       ) : groups ? (
         <Stack spacing={3}>
           {groups.map(({ header, entries: groupEntries }) => (
             <Box key={header}>
-              <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', mb: 1, px: 0.5 }}>{header}</Typography>
+              <Typography
+                variant="caption"
+                fontWeight={700}
+                color="text.secondary"
+                sx={{
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  display: 'block',
+                  mb: 1,
+                  px: 0.5,
+                }}
+              >
+                {header}
+              </Typography>
               <Stack spacing={1.5}>{groupEntries.map(renderCard)}</Stack>
             </Box>
           ))}
@@ -627,7 +964,10 @@ export default function LibraryPage() {
         onDateChange={setFinishDate}
         rating={finishRating}
         onRatingChange={setFinishRating}
-        onCancel={() => { setFinishEntry(null); setFinishRating(undefined); }}
+        onCancel={() => {
+          setFinishEntry(null);
+          setFinishRating(undefined);
+        }}
         onConfirm={handleMarkFinished}
       />
     </Box>

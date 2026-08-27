@@ -1,5 +1,10 @@
 import { db } from './db';
-import type { MediaEntry, NewMediaEntryInput, MediaEntryUpdate, EntryStatus } from '@/models';
+import type {
+  MediaEntry,
+  NewMediaEntryInput,
+  MediaEntryUpdate,
+  EntryStatus,
+} from '@/models';
 import { generateId } from '@/utils/id';
 import { nowIso, yearOf, todayIso } from '@/utils/dateUtils';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
@@ -16,8 +21,7 @@ export async function createEntry(input: NewMediaEntryInput): Promise<MediaEntry
   const entry: MediaEntry = {
     ...input,
     id: generateId(),
-    completedYear:
-      input.completedDate ? yearOf(input.completedDate) : undefined,
+    completedYear: input.completedDate ? yearOf(input.completedDate) : undefined,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -118,7 +122,10 @@ export async function updateEntryStatus(
  * there) — `db.mediaEntries.update()` correctly applies an explicit
  * undefined, same as the completedDate clearing above.
  */
-export async function updateEntryRating(id: string, rating: number | undefined): Promise<void> {
+export async function updateEntryRating(
+  id: string,
+  rating: number | undefined,
+): Promise<void> {
   await db.mediaEntries.update(id, { rating, updatedAt: nowIso() });
 }
 
@@ -152,7 +159,13 @@ export async function deleteEntries(ids: string[]): Promise<void> {
 export async function duplicateEntry(id: string): Promise<MediaEntry> {
   const existing = await db.mediaEntries.get(id);
   if (!existing) throw new Error(`Entry not found: ${id}`);
-  const { id: _id, completedYear: _year, createdAt: _ca, updatedAt: _ua, ...rest } = existing;
+  const {
+    id: _id,
+    completedYear: _year,
+    createdAt: _ca,
+    updatedAt: _ua,
+    ...rest
+  } = existing;
   return createEntry(rest);
 }
 
@@ -216,11 +229,14 @@ export async function normalizeWishlistOrder(): Promise<void> {
   if (missing.length === 0) return;
 
   const alreadyOrdered = wishlist.filter((e) => e.wishlistOrder !== undefined);
-  const nextStart = alreadyOrdered.length > 0
-    ? Math.max(...alreadyOrdered.map((e) => e.wishlistOrder!)) + 1
-    : 0;
+  const nextStart =
+    alreadyOrdered.length > 0
+      ? Math.max(...alreadyOrdered.map((e) => e.wishlistOrder!)) + 1
+      : 0;
 
-  const sortedMissing = [...missing].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const sortedMissing = [...missing].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
   const updates = sortedMissing.map((e, i) => ({ ...e, wishlistOrder: nextStart + i }));
   await db.mediaEntries.bulkPut(updates);
 }
@@ -262,7 +278,11 @@ export async function jumpWishlistOrder(id: string, newPosition: number): Promis
   const clampedIndex = Math.max(0, Math.min(newPosition - 1, ordered.length));
   ordered.splice(clampedIndex, 0, moved);
 
-  const updates = ordered.map((e, i) => ({ ...e, wishlistOrder: i, updatedAt: nowIso() }));
+  const updates = ordered.map((e, i) => ({
+    ...e,
+    wishlistOrder: i,
+    updatedAt: nowIso(),
+  }));
   await db.mediaEntries.bulkPut(updates);
 }
 
@@ -271,19 +291,53 @@ export interface EntryListFilter {
   month?: number;
   /** OR-matched: an entry passes if its mediaType is any of these. */
   mediaTypeIds?: string[];
+  /** An entry is dropped if its mediaType is any of these — checked
+   * before `mediaTypeIds`, see `passesCategory` below. */
+  mediaTypeIdsExclude?: string[];
   searchText?: string;
   /** OR-matched against `tags` — an entry passes if it has any of these. */
   tags?: string[];
+  /** An entry is dropped if it has any of these tags — checked before
+   * `tags`, see `passesCategory` below. */
+  tagsExclude?: string[];
   /** OR-matched against `genres` — an entry passes if it has any of
    * these. Cross-media-type, same shape as Tags. */
   genres?: string[];
+  /** An entry is dropped if it has any of these genres — checked
+   * before `genres`, see `passesCategory` below. */
+  genresExclude?: string[];
   /** OR-matched against `metadata.source` — an entry passes if its
    * source is any of these (e.g. "Netflix", "Audible"). Cross-media-type,
    * like Tags. */
   sources?: string[];
+  /** An entry is dropped if its source is any of these — checked
+   * before `sources`, see `passesCategory` below. */
+  sourcesExclude?: string[];
   /** Defaults to 'completed' when not provided so existing callers
    * (Dashboard, Statistics) see only finished entries. */
   status?: EntryStatus;
+}
+
+/**
+ * Tri-state category filter shared by Type/Source/Genre/Tag on the
+ * Journal page (see chat, Aug 2026 — "Include/Exclude filtering"):
+ * exclusions are checked first and always win; the include rule only
+ * applies — and only requires a match — when at least one value in
+ * the category is set to Include. An entry with none of the
+ * category's values at all (e.g. no genres) passes when nothing is
+ * excluded, but fails an active Include rule just like an entry whose
+ * only value isn't in the Include list.
+ */
+function passesCategory(
+  entryValues: string[],
+  include?: string[],
+  exclude?: string[],
+): boolean {
+  if (exclude && exclude.length > 0 && entryValues.some((v) => exclude.includes(v)))
+    return false;
+  if (include && include.length > 0 && !entryValues.some((v) => include.includes(v)))
+    return false;
+  return true;
 }
 
 export type EntrySortOrder =
@@ -300,7 +354,11 @@ export type EntrySortOrder =
   | 'wishlistOrderAsc';
 
 export const TYPE_SORT_ORDER: Record<string, number> = {
-  book: 0, audiobook: 1, comic: 2, film: 3, tv: 4,
+  book: 0,
+  audiobook: 1,
+  comic: 2,
+  film: 3,
+  tv: 4,
 };
 
 export async function listEntries(
@@ -318,10 +376,7 @@ export async function listEntries(
       .filter((e) => e.status === 'completed')
       .toArray();
   } else {
-    entries = await db.mediaEntries
-      .where('status')
-      .equals(targetStatus)
-      .toArray();
+    entries = await db.mediaEntries.where('status').equals(targetStatus).toArray();
     if (filter.year !== undefined) {
       entries = entries.filter((e) => e.completedYear === filter.year);
     }
@@ -329,13 +384,18 @@ export async function listEntries(
 
   if (filter.month !== undefined) {
     entries = entries.filter(
-      (e) => e.completedDate !== undefined &&
+      (e) =>
+        e.completedDate !== undefined &&
         new Date(e.completedDate).getMonth() + 1 === filter.month,
     );
   }
-  if (filter.mediaTypeIds && filter.mediaTypeIds.length > 0) {
-    const ids = filter.mediaTypeIds;
-    entries = entries.filter((e) => ids.includes(e.mediaType));
+  if (
+    (filter.mediaTypeIds && filter.mediaTypeIds.length > 0) ||
+    (filter.mediaTypeIdsExclude && filter.mediaTypeIdsExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory([e.mediaType], filter.mediaTypeIds, filter.mediaTypeIdsExclude),
+    );
   }
   if (filter.searchText) {
     const needle = filter.searchText.trim().toLowerCase();
@@ -348,17 +408,33 @@ export async function listEntries(
       });
     }
   }
-  if (filter.tags && filter.tags.length > 0) {
-    const tags = filter.tags;
-    entries = entries.filter((e) => (e.tags ?? []).some((t) => tags.includes(t)));
+  if (
+    (filter.tags && filter.tags.length > 0) ||
+    (filter.tagsExclude && filter.tagsExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory(e.tags ?? [], filter.tags, filter.tagsExclude),
+    );
   }
-  if (filter.genres && filter.genres.length > 0) {
-    const genres = filter.genres;
-    entries = entries.filter((e) => (e.genres ?? []).some((g) => genres.includes(g)));
+  if (
+    (filter.genres && filter.genres.length > 0) ||
+    (filter.genresExclude && filter.genresExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory(e.genres ?? [], filter.genres, filter.genresExclude),
+    );
   }
-  if (filter.sources && filter.sources.length > 0) {
-    const sources = filter.sources;
-    entries = entries.filter((e) => typeof e.metadata.source === 'string' && sources.includes(e.metadata.source));
+  if (
+    (filter.sources && filter.sources.length > 0) ||
+    (filter.sourcesExclude && filter.sourcesExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory(
+        typeof e.metadata.source === 'string' ? [e.metadata.source] : [],
+        filter.sources,
+        filter.sourcesExclude,
+      ),
+    );
   }
 
   return sortEntries(entries, sort);
@@ -368,9 +444,13 @@ function sortEntries(entries: MediaEntry[], sort: EntrySortOrder): MediaEntry[] 
   const sorted = [...entries];
   switch (sort) {
     case 'completedDateDesc':
-      return sorted.sort((a, b) => (b.completedDate ?? '').localeCompare(a.completedDate ?? ''));
+      return sorted.sort((a, b) =>
+        (b.completedDate ?? '').localeCompare(a.completedDate ?? ''),
+      );
     case 'completedDateAsc':
-      return sorted.sort((a, b) => (a.completedDate ?? '').localeCompare(b.completedDate ?? ''));
+      return sorted.sort((a, b) =>
+        (a.completedDate ?? '').localeCompare(b.completedDate ?? ''),
+      );
     // In Progress has no completedDate yet — sorts by startedDate
     // instead (see chat, Aug 2026: In Progress previously defaulted
     // to completedDateDesc, which is undefined for every in-progress

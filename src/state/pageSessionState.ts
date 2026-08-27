@@ -26,9 +26,13 @@ export interface LibrarySessionState {
   year?: string;
   month?: string;
   mediaTypeIds: string[];
+  mediaTypeIdsExclude: string[];
   tags: string[];
+  tagsExclude: string[];
   genres: string[];
+  genresExclude: string[];
   sources: string[];
+  sourcesExclude: string[];
   sort: EntrySortOrder;
   viewMode: 'entries' | 'series';
   scrollY: number;
