@@ -72,6 +72,14 @@ const BESPOKE_FIELD_KEYS: Record<string, { key: string; label: string }[]> = {
     { key: 'imdbUrl', label: 'IMDb link' },
   ],
   comic: [{ key: 'comicVineVolumeId', label: 'ComicVine link' }],
+  // Book and Audiobook share the exact same Open Library catalog
+  // record (see entryConversion.ts's dedicated Book<->Audiobook
+  // openLibraryKey carry-over, added alongside this) — listed here so
+  // the Convert dialog shows it as "Open Library link carries over
+  // as-is" between those two types, instead of falling back to the
+  // raw metadata key name.
+  book: [{ key: 'openLibraryKey', label: 'Open Library link' }],
+  audiobook: [{ key: 'openLibraryKey', label: 'Open Library link' }],
 };
 
 function metadataFieldsFor(mediaType: MediaType): { key: string; label: string }[] {

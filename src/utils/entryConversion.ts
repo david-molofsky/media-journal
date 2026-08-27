@@ -209,6 +209,35 @@ export function convertMetadata(
     }
   }
 
+  // Open Library work key — Book and Audiobook are the same underlying
+  // Open Library catalog record (Open Library doesn't distinguish
+  // print from audio at all; see openLibraryService.ts/MetadataSearch's
+  // getSourceIdKey, which already treat the two identically), so unlike
+  // every other role-less bespoke key this one still identifies the
+  // right thing after a Book<->Audiobook convert even though neither
+  // type declares it in fields[] (see chat, Aug 2026 — this was
+  // silently dropped on convert, breaking the shared "add to journal"
+  // link for the converted entry). Any other direction (e.g. Book ->
+  // Film) leaves it dropped, same as before — a Book's Open Library key
+  // means nothing to a Film/TV/Comic entry's TMDB/ComicVine-based link.
+  const BOOK_AUDIOBOOK_TYPES = new Set(['book', 'audiobook']);
+  const sourceOpenLibraryKey =
+    typeof sourceMetadata['openLibraryKey'] === 'string' &&
+    sourceMetadata['openLibraryKey']
+      ? sourceMetadata['openLibraryKey']
+      : undefined;
+  if (
+    BOOK_AUDIOBOOK_TYPES.has(sourceTypeId) &&
+    BOOK_AUDIOBOOK_TYPES.has(targetTypeId) &&
+    sourceOpenLibraryKey &&
+    metadata['openLibraryKey'] === undefined
+  ) {
+    metadata['openLibraryKey'] = sourceOpenLibraryKey;
+    matchedSourceKeys.add('openLibraryKey');
+    carried.push({ targetKey: 'openLibraryKey', sourceKey: 'openLibraryKey' });
+    removeFromBlank('openLibraryKey');
+  }
+
   const dropped = Object.keys(sourceMetadata).filter(
     (key) =>
       sourceMetadata[key] !== undefined &&
