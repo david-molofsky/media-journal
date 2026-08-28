@@ -25,9 +25,6 @@ import { MarkFinishedDialog } from '@/components/entry/MarkFinishedDialog';
 import { useMediaEntries } from '@/hooks/useMediaEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
-import { useAvailableTags } from '@/hooks/useAvailableTags';
-import { useAvailableGenres } from '@/hooks/useAvailableGenres';
-import { useAvailableSources } from '@/hooks/useAvailableSources';
 import { FilterChip, type FilterChipOption } from '@/components/library/FilterChip';
 import {
   MultiFilterChip,
@@ -187,9 +184,6 @@ export default function LibraryPage() {
   const incoming = location.state as LibraryFilterRequest | null;
   const mediaTypes = useMediaTypes();
   const availableYears = useAvailableYears();
-  const availableTags = useAvailableTags();
-  const availableGenres = useAvailableGenres();
-  const availableSources = useAvailableSources();
 
   // Restored on mount whenever we arrive without an explicit filter
   // request (an `incoming` navigation, e.g. from Statistics or
@@ -506,22 +500,147 @@ export default function LibraryPage() {
     () => (availableYears ?? []).map((y) => ({ label: String(y), value: String(y) })),
     [availableYears],
   );
+  // Type deliberately keeps its full, unscoped list of every enabled
+  // media type (David's call, Aug 2026) — only Source/Tag/Genre below
+  // narrow to what's actually reachable, per Year/Month's existing
+  // exemption from this kind of behaviour.
   const mediaTypeOptions = useMemo(
     () => (mediaTypes ?? []).map((t) => ({ label: t.displayName, value: t.id })),
     [mediaTypes],
   );
-  const tagOptions = useMemo(
-    () => availableTags.map((t) => ({ label: t, value: t })),
-    [availableTags],
+
+  // Faceted Source/Tag/Genre options (see chat, Aug 2026 — "if I
+  // haven't read any Fantasy books this year, Fantasy shouldn't show up
+  // once I filter to Books"). Each dropdown's option list is recomputed
+  // from entries matching every OTHER currently-active filter — status
+  // tab, Year/Month, search text, Type, and the *other two* of these
+  // three categories — but deliberately excludes the category's own
+  // Include/Exclude picks, so choosing one Genre doesn't hide every
+  // other Genre from ever being reachable again. A value already set to
+  // Include or Exclude is always kept in its own list even if it stops
+  // matching, so a pick is never stranded with no way to see/clear it.
+  const tagFacetFilter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      statusTab,
+    ],
   );
-  const genreOptions = useMemo(
-    () => availableGenres.map((g) => ({ label: g, value: g })),
-    [availableGenres],
+  const genreFacetFilter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      sources,
+      sourcesExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      sources,
+      sourcesExclude,
+      statusTab,
+    ],
   );
-  const sourceOptions = useMemo(
-    () => availableSources.map((s) => ({ label: s, value: s })),
-    [availableSources],
+  const sourceFacetFilter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      statusTab,
+    ],
   );
+
+  // Sort choice is irrelevant here — these entry lists only ever get
+  // reduced to a set of distinct tag/genre/source values below, never
+  // rendered in order.
+  const tagFacetEntries = useMediaEntries(tagFacetFilter, 'createdAtDesc');
+  const genreFacetEntries = useMediaEntries(genreFacetFilter, 'createdAtDesc');
+  const sourceFacetEntries = useMediaEntries(sourceFacetFilter, 'createdAtDesc');
+
+  const tagOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of tagFacetEntries ?? []) {
+      for (const tag of entry.tags ?? []) values.add(tag);
+    }
+    for (const tag of tags) values.add(tag);
+    for (const tag of tagsExclude) values.add(tag);
+    return Array.from(values)
+      .sort()
+      .map((t) => ({ label: t, value: t }));
+  }, [tagFacetEntries, tags, tagsExclude]);
+
+  const genreOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of genreFacetEntries ?? []) {
+      for (const genre of entry.genres ?? []) values.add(genre);
+    }
+    for (const genre of genres) values.add(genre);
+    for (const genre of genresExclude) values.add(genre);
+    return Array.from(values)
+      .sort()
+      .map((g) => ({ label: g, value: g }));
+  }, [genreFacetEntries, genres, genresExclude]);
+
+  const sourceOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of sourceFacetEntries ?? []) {
+      const source = entry.metadata.source;
+      if (typeof source === 'string' && source.trim()) values.add(source);
+    }
+    for (const source of sources) values.add(source);
+    for (const source of sourcesExclude) values.add(source);
+    return Array.from(values)
+      .sort()
+      .map((s) => ({ label: s, value: s }));
+  }, [sourceFacetEntries, sources, sourcesExclude]);
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
