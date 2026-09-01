@@ -48,6 +48,12 @@ const importedEntrySchema = z.object({
   // than rejecting the whole entry, so existing Google Drive backups
   // still import cleanly.
   genres: z.array(z.string()).default([]),
+  // Preserves Wishlist reorder position across export/import — without
+  // this, the field silently gets stripped by Zod (any key not
+  // declared here is dropped by .parse()/.safeParse() by default),
+  // even though exportLibrary() does include it in the file. See chat,
+  // Sept 2026.
+  wishlistOrder: z.number().optional(),
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.undefined()])),
   completedYear: z.number().optional(),
   createdAt: z.string(),
