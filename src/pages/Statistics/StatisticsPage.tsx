@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
-import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import TvOutlinedIcon from '@mui/icons-material/TvOutlined';
@@ -13,7 +12,8 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import TimelineOutlinedIcon from '@mui/icons-material/TimelineOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
@@ -24,7 +24,12 @@ import { useFavouriteSubscription } from '@/hooks/useFavouriteSubscription';
 import { useTimelineEntries } from '@/hooks/useTimelineEntries';
 import { packTimelineBars } from '@/utils/timelinePacking';
 import { TimelineChart } from '@/components/timeline/TimelineChart';
-import type { TimelineZoomLevel } from '@/utils/timelineZoom';
+import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
+import {
+  TIMELINE_ZOOM_ORDER,
+  TIMELINE_ZOOM_LEVELS,
+  type TimelineZoomLevel,
+} from '@/utils/timelineZoom';
 import { StatsFilterBar } from '@/components/statistics/StatsFilterBar';
 import { StatsYearSelector } from '@/components/statistics/StatsYearSelector';
 import { StatTile } from '@/components/statistics/StatTile';
@@ -225,6 +230,15 @@ export default function StatisticsPage() {
   const [peopleSort, setPeopleSort] = useState<TopListSortMode>(
     (restored?.peopleSort as TopListSortMode) ?? 'countDesc',
   );
+  // Timeline tile's own zoom/type-filter state — absorbed from the
+  // now-retired standalone Timeline page (see chat, Sept 2026). Same
+  // restore-on-mount pattern as every other piece of state here.
+  const [timelineZoomState, setTimelineZoomState] = useState<TimelineZoomLevel>(
+    restored?.timelineZoom ?? 'month',
+  );
+  const [timelineExcludedTypeIds, setTimelineExcludedTypeIds] = useState<Set<string>>(
+    new Set(restored?.timelineExcludedTypeIds ?? []),
+  );
   // Which tiles are expanded — a set of independent toggles, not an
   // accordion (several can be open at once). Starts empty; Overview
   // isn't part of this at all, since it's fixed/always-visible now.
@@ -243,6 +257,30 @@ export default function StatisticsPage() {
     });
   };
 
+  // Timeline tile's type-filter toggle/solo — identical logic to the
+  // now-retired standalone TimelinePage.tsx (tracks exclusions rather
+  // than inclusions so "all types on" needs no initialization once
+  // mediaTypes loads).
+  const timelineAllTypeIds = new Set(mediaTypes?.map((mt) => mt.id) ?? []);
+  const toggleTimelineType = (mediaTypeId: string) => {
+    setTimelineExcludedTypeIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(mediaTypeId)) next.delete(mediaTypeId);
+      else next.add(mediaTypeId);
+      return next;
+    });
+  };
+  const soloTimelineType = (mediaTypeId: string) => {
+    const isAlreadySolo =
+      timelineAllTypeIds.size - timelineExcludedTypeIds.size === 1 &&
+      !timelineExcludedTypeIds.has(mediaTypeId);
+    setTimelineExcludedTypeIds(
+      isAlreadySolo
+        ? new Set()
+        : new Set([...timelineAllTypeIds].filter((id) => id !== mediaTypeId)),
+    );
+  };
+
   // Save the current snapshot on unmount (navigating away), and
   // restore scroll position once on mount if we have a snapshot to
   // restore from. Mirrors Library/Timeline's identical pattern.
@@ -255,6 +293,8 @@ export default function StatisticsPage() {
     genresView,
     sourcesSort,
     peopleSort,
+    timelineZoom: timelineZoomState,
+    timelineExcludedTypeIds: Array.from(timelineExcludedTypeIds),
   });
   useEffect(() => {
     liveStateRef.current = {
@@ -266,6 +306,8 @@ export default function StatisticsPage() {
       genresView,
       sourcesSort,
       peopleSort,
+      timelineZoom: timelineZoomState,
+      timelineExcludedTypeIds: Array.from(timelineExcludedTypeIds),
     };
   });
   const scrollYRef = useRef(0);
@@ -287,14 +329,18 @@ export default function StatisticsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Embedded Timeline preview (see chat, Aug 2026) — fixed at Year
-  // zoom, no zoom/type-filter controls; those stay full-page-only.
-  // All-time scope, same as the real Timeline page (not scoped to
-  // this page's selected year — the point of a timeline is seeing
-  // overlap across everything).
-  const timelineZoom: TimelineZoomLevel = 'year';
+  // Timeline tile (see chat, Sept 2026) — now fully self-contained,
+  // absorbing the retired standalone page's Week/Month/Quarter/Year
+  // zoom and type-filter controls. All-time scope, same as the old
+  // standalone page (not scoped to this page's selected `year` — the
+  // point of a timeline is seeing overlap across everything).
+  // Filtering happens before packing (not after) so hiding a type
+  // re-packs the remaining bars tighter into fewer rows, rather than
+  // leaving gaps — same as the old standalone page.
   const timelineEntries = useTimelineEntries();
-  const timelineBars = timelineEntries ? packTimelineBars(timelineEntries) : undefined;
+  const timelineBars = timelineEntries
+    ? packTimelineBars(timelineEntries.filter((e) => !timelineExcludedTypeIds.has(e.mediaType)))
+    : undefined;
 
   const data = useStatisticsData(year, filters);
   const favouriteSubscription = useFavouriteSubscription(year, filters);
@@ -750,40 +796,67 @@ export default function StatisticsPage() {
         );
 
       case 'timeline':
-        // Condensed preview (see chat, Aug 2026). Fixed Year zoom, no
-        // zoom/type-filter controls (those stay full-page-only);
-        // "View full Timeline" hands off to the real page for the
-        // complete interactive experience. The standalone Timeline
-        // page and its bottom-nav tab are unchanged — this is purely
-        // an additional preview.
+        // Fully self-contained (see chat, Sept 2026) — absorbed the
+        // retired standalone page's Week/Month/Quarter/Year zoom and
+        // type-filter controls, since this tile is now the only place
+        // Timeline lives. No "View full Timeline" hand-off anymore —
+        // there's nowhere left for it to point.
         return (
           <Box>
+            {mediaTypes && mediaTypes.length > 0 && (
+              <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+                <ToggleButtonGroup
+                  value={timelineZoomState}
+                  exclusive
+                  size="small"
+                  onChange={(_event, value: TimelineZoomLevel | null) => {
+                    if (value) setTimelineZoomState(value);
+                  }}
+                >
+                  {TIMELINE_ZOOM_ORDER.map((level) => (
+                    <ToggleButton key={level} value={level}>
+                      {TIMELINE_ZOOM_LEVELS[level].label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Stack>
+            )}
+
+            {mediaTypes && (
+              <Box sx={{ mb: 1.5 }}>
+                <TimelineTypeFilter
+                  mediaTypes={mediaTypes}
+                  excludedTypeIds={timelineExcludedTypeIds}
+                  onToggle={toggleTimelineType}
+                  onSolo={soloTimelineType}
+                />
+              </Box>
+            )}
+
             {timelineBars === undefined ? (
               <LoadingIndicator />
             ) : timelineBars.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                Nothing completed or in progress yet — your timeline will appear here once you
-                have.
+                {timelineExcludedTypeIds.size > 0
+                  ? 'No entries match the selected types.'
+                  : 'Nothing completed or in progress yet — your timeline will appear here once you have.'}
               </Typography>
             ) : (
-              <Box sx={{ maxHeight: 240, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+              <Box sx={{ maxHeight: 320, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
                 <TimelineChart
                   bars={timelineBars}
-                  zoom={timelineZoom}
+                  zoom={timelineZoomState}
                   mediaTypes={types}
                   onOpenEntry={(entryId) => navigate(entryDetailPath(entryId))}
                 />
               </Box>
             )}
-            <Button
-              fullWidth
-              variant="outlined"
-              endIcon={<ArrowForwardIcon />}
-              onClick={() => navigate(ROUTES.timeline)}
-              sx={{ mt: 1.5, borderColor: '#00BCD9', color: '#00BCD9' }}
-            >
-              View full Timeline
-            </Button>
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+              A dot means no start date was recorded for that entry, so only the day it was
+              completed is shown. A fading edge with an arrow means it's still in progress,
+              running through to today. Tap a type above to hide it, double-tap to solo it.
+            </Typography>
           </Box>
         );
 

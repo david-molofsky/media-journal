@@ -117,6 +117,20 @@ export const SETTINGS_KEYS = {
    * rather than at install time, so it stays in sync if that default
    * list is ever extended later. */
   subscriptionSources: 'subscriptionSources',
+  /** Which tier a person has selected for each source that has a
+   * hardcoded price table (Subscriptions calculator) — keyed by
+   * source name, value is a tier id from
+   * `subscriptionPricing.ts`'s `SUBSCRIPTION_TIER_TABLES`. Defaults
+   * to that source's first tier if never set. See chat, Sept 2026. */
+  subscriptionTierSelections: 'subscriptionTierSelections',
+  /** Manual monthly price override per source (Subscriptions
+   * calculator) — keyed by source name, value is a plain number in
+   * the current pricing region's currency. Takes priority over the
+   * hardcoded tier price when present; for sources with no tier
+   * table at all (self-hosted, or a hardcoded service outside the
+   * two supported pricing regions), this is the *only* price source.
+   * See chat, Sept 2026. */
+  subscriptionPriceOverrides: 'subscriptionPriceOverrides',
   /** Per-year, per-media-type consumption targets (Dashboard > Goals).
    * Shape: `Record<year, Record<mediaTypeId, number>>` — see
    * goalsService.ts. Registered here (rather than goalsService.ts

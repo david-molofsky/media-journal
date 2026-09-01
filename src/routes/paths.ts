@@ -12,7 +12,7 @@ export const ROUTES = {
   entryDetail: '/entry/:id/view',
   editEntry: '/entry/:id',
   statistics: '/statistics',
-  timeline: '/timeline',
+  subscriptions: '/subscriptions',
   settings: '/settings',
   malCallback: '/settings/mal-callback',
   traktCallback: '/settings/trakt-callback',

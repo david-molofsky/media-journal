@@ -5,12 +5,11 @@ import type { StatsFilters } from '@/hooks/useStatisticsData';
 
 /**
  * Scroll/filter/sort/tab/search state restoration for Library and
- * Timeline (see chat, Aug 2026). Deliberately a plain module-level
+ * Statistics (see chat, Aug 2026). Deliberately a plain module-level
  * variable, not Dexie/localStorage — "session-only" means it survives
  * SPA navigation (React Router unmounting/remounting these pages as
  * the user moves between bottom-nav tabs, or via Android hardware
- * back) but resets on an actual app reload/relaunch, same as e.g.
- * TimelinePage's excludedTypeIds already does per-mount.
+ * back) but resets on an actual app reload/relaunch.
  *
  * Each page owns exactly one snapshot, overwritten wholesale on
  * unmount. There's no per-tab/per-filter-combination history — the
@@ -38,20 +37,20 @@ export interface LibrarySessionState {
   scrollY: number;
 }
 
-export interface TimelineSessionState {
-  zoom: TimelineZoomLevel;
-  excludedTypeIds: string[];
-  scrollLeft: number;
-  scrollTop: number;
-}
-
 /** Statistics' own session snapshot (added Aug 2026) — same rationale
- * as Library/Timeline above: returning via back-navigation (e.g. after
- * tapping a Person's name through to Library) should land back on the
- * same year/filters/expanded tiles/scroll position, not a blank reset
+ * as Library above: returning via back-navigation (e.g. after tapping
+ * a Person's name through to Library) should land back on the same
+ * year/filters/expanded tiles/scroll position, not a blank reset
  * page. `expandedSections` is stored as an array (Set doesn't survive
  * structural comparison/serialization cleanly) and converted back to
- * a Set on restore. */
+ * a Set on restore.
+ *
+ * `timelineZoom`/`timelineExcludedTypeIds` were added when the
+ * standalone Timeline page (and its own `TimelineSessionState`) was
+ * retired — the Statistics Timeline tile absorbed full
+ * Week/Month/Quarter/Year + type-filter controls and needed somewhere
+ * to persist them across navigation, same pattern as every other
+ * tile's state here. See chat, Sept 2026. */
 export interface StatisticsSessionState {
   year: number | null | 'last12';
   filters: StatsFilters;
@@ -61,11 +60,12 @@ export interface StatisticsSessionState {
   genresView: 'watched' | 'wishlist';
   sourcesSort: string;
   peopleSort: string;
+  timelineZoom: TimelineZoomLevel;
+  timelineExcludedTypeIds: string[];
   scrollY: number;
 }
 
 let libraryState: LibrarySessionState | null = null;
-let timelineState: TimelineSessionState | null = null;
 let statisticsState: StatisticsSessionState | null = null;
 
 export function getLibrarySessionState(): LibrarySessionState | null {
@@ -74,14 +74,6 @@ export function getLibrarySessionState(): LibrarySessionState | null {
 
 export function setLibrarySessionState(state: LibrarySessionState): void {
   libraryState = state;
-}
-
-export function getTimelineSessionState(): TimelineSessionState | null {
-  return timelineState;
-}
-
-export function setTimelineSessionState(state: TimelineSessionState): void {
-  timelineState = state;
 }
 
 export function getStatisticsSessionState(): StatisticsSessionState | null {

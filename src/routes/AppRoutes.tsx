@@ -12,7 +12,7 @@ const AddEntryPage = lazy(() => import('@/pages/AddEntry/AddEntryPage'));
 const EntryDetailPage = lazy(() => import('@/pages/EntryDetail/EntryDetailPage'));
 const EditEntryPage = lazy(() => import('@/pages/EditEntry/EditEntryPage'));
 const StatisticsPage = lazy(() => import('@/pages/Statistics/StatisticsPage'));
-const TimelinePage = lazy(() => import('@/pages/Timeline/TimelinePage'));
+const SubscriptionsPage = lazy(() => import('@/pages/Subscriptions/SubscriptionsPage'));
 const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage'));
 const MalCallbackPage = lazy(() => import('@/pages/Settings/MalCallbackPage'));
 const TraktCallbackPage = lazy(() => import('@/pages/Settings/TraktCallbackPage'));
@@ -33,7 +33,7 @@ export function AppRoutes() {
           <Route path={ROUTES.entryDetail} element={<EntryDetailPage />} />
           <Route path={ROUTES.editEntry} element={<EditEntryPage />} />
           <Route path={ROUTES.statistics} element={<StatisticsPage />} />
-          <Route path={ROUTES.timeline} element={<TimelinePage />} />
+          <Route path={ROUTES.subscriptions} element={<SubscriptionsPage />} />
           <Route path={ROUTES.settings} element={<SettingsPage />} />
           <Route path={ROUTES.malCallback} element={<MalCallbackPage />} />
           <Route path={ROUTES.traktCallback} element={<TraktCallbackPage />} />
