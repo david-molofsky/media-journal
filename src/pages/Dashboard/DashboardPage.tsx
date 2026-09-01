@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { useRollingMonthlyBreakdown } from '@/hooks/useRollingMonthlyBreakdown';
 import { YearSelector } from '@/components/common/YearSelector';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { GoalsSection } from '@/components/dashboard/GoalsSection';
@@ -31,6 +32,9 @@ export default function DashboardPage() {
   const availableYears = useAvailableYears();
   const [year, setYear] = useState<number | null>(() => dayjs().year());
   const data = useDashboardData(year);
+  // Always a rolling 12 months, independent of the Dashboard's own
+  // year selector above — see chat, Sept 2026.
+  const rollingMonthlyData = useRollingMonthlyBreakdown();
   const [hasSeenWelcome, setHasSeenWelcome] = useBooleanSetting(SETTINGS_KEYS.hasSeenWelcome, false);
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
@@ -115,10 +119,12 @@ export default function DashboardPage() {
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Monthly activity
               </Typography>
-              <MonthlyActivityChart
-                monthlyBreakdown={data.monthlyBreakdown}
-                onSelectMonth={(month) => goToLibrary(year === null ? { month } : { year, month })}
-              />
+              {rollingMonthlyData && (
+                <MonthlyActivityChart
+                  data={rollingMonthlyData}
+                  onSelectMonth={(y, m) => goToLibrary({ year: y, month: m })}
+                />
+              )}
             </Box>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>

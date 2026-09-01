@@ -22,6 +22,7 @@ import { useAvailableTags } from '@/hooks/useAvailableTags';
 import { useStatisticsData, type StatsFilters } from '@/hooks/useStatisticsData';
 import { useFavouriteSubscription } from '@/hooks/useFavouriteSubscription';
 import { useTimelineEntries } from '@/hooks/useTimelineEntries';
+import { useRollingMonthlyBreakdown } from '@/hooks/useRollingMonthlyBreakdown';
 import { packTimelineBars } from '@/utils/timelinePacking';
 import { TimelineChart } from '@/components/timeline/TimelineChart';
 import { TimelineTypeFilter } from '@/components/timeline/TimelineTypeFilter';
@@ -343,6 +344,9 @@ export default function StatisticsPage() {
     : undefined;
 
   const data = useStatisticsData(year, filters);
+  // Always a rolling 12 months, independent of the `year` scope above
+  // — see chat, Sept 2026.
+  const rollingMonthlyData = useRollingMonthlyBreakdown(filters);
   const favouriteSubscription = useFavouriteSubscription(year, filters);
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
@@ -864,15 +868,11 @@ export default function StatisticsPage() {
         return (
           <Box>
             <TrendsTabs
-              monthlyBreakdown={stats.monthlyBreakdown}
+              monthlyData={rollingMonthlyData}
               weeklyTotals={stats.weeklyTotals}
               year={year}
-              onSelectMonth={(month) =>
-                goToLibrary(
-                  typeof year === 'number'
-                    ? { year, month, status: 'completed' }
-                    : { month, status: 'completed' },
-                )
+              onSelectMonth={(monthYear, month) =>
+                goToLibrary({ year: monthYear, month, status: 'completed' })
               }
             />
           </Box>

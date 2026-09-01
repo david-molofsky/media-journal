@@ -5,15 +5,15 @@ import Tab from '@mui/material/Tab';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { WeeklyActivityChart } from '@/components/charts/WeeklyActivityChart';
 import { CumulativeWeeklyChart } from '@/components/charts/CumulativeWeeklyChart';
-import type { StatsYearScope } from '@/services/statistics/statisticsService';
+import type { StatsYearScope, RollingMonthDatum } from '@/services/statistics/statisticsService';
 
 type TrendsView = 'monthly' | 'weekly' | 'cumulative';
 
 interface TrendsTabsProps {
-  monthlyBreakdown: Record<number, number>;
+  monthlyData: RollingMonthDatum[] | undefined;
   weeklyTotals: Record<number, number>;
   year: StatsYearScope;
-  onSelectMonth: (month: number) => void;
+  onSelectMonth: (year: number, month: number) => void;
 }
 
 /**
@@ -23,7 +23,7 @@ interface TrendsTabsProps {
  * chat (Statistics page redesign).
  */
 export function TrendsTabs({
-  monthlyBreakdown,
+  monthlyData,
   weeklyTotals,
   year,
   onSelectMonth,
@@ -48,11 +48,8 @@ export function TrendsTabs({
         <Tab label="Weekly" value="weekly" />
         <Tab label="Cumulative" value="cumulative" />
       </Tabs>
-      {view === 'monthly' && (
-        <MonthlyActivityChart
-          monthlyBreakdown={monthlyBreakdown}
-          onSelectMonth={onSelectMonth}
-        />
+      {view === 'monthly' && monthlyData && (
+        <MonthlyActivityChart data={monthlyData} onSelectMonth={onSelectMonth} />
       )}
       {view === 'weekly' && <WeeklyActivityChart weeklyTotals={weeklyTotals} />}
       {view === 'cumulative' && (

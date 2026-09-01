@@ -836,16 +836,64 @@ export async function getLongestBook(
   return longest;
 }
 
+export interface RollingMonthDatum {
+  year: number;
+  /** 1–12, calendar month. */
+  month: number;
+  /** Short display label, e.g. "Sep '25" — needed because a rolling
+   * window spans two calendar years, so month number alone ("Sep")
+   * would be ambiguous between this September and last. */
+  label: string;
+  count: number;
+}
+
 /**
- * Month-over-month consumption trend within `year`.
+ * Entries per calendar month across the trailing 12 months, ending
+ * with the current month — e.g. run in September 2026, this returns
+ * Sep '25 through Sep '26 in that chronological order. Replaces the
+ * old `getMonthlyTrend` stub and the Dashboard/Statistics Monthly
+ * tab's previous single-calendar-year `getMonthlyBreakdown` usage —
+ * see chat, Sept 2026: David wanted the moving-average trend line
+ * removed and the chart itself to always show a rolling 12 months
+ * instead of a fixed calendar year, in both places that share this
+ * chart component.
  *
- * TODO (Milestone 6): implement alongside the Statistics screen's
- * "Trends" section (PRD section 5; UI & UX Specification section 8).
+ * Deliberately ignores any year selector on the calling page — this
+ * is always "now minus 11 months through now", recomputed fresh on
+ * every call (no caching), which is what makes it "roll" day to day
+ * without any extra scheduling logic: call it again tomorrow, or in
+ * October, and the window has moved because `dayjs()` has.
  */
-export async function getMonthlyTrend(
-  _year: StatsYearScope,
-): Promise<Record<number, number>> {
-  return getMonthlyBreakdown(_year);
+export async function getRollingMonthlyBreakdown(
+  filters?: StatsFilters,
+): Promise<RollingMonthDatum[]> {
+  const windowStart = dayjs().subtract(11, 'month').startOf('month');
+  const [allEntries, tvMode] = await Promise.all([
+    db.mediaEntries.toArray(),
+    getTvTrackingMode(),
+  ]);
+  const completedOnly = allEntries.filter((e) => !e.status || e.status === 'completed');
+  const inWindow = completedOnly.filter((e) => {
+    if (!e.completedDate) return false;
+    const d = dayjs(e.completedDate);
+    return !d.isBefore(windowStart) && !d.isAfter(dayjs());
+  });
+  const filtered = applyStatsFilters(inWindow, filters);
+
+  const months: RollingMonthDatum[] = Array.from({ length: 12 }, (_, i) => {
+    const d = windowStart.add(i, 'month');
+    return { year: d.year(), month: d.month() + 1, label: d.format("MMM 'YY"), count: 0 };
+  });
+  const byKey = new Map(months.map((m) => [`${m.year}-${m.month}`, m]));
+
+  for (const entry of filtered) {
+    const d = dayjs(entry.completedDate);
+    const key = `${d.year()}-${d.month() + 1}`;
+    const bucket = byKey.get(key);
+    if (bucket) bucket.count += getEntryWeight(entry, tvMode);
+  }
+
+  return months;
 }
 
 /** Total re-read / re-watched entries within `year`. */
