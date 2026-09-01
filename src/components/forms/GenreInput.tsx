@@ -27,12 +27,24 @@ export function GenreInput({ value, onChange }: GenreInputProps) {
   const available = useAvailableGenres();
   const suggestions = Array.from(new Set([...STARTER_GENRES, ...available])).sort();
 
+  // Splits on both spaces AND hyphens (capturing the separators so
+  // they're preserved) — a plain \s+ split treated "Sci-Fi" as one
+  // single word, capitalizing only the leading S and lowercasing
+  // everything after it (including the F), so "Sci-Fi" always
+  // silently became "Sci-fi" no matter how it was typed. See chat,
+  // Sept 2026 — this is what produced the Sci-Fi/Sci-fi duplicate
+  // genre pair in the first place, not a one-off typo.
   const normalise = (raw: string) =>
     raw
       .trim()
-      .split(/\s+/)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+      .replace(/\s+/g, ' ')
+      .split(/([ -])/)
+      .map((token) =>
+        token === ' ' || token === '-'
+          ? token
+          : token.charAt(0).toUpperCase() + token.slice(1).toLowerCase(),
+      )
+      .join('');
 
   const handleChange = (_: unknown, newValue: unknown[]) => {
     const strings = newValue.flatMap((item) =>
