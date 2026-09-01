@@ -11,6 +11,8 @@ import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import Slider from '@mui/material/Slider';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
@@ -23,14 +25,20 @@ import {
   deleteEntries,
   bulkAddTags,
   bulkAddGenres,
+  bulkRemoveTags,
+  bulkRemoveGenres,
   bulkSetRating,
   bulkSetSource,
 } from '@/services/database/entryService';
 import { TagInput } from '@/components/forms/TagInput';
 import { GenreInput } from '@/components/forms/GenreInput';
 import { useAvailableSources } from '@/hooks/useAvailableSources';
+import { useSelectionFieldCounts } from '@/hooks/useSelectionFieldCounts';
 import { useBackfillFlow } from '@/hooks/useBackfillFlow';
 import { BackfillDialog } from './BackfillDialog';
+import { RemoveFieldSelect } from './RemoveFieldSelect';
+
+type BulkListMode = 'add' | 'remove';
 
 interface BulkActionBarProps {
   selectedIds: string[];
@@ -46,8 +54,10 @@ interface BulkActionBarProps {
  */
 export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const [tagOpen, setTagOpen] = useState(false);
+  const [tagMode, setTagMode] = useState<BulkListMode>('add');
   const [tagValues, setTagValues] = useState<string[]>([]);
   const [genreOpen, setGenreOpen] = useState(false);
+  const [genreMode, setGenreMode] = useState<BulkListMode>('add');
   const [genreValues, setGenreValues] = useState<string[]>([]);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceValue, setSourceValue] = useState('');
@@ -56,23 +66,29 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const backfill = useBackfillFlow();
   const availableSources = useAvailableSources();
+  const selectedGenreCounts = useSelectionFieldCounts(selectedIds, 'genres');
+  const selectedTagCounts = useSelectionFieldCounts(selectedIds, 'tags');
 
   const count = selectedIds.length;
 
   const handleTag = async () => {
     if (tagValues.length > 0) {
-      await bulkAddTags(selectedIds, tagValues);
+      if (tagMode === 'add') await bulkAddTags(selectedIds, tagValues);
+      else await bulkRemoveTags(selectedIds, tagValues);
     }
     setTagOpen(false);
+    setTagMode('add');
     setTagValues([]);
     onClear();
   };
 
   const handleGenre = async () => {
     if (genreValues.length > 0) {
-      await bulkAddGenres(selectedIds, genreValues);
+      if (genreMode === 'add') await bulkAddGenres(selectedIds, genreValues);
+      else await bulkRemoveGenres(selectedIds, genreValues);
     }
     setGenreOpen(false);
+    setGenreMode('add');
     setGenreValues([]);
     onClear();
   };
@@ -239,10 +255,12 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
         </DialogActions>
       </Dialog>
 
-      {/* Genre dialog — adds every entered genre to each selected
-          entry's existing genres; nothing is removed or replaced.
-          Mirrors the Tag dialog below exactly (same GenreInput/TagInput
-          interaction model — see chat). */}
+      {/* Genre dialog — Add mode merges every entered genre into each
+          selected entry's existing genres (nothing removed/replaced).
+          Remove mode strips only the chosen genre(s) from entries that
+          have them, leaving any other genres on those entries alone —
+          see bulkRemoveGenres. Mirrors the Tag dialog below exactly
+          (same toggle/interaction model — see chat, Sept 2026). */}
       <Dialog
         open={genreOpen}
         onClose={() => setGenreOpen(false)}
@@ -250,44 +268,97 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
         maxWidth="xs"
       >
         <DialogTitle>
-          Add genres to {count} {count === 1 ? 'entry' : 'entries'}
+          Genres for {count} {count === 1 ? 'entry' : 'entries'}
         </DialogTitle>
         <DialogContent>
+          <ToggleButtonGroup
+            value={genreMode}
+            exclusive
+            size="small"
+            fullWidth
+            sx={{ mb: 2 }}
+            onChange={(_, v: BulkListMode | null) => {
+              if (!v) return;
+              setGenreMode(v);
+              setGenreValues([]);
+            }}
+          >
+            <ToggleButton value="add">Add</ToggleButton>
+            <ToggleButton value="remove">Remove</ToggleButton>
+          </ToggleButtonGroup>
           <Box sx={{ mt: 1 }}>
-            <GenreInput value={genreValues} onChange={setGenreValues} />
+            {genreMode === 'add' ? (
+              <GenreInput value={genreValues} onChange={setGenreValues} />
+            ) : (
+              <RemoveFieldSelect
+                label="Remove genres"
+                placeholder="Search genres present on these entries…"
+                options={selectedGenreCounts}
+                value={genreValues}
+                onChange={setGenreValues}
+                totalSelected={count}
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setGenreOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
+            color={genreMode === 'remove' ? 'error' : 'primary'}
             onClick={handleGenre}
             disabled={genreValues.length === 0}
           >
-            Add genres
+            {genreMode === 'add' ? 'Add genres' : 'Remove genres'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Tag dialog — adds every entered tag to each selected entry's
-          existing tags; nothing is removed or replaced. */}
+      {/* Tag dialog — same Add/Remove pattern as the Genre dialog above. */}
       <Dialog open={tagOpen} onClose={() => setTagOpen(false)} fullWidth maxWidth="xs">
         <DialogTitle>
-          Add tags to {count} {count === 1 ? 'entry' : 'entries'}
+          Tags for {count} {count === 1 ? 'entry' : 'entries'}
         </DialogTitle>
         <DialogContent>
+          <ToggleButtonGroup
+            value={tagMode}
+            exclusive
+            size="small"
+            fullWidth
+            sx={{ mb: 2 }}
+            onChange={(_, v: BulkListMode | null) => {
+              if (!v) return;
+              setTagMode(v);
+              setTagValues([]);
+            }}
+          >
+            <ToggleButton value="add">Add</ToggleButton>
+            <ToggleButton value="remove">Remove</ToggleButton>
+          </ToggleButtonGroup>
           <Box sx={{ mt: 1 }}>
-            <TagInput value={tagValues} onChange={setTagValues} />
+            {tagMode === 'add' ? (
+              <TagInput value={tagValues} onChange={setTagValues} />
+            ) : (
+              <RemoveFieldSelect
+                label="Remove tags"
+                placeholder="Search tags present on these entries…"
+                options={selectedTagCounts}
+                value={tagValues}
+                onChange={setTagValues}
+                totalSelected={count}
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTagOpen(false)}>Cancel</Button>
           <Button
             variant="contained"
+            color={tagMode === 'remove' ? 'error' : 'primary'}
             onClick={handleTag}
             disabled={tagValues.length === 0}
           >
-            Add tags
+            {tagMode === 'add' ? 'Add tags' : 'Remove tags'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -195,6 +195,38 @@ export async function bulkAddGenres(ids: string[], genres: string[]): Promise<vo
   await db.mediaEntries.bulkPut(updates);
 }
 
+/** Removes the given tags from every selected entry that has them —
+ * a set difference, opposite of `bulkAddTags`. An entry that never had
+ * a given tag is simply unaffected; any other tags on that entry are
+ * left untouched. See chat, Sept 2026 — bulk remove backlog item. */
+export async function bulkRemoveTags(ids: string[], tags: string[]): Promise<void> {
+  const removeSet = new Set(tags);
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      tags: (e.tags ?? []).filter((t) => !removeSet.has(t)),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Removes the given genres from every selected entry that has them.
+ * Mirrors `bulkRemoveTags` — see its comment for the removal semantics. */
+export async function bulkRemoveGenres(ids: string[], genres: string[]): Promise<void> {
+  const removeSet = new Set(genres);
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      genres: (e.genres ?? []).filter((g) => !removeSet.has(g)),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
 /** Sets `metadata.source` to the same value on every selected entry,
  * regardless of media type — every type's metadata schema includes an
  * optional `source` field, so this is safe across a mixed-type

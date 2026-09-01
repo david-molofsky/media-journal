@@ -10,6 +10,7 @@ import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import { lookupByIsbn } from '@/services/metadata/openLibraryService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
+import { ManualCodeEntry, cleanManualCode, isValidManualCode } from './ManualCodeEntry';
 
 interface IsbnScanDialogProps {
   open: boolean;
@@ -20,7 +21,7 @@ interface IsbnScanDialogProps {
   onFill: (title: string, fields: Record<string, string>, genres?: string[]) => void;
 }
 
-type ScanPhase = 'scanning' | 'looking-up' | 'found' | 'not-found' | 'camera-denied';
+type ScanPhase = 'scanning' | 'manual' | 'looking-up' | 'found' | 'not-found' | 'camera-denied';
 
 /** How often to run detection against the live video frame. Faster
  * than this wastes CPU/battery for no real benefit — barcodes don't
@@ -44,6 +45,7 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
   const [phase, setPhase] = useState<ScanPhase>('scanning');
   const [scannedIsbn, setScannedIsbn] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [manualValue, setManualValue] = useState('');
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current !== null) {
@@ -75,6 +77,7 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
     setPhase('scanning');
     setResult(null);
     setScannedIsbn(null);
+    setManualValue('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -122,6 +125,22 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
     onClose();
   };
 
+  /** Switches to the manual-entry phase, stopping the camera (it's a
+   * no-op if there's no active stream, e.g. arriving here from
+   * camera-denied). Pre-fills whatever code was last looked up so
+   * "Edit number" from an error state lets the person tweak it rather
+   * than retype from scratch. */
+  const enterManualMode = useCallback((prefill = '') => {
+    stopCamera();
+    setManualValue(prefill);
+    setPhase('manual');
+  }, [stopCamera]);
+
+  const handleManualSearch = useCallback(() => {
+    const cleaned = cleanManualCode(manualValue);
+    if (isValidManualCode('isbn', manualValue)) void handleDetected(cleaned);
+  }, [manualValue, handleDetected]);
+
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
       <DialogTitle>Scan barcode</DialogTitle>
@@ -165,6 +184,12 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
           </Stack>
         )}
 
+        {phase === 'manual' && (
+          <Box sx={{ py: 1 }}>
+            <ManualCodeEntry codeType="isbn" value={manualValue} onChange={setManualValue} />
+          </Box>
+        )}
+
         {phase === 'looking-up' && (
           <Stack spacing={1.5} alignItems="center" sx={{ py: 3 }}>
             <Typography variant="body2" color="text.secondary">
@@ -206,7 +231,24 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
         )}
       </DialogContent>
       <DialogActions>
-        {phase === 'scanning' && <Button onClick={handleClose}>Cancel</Button>}
+        {phase === 'scanning' && (
+          <>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={() => enterManualMode()}>Type instead</Button>
+          </>
+        )}
+        {phase === 'manual' && (
+          <>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleManualSearch}
+              disabled={!isValidManualCode('isbn', manualValue)}
+            >
+              Search
+            </Button>
+          </>
+        )}
         {phase === 'found' && (
           <>
             <Button onClick={handleClose}>Cancel</Button>
@@ -217,13 +259,20 @@ export function IsbnScanDialog({ open, onClose, onFill }: IsbnScanDialogProps) {
         )}
         {phase === 'not-found' && (
           <>
-            <Button onClick={handleClose}>Enter manually instead</Button>
+            <Button onClick={() => enterManualMode(scannedIsbn ?? '')}>Edit number</Button>
             <Button variant="contained" onClick={() => void startCamera()}>
-              Scan again
+              Scan instead
             </Button>
           </>
         )}
-        {phase === 'camera-denied' && <Button onClick={handleClose}>Close</Button>}
+        {phase === 'camera-denied' && (
+          <>
+            <Button onClick={handleClose}>Close</Button>
+            <Button variant="contained" onClick={() => enterManualMode()}>
+              Type instead
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );

@@ -1012,7 +1012,9 @@ export function EntryForm({
             />
           )}
 
-          {/* Status toggle — Completed / In Progress / Wishlist. Sits
+          {/* Status toggle — Wishlist / In Progress / Completed, left to
+              right matching the entry's natural progression (same order
+              as the Library status tabs — see chat, Sept 2026). Sits
               right below Title so it's the next thing filled in after
               naming the entry. */}
           <Controller
@@ -1043,9 +1045,9 @@ export function EntryForm({
                 fullWidth
                 aria-label="Entry status"
               >
-                <ToggleButton value="completed">✓ Completed</ToggleButton>
-                <ToggleButton value="in_progress">▶ In Progress</ToggleButton>
                 <ToggleButton value="wishlist">★ Wishlist</ToggleButton>
+                <ToggleButton value="in_progress">▶ In Progress</ToggleButton>
+                <ToggleButton value="completed">✓ Completed</ToggleButton>
               </ToggleButtonGroup>
             )}
           />

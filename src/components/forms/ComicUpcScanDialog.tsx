@@ -15,6 +15,7 @@ import {
 } from '@/services/metadata/upcitemdbService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
 import { normalizeBarcode } from '@/utils/upcBarcode';
+import { ManualCodeEntry, cleanManualCode, isValidManualCode } from './ManualCodeEntry';
 
 interface ComicUpcScanDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ interface ComicUpcScanDialogProps {
 
 type ScanPhase =
   | 'scanning'
+  | 'manual'
   | 'looking-up'
   | 'found'
   | 'choose-series'
@@ -60,6 +62,7 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
   const [result, setResult] = useState<SearchResult | null>(null);
   const [candidates, setCandidates] = useState<RankedSeriesCandidate[]>([]);
   const [pendingIssueNumber, setPendingIssueNumber] = useState<string | null>(null);
+  const [manualValue, setManualValue] = useState('');
 
   const stopCamera = useCallback(() => {
     if (intervalRef.current !== null) {
@@ -115,6 +118,7 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
     setRawTitle(null);
     setCandidates([]);
     setPendingIssueNumber(null);
+    setManualValue('');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -182,6 +186,19 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
     onClose();
   };
 
+  /** See IsbnScanDialog's enterManualMode for the full rationale —
+   * identical pattern, reused across all three scan dialogs. */
+  const enterManualMode = useCallback((prefill = '') => {
+    stopCamera();
+    setManualValue(prefill);
+    setPhase('manual');
+  }, [stopCamera]);
+
+  const handleManualSearch = useCallback(() => {
+    const cleaned = cleanManualCode(manualValue);
+    if (isValidManualCode('upc', manualValue)) void handleDetected(cleaned);
+  }, [manualValue, handleDetected]);
+
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
       <DialogTitle>Scan issue barcode</DialogTitle>
@@ -223,6 +240,12 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
               />
             </Box>
           </Stack>
+        )}
+
+        {phase === 'manual' && (
+          <Box sx={{ py: 1 }}>
+            <ManualCodeEntry codeType="upc" value={manualValue} onChange={setManualValue} />
+          </Box>
         )}
 
         {phase === 'looking-up' && (
@@ -347,7 +370,24 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
         )}
       </DialogContent>
       <DialogActions>
-        {phase === 'scanning' && <Button onClick={handleClose}>Cancel</Button>}
+        {phase === 'scanning' && (
+          <>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={() => enterManualMode()}>Type instead</Button>
+          </>
+        )}
+        {phase === 'manual' && (
+          <>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleManualSearch}
+              disabled={!isValidManualCode('upc', manualValue)}
+            >
+              Search
+            </Button>
+          </>
+        )}
         {(phase === 'found' || phase === 'series-only') && (
           <>
             <Button onClick={handleClose}>Cancel</Button>
@@ -356,16 +396,25 @@ export function ComicUpcScanDialog({ open, onClose, onFill }: ComicUpcScanDialog
             </Button>
           </>
         )}
-        {phase === 'choose-series' && <Button onClick={handleClose}>Enter manually instead</Button>}
+        {phase === 'choose-series' && (
+          <Button onClick={() => enterManualMode(scannedUpc ?? '')}>Type instead</Button>
+        )}
         {(phase === 'not-found' || phase === 'no-match' || phase === 'service-error') && (
           <>
-            <Button onClick={handleClose}>Enter manually instead</Button>
+            <Button onClick={() => enterManualMode(scannedUpc ?? '')}>Edit number</Button>
             <Button variant="contained" onClick={() => void startCamera()}>
-              Scan again
+              Scan instead
             </Button>
           </>
         )}
-        {phase === 'camera-denied' && <Button onClick={handleClose}>Close</Button>}
+        {phase === 'camera-denied' && (
+          <>
+            <Button onClick={handleClose}>Close</Button>
+            <Button variant="contained" onClick={() => enterManualMode()}>
+              Type instead
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
