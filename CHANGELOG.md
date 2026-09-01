@@ -1,60 +1,48 @@
-# Media Journal — Delta 2026-09-01
+# Media Journal — Delta 2026-09-01 (part 2)
 
-Three features, all confirmed via wireframe before build (see chat).
+Two backlog items, both scoped via clarifying questions before build (see chat).
 
-## 1. Manual ISBN/UPC entry
-Applies to all three scan dialogs (Books/Comics ISBN, Comic single-issue UPC, Film UPC).
+## 1. Month-over-month consumption trend
+- **Changed:** `src/components/charts/MonthlyActivityChart.tsx` — the existing Monthly tab
+  (inside TrendsTabs) is enhanced in place rather than adding a new tab, per your call. Switched
+  from `BarChart` to `ComposedChart` and overlaid a trailing 3-month moving-average `Line` on top
+  of the existing bars, smoothing month-to-month noise while still tracking the shape of the raw
+  data. Early months in the year use however many months are actually available (Jan = itself,
+  Feb = avg of Jan+Feb) rather than reaching into the previous year, since the tab is scoped to a
+  single `year` and there's no reliable prior-year tail to draw on for 'last12'/'All' scopes
+  either. Tooltip now distinguishes "Entries" (bar) from "3-month average" (line).
+- **Note:** `getMonthlyTrend()` in `statisticsService.ts` remains an unused stub — confirmed via
+  grep it has no callers anywhere in the codebase. The trend line above is computed client-side
+  in the chart component directly from `monthlyBreakdown`, not through this function, since a
+  moving average is a display concern rather than a new statistics aggregation. Flagging rather
+  than silently deleting the exported function — let me know if you'd like it removed as
+  cleanup.
 
-- **New:** `src/components/forms/ManualCodeEntry.tsx` — shared manual-entry field (ISBN or UPC),
-  live format validation, no Search button of its own (each dialog owns that in its existing
-  DialogActions).
-- **Changed:** `IsbnScanDialog.tsx`, `UpcScanDialog.tsx`, `ComicUpcScanDialog.tsx` — each gains a
-  `manual` phase. Entry points: "Type instead" on the initial scanning screen, and on Camera
-  denied (replacing the old dead-end "Close"-only state). The previously-stubbed
-  "Enter manually instead" button (`onClick={handleClose}`) on error states is now functional,
-  relabelled "Edit number" (pre-fills the code just looked up) alongside "Scan instead". Manual
-  entry only triggers a lookup on explicit Search tap — no live auto-search as you type. Reuses
-  the exact same lookup functions the scan flow already calls, so Found/Not-found/etc. behave
-  identically regardless of how the code was entered.
-
-## 2. Wishlist/Completed quick-action reorder
-- **Changed:** `EntryForm.tsx` — the status `ToggleButtonGroup` (shared by Add Entry and Edit
-  Entry) is now ordered Wishlist → In Progress → Completed, left-to-right matching the entry's
-  natural progression and the existing Library tab order. Previously Completed → In Progress →
-  Wishlist.
-
-## 3. Bulk remove genres & tags
-Source is explicitly out of scope (single free-text value, not a list — stays add/overwrite-only).
-
-- **New:** `src/hooks/useSelectionFieldCounts.ts` — returns every genre/tag present across the
-  currently-selected entries with a count of how many have it, reactive via `useLiveQuery`.
-- **New:** `src/components/library/RemoveFieldSelect.tsx` — restricted (non-freeSolo) multi-select
-  used only in Remove mode; options are scoped to what's actually present in the selection, each
-  annotated "N of M".
-- **Changed:** `entryService.ts` — new `bulkRemoveTags()` / `bulkRemoveGenres()`, set-difference
-  counterparts to the existing `bulkAddTags()` / `bulkAddGenres()`. Only the chosen value(s) are
-  stripped from entries that have them; other genres/tags on those entries are untouched.
-- **Changed:** `BulkActionBar.tsx` — Genre and Tag dialogs each gain an Add/Remove segmented
-  toggle at the top. Switching modes clears whatever was selected. Remove mode's action button is
-  red-toned ("Remove genres"/"Remove tags") to distinguish from Add, short of the full-red Delete
-  button.
+## 2. Longest book statistic
+- **Changed:** `src/services/statistics/statisticsService.ts` — new `getLongestBook(year,
+  filters)`, returning the completed Book entry with the highest `metadata.pageCount` (title +
+  page count), or `null` if none have one set. Restricted to `mediaType === 'book'` — Audiobooks
+  technically inherit the same `pageCount` field via the shared metadata schema, but runtime
+  (not page count) is the meaningful "length" measure for an audiobook, so they're excluded to
+  avoid a misleading comparison.
+- Wired into `getInsights()` as a new dynamic insight, matching the existing sentence style:
+  *"Your longest book this year was "Title" at 512 pages."* (phrasing adapts to the "overall" /
+  "in the last 12 months" scope wording already used by the other insights). Omitted entirely
+  if no book entry in scope has a page count.
+- **No schema/migration work needed** — `pageCount` already exists on Book entries via DB v29
+  (the Google Books integration), and was already in both `defaultMediaTypes`/the migration and
+  the Zod schema (`bookMetadataSchema`, `z.coerce.number()`), so nothing was silently stripped
+  on save. The DB v29 migration comment had already anticipated this exact stat.
+- The stale doc comment on `getInsights()` explaining why "longest book" was intentionally
+  omitted has been removed, since it no longer is.
 
 ## Verification
-`npx tsc -b --force`, `npx eslint .`, `npx vite build` all pass clean. One pre-existing
-`react-hooks/incompatible-library` warning in `EntryForm.tsx` (React Hook Form's `watch()`) is
-unrelated and untouched, as before. `ManualCodeEntry.tsx` has an expected
-`react-refresh/only-export-components` warning (it exports helper functions alongside the
-component, same pattern already present in `TopListSort.tsx`) — non-blocking.
+`npx tsc -b --force`, `npx eslint .`, `npx vite build` all pass clean — same two pre-existing
+warnings as the previous delta (`EntryForm.tsx`'s `watch()` warning, `ManualCodeEntry.tsx`'s
+export-components warning), nothing new introduced.
 
-## Files changed/added
-- `src/components/forms/ManualCodeEntry.tsx` (new)
-- `src/components/forms/IsbnScanDialog.tsx`
-- `src/components/forms/UpcScanDialog.tsx`
-- `src/components/forms/ComicUpcScanDialog.tsx`
-- `src/components/forms/EntryForm.tsx`
-- `src/components/library/RemoveFieldSelect.tsx` (new)
-- `src/components/library/BulkActionBar.tsx`
-- `src/hooks/useSelectionFieldCounts.ts` (new)
-- `src/services/database/entryService.ts`
+## Files changed
+- `src/components/charts/MonthlyActivityChart.tsx`
+- `src/services/statistics/statisticsService.ts`
 
 No new npm dependencies, no Dexie migration, no Worker changes.

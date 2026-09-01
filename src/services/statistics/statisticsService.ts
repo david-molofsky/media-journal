@@ -810,6 +810,32 @@ export async function getLongestStreak(
   return longest;
 }
 
+/** The book with the highest `metadata.pageCount` within `year`, or
+ * `null` if no completed book entry has a page count set. Restricted
+ * to `mediaType === 'book'` — Audiobooks share the same metadata
+ * schema (so `pageCount` is technically present there too, inherited
+ * from `bookMetadataSchema`) but a runtime, not a page count, is the
+ * meaningful "length" for an audiobook, so they're excluded here to
+ * avoid a misleading comparison. See chat, Sept 2026 — the field was
+ * added via the Google Books integration (DB v29) specifically to
+ * unlock this stat. */
+export async function getLongestBook(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<{ title: string; pageCount: number } | null> {
+  const entries = await entriesForYear(year, filters);
+  let longest: { title: string; pageCount: number } | null = null;
+  for (const entry of entries) {
+    if (entry.mediaType !== 'book') continue;
+    const pageCount = entry.metadata.pageCount;
+    if (typeof pageCount !== 'number' || pageCount <= 0) continue;
+    if (!longest || pageCount > longest.pageCount) {
+      longest = { title: entry.title, pageCount };
+    }
+  }
+  return longest;
+}
+
 /**
  * Month-over-month consumption trend within `year`.
  *
@@ -845,18 +871,12 @@ export async function getRepeatConsumption(
  * for either (a rolling window has no fixed "last 12 months before
  * that" without extra scoping decisions — left out for now, see
  * chat).
- *
- * Note: the PRD also calls out a "longest book" statistic, but the
- * data model has no page-count field for books (Database Schema &
- * Data Model, section 4) — adding one is a future-enhancement
- * decision, not something to infer here, so it's intentionally
- * omitted from both this function and the Statistics screen.
  */
 export async function getInsights(
   year: StatsYearScope,
   filters?: StatsFilters,
 ): Promise<string[]> {
-  const [totals, previousTotals, favourite, weekday, repeats, topGenre] =
+  const [totals, previousTotals, favourite, weekday, repeats, topGenre, longestBook] =
     await Promise.all([
       getMediaTypeTotals(year, filters),
       typeof year === 'number'
@@ -866,6 +886,7 @@ export async function getInsights(
       getMostActiveWeekday(year, filters),
       getRepeatConsumption(year, filters),
       getTopGenreShareByMediaType(year, filters),
+      getLongestBook(year, filters),
     ]);
 
   const totalEntries = Object.values(totals).reduce((sum, count) => sum + count, 0);
@@ -893,6 +914,12 @@ export async function getInsights(
   if (topGenre) {
     insights.push(
       `${topGenre.genre} is your favourite genre ${scope}, making up ${topGenre.overallPercentage}% of what you completed.`,
+    );
+  }
+
+  if (longestBook) {
+    insights.push(
+      `Your longest book ${scope} was "${longestBook.title}" at ${longestBook.pageCount} pages.`,
     );
   }
 
