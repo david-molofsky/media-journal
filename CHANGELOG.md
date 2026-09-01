@@ -1,48 +1,44 @@
-# Media Journal — Delta 2026-09-01 (part 2)
+# Media Journal — Delta 2026-09-01 (part 3)
 
-Two backlog items, both scoped via clarifying questions before build (see chat).
+Page-count autofill from Open Library, scoped via chat before build. No settings toggle (always
+autofills silently, per your call); title-search results are flagged as approximate since Open
+Library's search index only reports a per-title median, not a per-edition exact count.
 
-## 1. Month-over-month consumption trend
-- **Changed:** `src/components/charts/MonthlyActivityChart.tsx` — the existing Monthly tab
-  (inside TrendsTabs) is enhanced in place rather than adding a new tab, per your call. Switched
-  from `BarChart` to `ComposedChart` and overlaid a trailing 3-month moving-average `Line` on top
-  of the existing bars, smoothing month-to-month noise while still tracking the shape of the raw
-  data. Early months in the year use however many months are actually available (Jan = itself,
-  Feb = avg of Jan+Feb) rather than reaching into the previous year, since the tab is scoped to a
-  single `year` and there's no reliable prior-year tail to draw on for 'last12'/'All' scopes
-  either. Tooltip now distinguishes "Entries" (bar) from "3-month average" (line).
-- **Note:** `getMonthlyTrend()` in `statisticsService.ts` remains an unused stub — confirmed via
-  grep it has no callers anywhere in the codebase. The trend line above is computed client-side
-  in the chart component directly from `monthlyBreakdown`, not through this function, since a
-  moving average is a display concern rather than a new statistics aggregation. Flagging rather
-  than silently deleting the exported function — let me know if you'd like it removed as
-  cleanup.
+## Changed
+- **`src/services/metadata/openLibraryService.ts`**
+  - Title search (`fetchBooksPage`, backing `searchBooks`/`searchBooksPage`) now requests
+    `number_of_pages_median` from Open Library's `search.json` and fills `metadata.pageCount`
+    from it when present. A sentinel `pageCountApprox: 'true'` rides alongside in the returned
+    `fields` — consumed and stripped by `EntryForm.tsx`, never persisted to the entry itself.
+  - ISBN lookup (`lookupByIsbn`, used by barcode scan and the new manual ISBN entry) now requests
+    `number_of_pages` from the Books API and fills `pageCount` from it — this is exact for that
+    specific edition, so no approximate sentinel is attached.
+  - `getBookDetailsByKey` (the "add via shared link" flow) is unchanged — the `/works/{key}.json`
+    endpoint it calls doesn't expose page count at all (that's edition-level data), matching its
+    existing narrower-than-search field set.
 
-## 2. Longest book statistic
-- **Changed:** `src/services/statistics/statisticsService.ts` — new `getLongestBook(year,
-  filters)`, returning the completed Book entry with the highest `metadata.pageCount` (title +
-  page count), or `null` if none have one set. Restricted to `mediaType === 'book'` — Audiobooks
-  technically inherit the same `pageCount` field via the shared metadata schema, but runtime
-  (not page count) is the meaningful "length" measure for an audiobook, so they're excluded to
-  avoid a misleading comparison.
-- Wired into `getInsights()` as a new dynamic insight, matching the existing sentence style:
-  *"Your longest book this year was "Title" at 512 pages."* (phrasing adapts to the "overall" /
-  "in the last 12 months" scope wording already used by the other insights). Omitted entirely
-  if no book entry in scope has a page count.
-- **No schema/migration work needed** — `pageCount` already exists on Book entries via DB v29
-  (the Google Books integration), and was already in both `defaultMediaTypes`/the migration and
-  the Zod schema (`bookMetadataSchema`, `z.coerce.number()`), so nothing was silently stripped
-  on save. The DB v29 migration comment had already anticipated this exact stat.
-- The stale doc comment on `getInsights()` explaining why "longest book" was intentionally
-  omitted has been removed, since it no longer is.
+- **`src/components/forms/EntryForm.tsx`**
+  - New `pageCountApprox` state, session-only (never saved). `applyMetadataFill` strips the
+    `pageCountApprox` sentinel out of the incoming fields the same way it already special-cases
+    `comicVineVolumeId`, and sets this state from it — so it's `true` right after a title-search
+    fill, and correctly resets to `false` if a later fill (e.g. an ISBN match, or Google Books)
+    doesn't carry the flag.
+  - The Page Count field's helper text now shows *"Approximate — median across editions. Edit if
+    you know the exact count."* whenever `pageCountApprox` is set, using the same field-rendering
+    path every other metadata field already goes through (no new field-type branch needed).
+
+## Interaction with the Longest Book stat
+No changes needed there — `getLongestBook()` already just reads whatever `metadata.pageCount`
+ends up being, exact or median, since Statistics has no way to know (or need to know) which kind
+a saved entry has. The approximation only matters at fill-time, which is exactly where this
+delta puts it.
 
 ## Verification
-`npx tsc -b --force`, `npx eslint .`, `npx vite build` all pass clean — same two pre-existing
-warnings as the previous delta (`EntryForm.tsx`'s `watch()` warning, `ManualCodeEntry.tsx`'s
-export-components warning), nothing new introduced.
+`npx tsc -b --force`, `npx eslint .`, `npx vite build` all pass clean — same pre-existing
+warnings as previous deltas, nothing new.
 
 ## Files changed
-- `src/components/charts/MonthlyActivityChart.tsx`
-- `src/services/statistics/statisticsService.ts`
+- `src/services/metadata/openLibraryService.ts`
+- `src/components/forms/EntryForm.tsx`
 
 No new npm dependencies, no Dexie migration, no Worker changes.

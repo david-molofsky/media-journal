@@ -142,6 +142,15 @@ export function EntryForm({
   );
   const [fetchingIssueDetails, setFetchingIssueDetails] = useState(false);
   const [issueFetchError, setIssueFetchError] = useState<string | null>(null);
+  // Whether the most recently auto-filled `pageCount` is a
+  // cross-edition median (Open Library title search) rather than an
+  // exact per-edition count (ISBN lookup, Google Books) — purely a
+  // this-session display hint for the helper text below the Page
+  // Count field, never persisted. Resets to false on any fill that
+  // doesn't carry the sentinel, e.g. re-searching and landing on an
+  // ISBN match after an initial title-search match. See chat, Sept
+  // 2026 — Longest Book backlog follow-up.
+  const [pageCountApprox, setPageCountApprox] = useState(false);
   const Icon = getMediaTypeIcon(mediaType.icon);
 
   // ISBN barcode scanning (Book/Audiobook/Comic only) — see
@@ -440,7 +449,7 @@ export function EntryForm({
     // "Fetch issue details" step, and also written into the form's
     // metadata so it's persisted on save (see entrySchemas.ts comment
     // — needed for the shared "add to journal" link).
-    const { comicVineVolumeId: volumeId, ...restFields } = fields;
+    const { comicVineVolumeId: volumeId, pageCountApprox: approxFlag, ...restFields } = fields;
     if (volumeId) {
       setComicVineVolumeId(volumeId);
       setValue(
@@ -451,6 +460,7 @@ export function EntryForm({
         },
       );
     }
+    setPageCountApprox(approxFlag === 'true');
     setIssueFetchError(null);
     for (const [key, value] of Object.entries(restFields)) {
       // Bug fix: every auto-filled field was being run through
@@ -581,7 +591,12 @@ export function EntryForm({
               controllerField.onBlur();
             }}
             error={Boolean(fieldState.error)}
-            helperText={fieldState.error?.message}
+            helperText={
+              fieldState.error?.message ??
+              (field.key === 'pageCount' && pageCountApprox
+                ? 'Approximate — median across editions. Edit if you know the exact count.'
+                : undefined)
+            }
           />
         )
       }

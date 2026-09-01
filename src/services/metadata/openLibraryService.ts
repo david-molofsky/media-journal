@@ -94,7 +94,7 @@ async function fetchBooksPage(query: string, offset: number, author = ''): Promi
     title: query,
     limit: String(PAGE_SIZE),
     offset: String(offset),
-    fields: `key,title,author_name,series,first_publish_year,editions,cover_i${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
+    fields: `key,title,author_name,series,first_publish_year,editions,cover_i,number_of_pages_median${ENABLE_OPENLIBRARY_GENRES ? ',subject' : ''}`,
   });
   // Author narrowing — see chat, Aug 2026 (short/common titles like
   // "Wicked" or "Villain" otherwise return an unmanageable number of
@@ -131,6 +131,13 @@ async function fetchBooksPage(query: string, offset: number, author = ''): Promi
       first_publish_year?: number;
       subject?: string[];
       cover_i?: number;
+      /** Median page count across every edition search.json knows
+       * about for this title — NOT one specific edition's exact count
+       * (that only exists at the edition/ISBN level, which search
+       * results aren't scoped to). Flagged as approximate to the
+       * person via `pageCountApprox` below rather than presented as
+       * exact — see chat, Sept 2026. */
+      number_of_pages_median?: number;
     }>;
   };
 
@@ -154,6 +161,17 @@ async function fetchBooksPage(query: string, offset: number, author = ''): Promi
     if (series) fields['series'] = series;
     if (autofillCoverImage && doc.cover_i) {
       fields['coverImagePath'] = `${COVERS_BASE}/id/${doc.cover_i}-M.jpg`;
+    }
+    // Page count autofills silently, no settings toggle (per chat,
+    // Sept 2026 — unlike cover image/release year, there's no
+    // quality/preference tradeoff worth a switch for a plain number).
+    // Flagged as approximate via the sentinel `pageCountApprox` key —
+    // stripped out in EntryForm's applyMetadataFill before it ever
+    // reaches metadata, used only to show "median, not exact" helper
+    // text under the field for this fill.
+    if (doc.number_of_pages_median) {
+      fields['pageCount'] = String(doc.number_of_pages_median);
+      fields['pageCountApprox'] = 'true';
     }
     // Year-only, unlike TMDB's full releaseDate on Film/TV — Open
     // Library's search index only gives first_publish_year, already
@@ -271,6 +289,10 @@ interface OpenLibraryBookRecord {
   publishers?: { name: string }[];
   subjects?: { name: string }[];
   cover?: { medium?: string; large?: string };
+  /** Exact page count for this specific edition/ISBN — unlike
+   * `number_of_pages_median` above, this isn't an approximation across
+   * editions, so it's filled without the `pageCountApprox` sentinel. */
+  number_of_pages?: number;
 }
 
 /**
@@ -299,6 +321,9 @@ export async function lookupByIsbn(isbn: string): Promise<SearchResult | null> {
   const author = record.authors?.[0]?.name ?? '';
   const fields: Record<string, string> = {};
   if (author) fields['author'] = author;
+  // Exact per-edition count — no `pageCountApprox` sentinel, unlike
+  // the title-search path in fetchBooksPage above.
+  if (record.number_of_pages) fields['pageCount'] = String(record.number_of_pages);
   // Unlike searchBooks/getBookDetailsByKey (which resolve a cover id
   // into a URL themselves), the Books API hands back a ready-made
   // hosted URL directly — used as-is, no COVERS_BASE construction
