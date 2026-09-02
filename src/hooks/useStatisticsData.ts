@@ -18,9 +18,17 @@ import {
   getTopGenreShareByMediaType,
   getTopPeopleByRole,
   getAverageRatingByPersonRole,
+  getTopWatchedWithByCount,
+  getAverageRatingByWatchedWith,
+  getTopRecommendedByByCount,
+  getAverageRatingByRecommendedBy,
 } from '@/services/statistics/statisticsService';
 import type { MediaEntry } from '@/models';
-import type { TopGenreShareByMediaType, StatsFilters, StatsYearScope } from '@/services/statistics/statisticsService';
+import type {
+  TopGenreShareByMediaType,
+  StatsFilters,
+  StatsYearScope,
+} from '@/services/statistics/statisticsService';
 import type { PersonRole } from '@/utils/personRoles';
 export type { StatsFilters };
 
@@ -44,6 +52,10 @@ export interface StatisticsData {
   topGenreShareByMediaType: TopGenreShareByMediaType | null;
   topPeopleByRole: Record<PersonRole, Record<string, number>>;
   averageRatingByPersonRole: Record<PersonRole, Record<string, number>>;
+  topWatchedWithByCount: Record<string, number>;
+  averageRatingByWatchedWith: Record<string, number>;
+  topRecommendedByByCount: Record<string, number>;
+  averageRatingByRecommendedBy: Record<string, number>;
 }
 
 /** Combines every statistics service call the Statistics screen needs
@@ -56,7 +68,10 @@ export interface StatisticsData {
  * `getFavouriteMediaType`/`getRepeatConsumption` are still used
  * internally by `getInsights` — only this hook's own top-level calls
  * were trimmed. */
-export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters): StatisticsData | undefined {
+export function useStatisticsData(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): StatisticsData | undefined {
   return useLiveQuery(async () => {
     const [
       summary,
@@ -77,6 +92,10 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       topGenreShareByMediaType,
       topPeopleByRole,
       averageRatingByPersonRole,
+      topWatchedWithByCount,
+      averageRatingByWatchedWith,
+      topRecommendedByByCount,
+      averageRatingByRecommendedBy,
     ] = await Promise.all([
       getYearSummary(year, filters),
       getMonthlyBreakdown(year, filters),
@@ -99,6 +118,10 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       getTopGenreShareByMediaType(year, filters),
       getTopPeopleByRole(year, filters),
       getAverageRatingByPersonRole(year, filters),
+      getTopWatchedWithByCount(year, filters),
+      getAverageRatingByWatchedWith(year, filters),
+      getTopRecommendedByByCount(year, filters),
+      getAverageRatingByRecommendedBy(year, filters),
     ]);
     return {
       totalEntries: summary.totalEntries,
@@ -120,6 +143,10 @@ export function useStatisticsData(year: StatsYearScope, filters?: StatsFilters):
       topGenreShareByMediaType,
       topPeopleByRole,
       averageRatingByPersonRole,
+      topWatchedWithByCount,
+      averageRatingByWatchedWith,
+      topRecommendedByByCount,
+      averageRatingByRecommendedBy,
     };
   }, [year, JSON.stringify(filters)]);
 }

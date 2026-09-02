@@ -9,7 +9,10 @@ import {
   fetchMovieRatings,
   fetchWatchlist,
 } from '@/services/metadata/traktService';
-import { applyShowSeasons, type ShowGroup } from '@/services/importExport/imdbImportService';
+import {
+  applyShowSeasons,
+  type ShowGroup,
+} from '@/services/importExport/imdbImportService';
 import type { EntryMetadata } from '@/models';
 
 /**
@@ -85,7 +88,9 @@ function buildFilmMetadata(fields: Record<string, string>): EntryMetadata {
 async function loadExistingFilmKeys(): Promise<Set<string>> {
   const films = await db.mediaEntries.where('mediaType').equals('film').toArray();
   return new Set(
-    films.filter((e) => e.completedDate).map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
+    films
+      .filter((e) => e.completedDate)
+      .map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
   );
 }
 
@@ -125,7 +130,9 @@ export async function fetchAndClassifyTrakt(
   ]);
 
   const ratingByTmdbId = new Map(
-    movieRatings.filter((r) => r.movie.ids.tmdb).map((r) => [String(r.movie.ids.tmdb), r.rating]),
+    movieRatings
+      .filter((r) => r.movie.ids.tmdb)
+      .map((r) => [String(r.movie.ids.tmdb), r.rating]),
   );
 
   const movies: TraktMovieReviewItem[] = [];
@@ -161,17 +168,26 @@ export async function fetchAndClassifyTrakt(
 
   const showsById = new Map<
     string,
-    { title: string; episodeEvidence: Map<number, { count: number; latestDate?: string }> }
+    {
+      title: string;
+      episodeEvidence: Map<number, { count: number; latestDate?: string }>;
+    }
   >();
   for (const row of validEpisodeRows) {
     const showId = String(row.show.ids.tmdb);
-    const entry = showsById.get(showId) ?? { title: row.show.title, episodeEvidence: new Map() };
+    const entry = showsById.get(showId) ?? {
+      title: row.show.title,
+      episodeEvidence: new Map(),
+    };
     const season = row.episode.season;
     const watchedDate = row.watched_at.slice(0, 10);
     const existing = entry.episodeEvidence.get(season);
     entry.episodeEvidence.set(season, {
       count: (existing?.count ?? 0) + 1,
-      latestDate: !existing?.latestDate || watchedDate > existing.latestDate ? watchedDate : existing.latestDate,
+      latestDate:
+        !existing?.latestDate || watchedDate > existing.latestDate
+          ? watchedDate
+          : existing.latestDate,
     });
     showsById.set(showId, entry);
   }
@@ -200,7 +216,10 @@ export async function fetchAndClassifyTrakt(
   }
 
   // ── Watchlist → Wishlist ────────────────────────────────────────────
-  const [watchlist, existingWishlistKeys] = await Promise.all([fetchWatchlist(), loadExistingWishlistKeys()]);
+  const [watchlist, existingWishlistKeys] = await Promise.all([
+    fetchWatchlist(),
+    loadExistingWishlistKeys(),
+  ]);
 
   const watchlistItems: TraktWatchlistReviewItem[] = [];
   let duplicateWatchlistCount = 0;
@@ -214,18 +233,34 @@ export async function fetchAndClassifyTrakt(
         duplicateWatchlistCount += 1;
         continue;
       }
-      watchlistItems.push({ key, mediaType: 'film', title: toTitleCase(item.movie.title), included: true });
+      watchlistItems.push({
+        key,
+        mediaType: 'film',
+        title: toTitleCase(item.movie.title),
+        included: true,
+      });
     } else if (item.type === 'show' && item.show?.ids.tmdb) {
       const key = `tv|${item.show.title.trim().toLowerCase()}`;
       if (existingWishlistKeys.has(key)) {
         duplicateWatchlistCount += 1;
         continue;
       }
-      watchlistItems.push({ key, mediaType: 'tv', title: toTitleCase(item.show.title), included: true });
+      watchlistItems.push({
+        key,
+        mediaType: 'tv',
+        title: toTitleCase(item.show.title),
+        included: true,
+      });
     }
   }
 
-  return { movies, duplicateMovieCount, shows, watchlist: watchlistItems, duplicateWatchlistCount };
+  return {
+    movies,
+    duplicateMovieCount,
+    shows,
+    watchlist: watchlistItems,
+    duplicateWatchlistCount,
+  };
 }
 
 export interface TraktApplyProgress {
@@ -270,6 +305,8 @@ export async function applyTraktImport(
         repeatConsumption: false,
         tags: [importedFromTag('Trakt')],
         genres: genres ?? [],
+        watchedWith: [],
+        recommendedBy: [],
         metadata: buildFilmMetadata(fields),
       });
       moviesImported += 1;
@@ -310,6 +347,8 @@ export async function applyTraktImport(
         repeatConsumption: false,
         tags: [importedFromTag('Trakt')],
         genres: [],
+        watchedWith: [],
+        recommendedBy: [],
         metadata: { source: 'Trakt' },
       });
       watchlistImported += 1;

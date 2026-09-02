@@ -1,7 +1,13 @@
 import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
-import { findByImdbId, getFilmDetails, getTVDetails, searchFilms, searchTV } from '@/services/metadata/tmdbService';
+import {
+  findByImdbId,
+  getFilmDetails,
+  getTVDetails,
+  searchFilms,
+  searchTV,
+} from '@/services/metadata/tmdbService';
 import {
   getLibrarySections,
   getWatchedItems,
@@ -39,7 +45,10 @@ export async function fetchPlexLibrary(
   const token = await getSetting(SETTINGS_KEYS.plexToken, '');
   if (!serverUrl || !token) throw new Error('Not connected to Plex.');
 
-  const [sections, existingKeys] = await Promise.all([getLibrarySections(serverUrl, token), loadExistingKeys()]);
+  const [sections, existingKeys] = await Promise.all([
+    getLibrarySections(serverUrl, token),
+    loadExistingKeys(),
+  ]);
   const mediaSections = sections.filter((s) => s.type === 'movie' || s.type === 'show');
 
   const rawItems: { item: PlexItem; mediaType: string }[] = [];
@@ -71,7 +80,8 @@ export async function fetchPlexLibrary(
     } else if (imdbId) {
       try {
         const found = await findByImdbId(imdbId);
-        const resolvedId = mediaType === 'film' ? found.movieId : found.tvId ?? found.episode?.showId;
+        const resolvedId =
+          mediaType === 'film' ? found.movieId : (found.tvId ?? found.episode?.showId);
         if (resolvedId) {
           status = 'matched';
           selectedCandidateId = resolvedId;
@@ -90,7 +100,9 @@ export async function fetchPlexLibrary(
       selectedCandidateId = match.selectedCandidateId;
     }
 
-    const date = raw.lastViewedAt ? dayjs.unix(raw.lastViewedAt).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+    const date = raw.lastViewedAt
+      ? dayjs.unix(raw.lastViewedAt).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD');
 
     items.push({
       key: raw.ratingKey,
@@ -115,7 +127,9 @@ export interface PlexImportSummary {
 /** Creates entries for every ticked item — only called once the
  * person confirms the review step. Always pulls full metadata from
  * TMDB via the matched id, same as the IMDb import. */
-export async function applyPlexImport(items: ExternalReviewItem[]): Promise<PlexImportSummary> {
+export async function applyPlexImport(
+  items: ExternalReviewItem[],
+): Promise<PlexImportSummary> {
   let imported = 0;
   let skipped = 0;
 
@@ -142,6 +156,8 @@ export async function applyPlexImport(items: ExternalReviewItem[]): Promise<Plex
       repeatConsumption: false,
       tags: [importedFromTag(SOURCE)],
       genres: details.genres ?? [],
+      watchedWith: [],
+      recommendedBy: [],
       metadata,
     });
     imported += 1;

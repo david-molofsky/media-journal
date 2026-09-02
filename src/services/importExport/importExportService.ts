@@ -26,7 +26,9 @@ export async function exportLibrary(): Promise<ExportPayload> {
     db.mediaEntries.toArray(),
     db.appSettings.toArray(),
   ]);
-  const settings = Object.fromEntries(settingRecords.map((record) => [record.key, record.value]));
+  const settings = Object.fromEntries(
+    settingRecords.map((record) => [record.key, record.value]),
+  );
   return { version: EXPORT_VERSION, exportedAt: nowIso(), entries, settings };
 }
 
@@ -48,13 +50,20 @@ const importedEntrySchema = z.object({
   // than rejecting the whole entry, so existing Google Drive backups
   // still import cleanly.
   genres: z.array(z.string()).default([]),
+  // Older exports predate Watched With / Recommended By — same
+  // default-to-empty treatment as Genre above.
+  watchedWith: z.array(z.string()).default([]),
+  recommendedBy: z.array(z.string()).default([]),
   // Preserves Wishlist reorder position across export/import — without
   // this, the field silently gets stripped by Zod (any key not
   // declared here is dropped by .parse()/.safeParse() by default),
   // even though exportLibrary() does include it in the file. See chat,
   // Sept 2026.
   wishlistOrder: z.number().optional(),
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.undefined()])),
+  metadata: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.undefined()]),
+  ),
   completedYear: z.number().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -127,7 +136,10 @@ export async function importLibrary(raw: unknown): Promise<ImportResult> {
       skipped += 1;
       continue;
     }
-    validEntries.push({ ...entryResult.data, metadata: metadataResult.data as EntryMetadata });
+    validEntries.push({
+      ...entryResult.data,
+      metadata: metadataResult.data as EntryMetadata,
+    });
   }
 
   await db.mediaEntries.bulkPut(validEntries);

@@ -3,7 +3,10 @@ import { findNextBookInSeries } from './openLibraryService';
 import { findNextTVSeason, findNextFilmInCollection } from './tmdbService';
 import { findNextComicIssue } from './comicVineService';
 import { findMalSequel, searchMalTitle } from './malService';
-import { fetchAndParseFeed, findNextEpisode } from '@/services/podcasts/podcastFeedService';
+import {
+  fetchAndParseFeed,
+  findNextEpisode,
+} from '@/services/podcasts/podcastFeedService';
 import { getPodcastSubscription } from '@/services/database/podcastSubscriptionService';
 import { getNextInSeriesEligibility } from '@/utils/nextInSeries';
 
@@ -42,6 +45,8 @@ function buildEntryInput(
     repeatConsumption: false,
     tags: [],
     genres: entry.genres ?? [],
+    watchedWith: [],
+    recommendedBy: [],
     metadata: {
       ...(typeof source === 'string' && source ? { source } : {}),
       ...foundMetadata,
@@ -134,7 +139,8 @@ export async function findNextInSeries(entry: MediaEntry): Promise<NextInSeriesR
       case 'manga': {
         const type = entry.mediaType;
         const series = String(entry.metadata.series);
-        const storedMalId = typeof entry.metadata.malId === 'string' ? entry.metadata.malId : undefined;
+        const storedMalId =
+          typeof entry.metadata.malId === 'string' ? entry.metadata.malId : undefined;
         const showId = storedMalId ?? (await searchMalTitle(series, type))?.id.toString();
         if (!showId) return { status: 'not_found' };
 
@@ -160,7 +166,8 @@ export async function findNextInSeries(entry: MediaEntry): Promise<NextInSeriesR
         const episodeGuid = String(entry.metadata.episodeGuid);
 
         const subscription = await getPodcastSubscription(subscriptionId);
-        if (!subscription) return { status: 'error', message: 'This subscription no longer exists' };
+        if (!subscription)
+          return { status: 'error', message: 'This subscription no longer exists' };
 
         const feed = await fetchAndParseFeed(subscription.feedUrl);
         const next = findNextEpisode(feed.episodes, episodeGuid);
@@ -170,9 +177,12 @@ export async function findNextInSeries(entry: MediaEntry): Promise<NextInSeriesR
           podcastSubscriptionId: subscriptionId,
           episodeGuid: next.guid,
         };
-        if (next.seasonNumber !== undefined) foundMetadata.seasonNumber = next.seasonNumber;
-        if (next.episodeNumber !== undefined) foundMetadata.episodeNumber = next.episodeNumber;
-        if (next.durationMinutes !== undefined) foundMetadata.duration = next.durationMinutes;
+        if (next.seasonNumber !== undefined)
+          foundMetadata.seasonNumber = next.seasonNumber;
+        if (next.episodeNumber !== undefined)
+          foundMetadata.episodeNumber = next.episodeNumber;
+        if (next.durationMinutes !== undefined)
+          foundMetadata.duration = next.durationMinutes;
         if (next.description) foundMetadata.overview = next.description;
         if (next.artworkUrl) foundMetadata.coverImagePath = next.artworkUrl;
 
@@ -191,6 +201,9 @@ export async function findNextInSeries(entry: MediaEntry): Promise<NextInSeriesR
         return { status: 'error', message: 'Not available for this media type' };
     }
   } catch (err) {
-    return { status: 'error', message: err instanceof Error ? err.message : 'Something went wrong' };
+    return {
+      status: 'error',
+      message: err instanceof Error ? err.message : 'Something went wrong',
+    };
   }
 }

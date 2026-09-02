@@ -29,8 +29,13 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { getEntryImageUrl } from '@/utils/entryImage';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { todayIso } from '@/utils/dateUtils';
-import { updateEntryStatus, updateEntryRating, updateEntryDate } from '@/services/database/entryService';
+import {
+  updateEntryStatus,
+  updateEntryRating,
+  updateEntryDate,
+} from '@/services/database/entryService';
 import { ROUTES, editEntryPath } from '@/routes/paths';
+import { watchedWithLabel, RECOMMENDED_BY_LABEL } from '@/utils/companionFieldLabels';
 import type { EntryStatus, FieldInputType } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 
@@ -42,7 +47,10 @@ import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
  * so only `overview` needs its own display row here. */
 const OVERVIEW_MEDIA_TYPES = new Set(['film', 'tv']);
 
-const STATUS_META: Record<EntryStatus, { label: string; Icon: typeof CheckCircleOutlineIcon }> = {
+const STATUS_META: Record<
+  EntryStatus,
+  { label: string; Icon: typeof CheckCircleOutlineIcon }
+> = {
   wishlist: { label: 'Wishlist', Icon: StarBorderIcon },
   in_progress: { label: 'In Progress', Icon: PlayArrowIcon },
   completed: { label: 'Completed', Icon: CheckCircleOutlineIcon },
@@ -101,7 +109,9 @@ export default function EntryDetailPage() {
       ? {
           ...rawMediaType,
           fields: rawMediaType.fields.filter((field) =>
-            tvMode === 'episode' ? true : field.key !== 'episodeStart' && field.key !== 'episodeEnd',
+            tvMode === 'episode'
+              ? true
+              : field.key !== 'episodeStart' && field.key !== 'episodeEnd',
           ),
         }
       : rawMediaType;
@@ -161,7 +171,10 @@ export default function EntryDetailPage() {
   // just gets its own cell in a simple responsive grid, which reads
   // fine at this density without needing pair-specific formatting.
   const detailRows = effectiveMediaType.fields
-    .map((field) => ({ label: field.label, value: formatFieldValue(entry.metadata[field.key], field.type) }))
+    .map((field) => ({
+      label: field.label,
+      value: formatFieldValue(entry.metadata[field.key], field.type),
+    }))
     .filter((row): row is { label: string; value: string } => row.value !== undefined);
 
   const showDates = status !== 'wishlist';
@@ -172,7 +185,10 @@ export default function EntryDetailPage() {
   // effectiveMediaType.fields[], so detailRows above never included
   // it — Film/TV summaries were silently missing from this page.
   const overview = entry.metadata.overview;
-  const showOverview = OVERVIEW_MEDIA_TYPES.has(effectiveMediaType.id) && typeof overview === 'string' && overview;
+  const showOverview =
+    OVERVIEW_MEDIA_TYPES.has(effectiveMediaType.id) &&
+    typeof overview === 'string' &&
+    overview;
 
   // Quick-action status buttons — same actions and same conditions as
   // the Library card's onStartTracking/onMoveToWishlist/onMarkFinished
@@ -186,7 +202,12 @@ export default function EntryDetailPage() {
     setFinishOpen(true);
   };
   const handleMarkFinished = async () => {
-    await updateEntryStatus(entry.id, 'completed', finishDate || todayIso(), finishRating);
+    await updateEntryStatus(
+      entry.id,
+      'completed',
+      finishDate || todayIso(),
+      finishRating,
+    );
     setFinishOpen(false);
   };
 
@@ -220,7 +241,13 @@ export default function EntryDetailPage() {
               component="img"
               src={imageUrl}
               alt=""
-              sx={{ width: 84, height: 126, borderRadius: 1.5, objectFit: 'cover', flexShrink: 0 }}
+              sx={{
+                width: 84,
+                height: 126,
+                borderRadius: 1.5,
+                objectFit: 'cover',
+                flexShrink: 0,
+              }}
             />
           ) : (
             <Box
@@ -274,12 +301,22 @@ export default function EntryDetailPage() {
         {(status === 'wishlist' || status === 'in_progress') && (
           <Stack direction="row" spacing={1}>
             {status === 'wishlist' && (
-              <Button fullWidth variant="outlined" size="small" onClick={handleStartTracking}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={handleStartTracking}
+              >
                 ▶ Start Tracking
               </Button>
             )}
             {status === 'in_progress' && (
-              <Button fullWidth variant="outlined" size="small" onClick={handleMoveToWishlist}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={handleMoveToWishlist}
+              >
                 ☆ Move to Wishlist
               </Button>
             )}
@@ -293,7 +330,12 @@ export default function EntryDetailPage() {
           <>
             <Divider />
             <Box>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                gutterBottom
+              >
                 Summary
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -330,7 +372,12 @@ export default function EntryDetailPage() {
           <>
             <Divider />
             <Box>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                display="block"
+                gutterBottom
+              >
                 Notes
               </Typography>
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -342,7 +389,12 @@ export default function EntryDetailPage() {
 
         {entry.genres && entry.genres.length > 0 && (
           <Box>
-            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              gutterBottom
+            >
               Genres
             </Typography>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -354,7 +406,12 @@ export default function EntryDetailPage() {
         )}
 
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            display="block"
+            gutterBottom
+          >
             Tags
           </Typography>
           {entry.tags && entry.tags.length > 0 ? (
@@ -369,6 +426,60 @@ export default function EntryDetailPage() {
             </Typography>
           )}
         </Box>
+
+        {/* Watched/Read With and Recommended By — hidden entirely when
+            empty, same as Genres above, rather than showing an empty
+            placeholder (unlike Tags, which always has a section since
+            it's core to the app). Chips use color="primary" to read as
+            people, distinct from Genre's filled and Tag's outlined
+            neutral chips. */}
+        {entry.watchedWith && entry.watchedWith.length > 0 && (
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              gutterBottom
+            >
+              {watchedWithLabel(entry.mediaType)}
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {entry.watchedWith.map((name) => (
+                <Chip
+                  key={name}
+                  label={name}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              ))}
+            </Stack>
+          </Box>
+        )}
+
+        {entry.recommendedBy && entry.recommendedBy.length > 0 && (
+          <Box>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              gutterBottom
+            >
+              {RECOMMENDED_BY_LABEL}
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {entry.recommendedBy.map((name) => (
+                <Chip
+                  key={name}
+                  label={name}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              ))}
+            </Stack>
+          </Box>
+        )}
 
         {showRating && (
           <RatingInput
@@ -389,7 +500,9 @@ export default function EntryDetailPage() {
               <EntryDatePicker
                 label="Completed"
                 value={entry.completedDate}
-                onChange={(value) => void updateEntryDate(entry.id, 'completedDate', value)}
+                onChange={(value) =>
+                  void updateEntryDate(entry.id, 'completedDate', value)
+                }
               />
             )}
           </Stack>

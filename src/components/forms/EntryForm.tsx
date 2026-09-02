@@ -37,6 +37,9 @@ import { RatingInput } from './RatingInput';
 import { TagInput } from './TagInput';
 import { EntryDatePicker } from './EntryDatePicker';
 import { GenreInput } from './GenreInput';
+import { WatchedWithInput } from './WatchedWithInput';
+import { RecommendedByInput } from './RecommendedByInput';
+import { watchedWithLabel } from '@/utils/companionFieldLabels';
 import { MetadataSearch } from './MetadataSearch';
 import { IsbnScanDialog } from './IsbnScanDialog';
 import { UpcScanDialog } from './UpcScanDialog';
@@ -112,6 +115,8 @@ function buildDefaultValues(
       repeatConsumption: false,
       tags: [],
       genres: [],
+      watchedWith: [],
+      recommendedBy: [],
       metadata: emptyMetadata(mediaType),
     }
   );
@@ -449,7 +454,11 @@ export function EntryForm({
     // "Fetch issue details" step, and also written into the form's
     // metadata so it's persisted on save (see entrySchemas.ts comment
     // — needed for the shared "add to journal" link).
-    const { comicVineVolumeId: volumeId, pageCountApprox: approxFlag, ...restFields } = fields;
+    const {
+      comicVineVolumeId: volumeId,
+      pageCountApprox: approxFlag,
+      ...restFields
+    } = fields;
     if (volumeId) {
       setComicVineVolumeId(volumeId);
       setValue(
@@ -1284,6 +1293,26 @@ export function EntryForm({
           control={control}
           render={({ field }) => (
             <GenreInput value={field.value ?? []} onChange={field.onChange} />
+          )}
+        />
+
+        <Controller
+          name="watchedWith"
+          control={control}
+          render={({ field }) => (
+            <WatchedWithInput
+              value={field.value ?? []}
+              onChange={field.onChange}
+              label={watchedWithLabel(mediaType.id)}
+            />
+          )}
+        />
+
+        <Controller
+          name="recommendedBy"
+          control={control}
+          render={({ field }) => (
+            <RecommendedByInput value={field.value ?? []} onChange={field.onChange} />
           )}
         />
 

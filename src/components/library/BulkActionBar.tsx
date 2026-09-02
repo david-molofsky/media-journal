@@ -19,6 +19,8 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import SourceOutlinedIcon from '@mui/icons-material/SourceOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import RecommendOutlinedIcon from '@mui/icons-material/RecommendOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import IconButton from '@mui/material/IconButton';
 import {
@@ -27,11 +29,17 @@ import {
   bulkAddGenres,
   bulkRemoveTags,
   bulkRemoveGenres,
+  bulkAddWatchedWith,
+  bulkRemoveWatchedWith,
+  bulkAddRecommendedBy,
+  bulkRemoveRecommendedBy,
   bulkSetRating,
   bulkSetSource,
 } from '@/services/database/entryService';
 import { TagInput } from '@/components/forms/TagInput';
 import { GenreInput } from '@/components/forms/GenreInput';
+import { WatchedWithInput } from '@/components/forms/WatchedWithInput';
+import { RecommendedByInput } from '@/components/forms/RecommendedByInput';
 import { useAvailableSources } from '@/hooks/useAvailableSources';
 import { useSelectionFieldCounts } from '@/hooks/useSelectionFieldCounts';
 import { useBackfillFlow } from '@/hooks/useBackfillFlow';
@@ -59,6 +67,12 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const [genreOpen, setGenreOpen] = useState(false);
   const [genreMode, setGenreMode] = useState<BulkListMode>('add');
   const [genreValues, setGenreValues] = useState<string[]>([]);
+  const [watchedWithOpen, setWatchedWithOpen] = useState(false);
+  const [watchedWithMode, setWatchedWithMode] = useState<BulkListMode>('add');
+  const [watchedWithValues, setWatchedWithValues] = useState<string[]>([]);
+  const [recommendedByOpen, setRecommendedByOpen] = useState(false);
+  const [recommendedByMode, setRecommendedByMode] = useState<BulkListMode>('add');
+  const [recommendedByValues, setRecommendedByValues] = useState<string[]>([]);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceValue, setSourceValue] = useState('');
   const [rateOpen, setRateOpen] = useState(false);
@@ -68,6 +82,11 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const availableSources = useAvailableSources();
   const selectedGenreCounts = useSelectionFieldCounts(selectedIds, 'genres');
   const selectedTagCounts = useSelectionFieldCounts(selectedIds, 'tags');
+  const selectedWatchedWithCounts = useSelectionFieldCounts(selectedIds, 'watchedWith');
+  const selectedRecommendedByCounts = useSelectionFieldCounts(
+    selectedIds,
+    'recommendedBy',
+  );
 
   const count = selectedIds.length;
 
@@ -90,6 +109,30 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
     setGenreOpen(false);
     setGenreMode('add');
     setGenreValues([]);
+    onClear();
+  };
+
+  const handleWatchedWith = async () => {
+    if (watchedWithValues.length > 0) {
+      if (watchedWithMode === 'add')
+        await bulkAddWatchedWith(selectedIds, watchedWithValues);
+      else await bulkRemoveWatchedWith(selectedIds, watchedWithValues);
+    }
+    setWatchedWithOpen(false);
+    setWatchedWithMode('add');
+    setWatchedWithValues([]);
+    onClear();
+  };
+
+  const handleRecommendedBy = async () => {
+    if (recommendedByValues.length > 0) {
+      if (recommendedByMode === 'add')
+        await bulkAddRecommendedBy(selectedIds, recommendedByValues);
+      else await bulkRemoveRecommendedBy(selectedIds, recommendedByValues);
+    }
+    setRecommendedByOpen(false);
+    setRecommendedByMode('add');
+    setRecommendedByValues([]);
     onClear();
   };
 
@@ -182,6 +225,22 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             sx={{ color: 'inherit', flexShrink: 0 }}
           >
             Tag
+          </Button>
+          <Button
+            size="small"
+            startIcon={<PeopleOutlineIcon />}
+            onClick={() => setWatchedWithOpen(true)}
+            sx={{ color: 'inherit', flexShrink: 0 }}
+          >
+            Watched With
+          </Button>
+          <Button
+            size="small"
+            startIcon={<RecommendOutlinedIcon />}
+            onClick={() => setRecommendedByOpen(true)}
+            sx={{ color: 'inherit', flexShrink: 0 }}
+          >
+            Recommended
           </Button>
           <Button
             size="small"
@@ -359,6 +418,126 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
             disabled={tagValues.length === 0}
           >
             {tagMode === 'add' ? 'Add tags' : 'Remove tags'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Watched With dialog — same Add/Remove pattern as Tag/Genre
+          above. Bulk action buttons use fixed generic labels since a
+          selection can span mixed media types (see
+          companionFieldLabels.ts — the per-type label only applies on
+          the entry form/detail, which each show a single type). */}
+      <Dialog
+        open={watchedWithOpen}
+        onClose={() => setWatchedWithOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          Watched With for {count} {count === 1 ? 'entry' : 'entries'}
+        </DialogTitle>
+        <DialogContent>
+          <ToggleButtonGroup
+            value={watchedWithMode}
+            exclusive
+            size="small"
+            fullWidth
+            sx={{ mb: 2 }}
+            onChange={(_, v: BulkListMode | null) => {
+              if (!v) return;
+              setWatchedWithMode(v);
+              setWatchedWithValues([]);
+            }}
+          >
+            <ToggleButton value="add">Add</ToggleButton>
+            <ToggleButton value="remove">Remove</ToggleButton>
+          </ToggleButtonGroup>
+          <Box sx={{ mt: 1 }}>
+            {watchedWithMode === 'add' ? (
+              <WatchedWithInput
+                value={watchedWithValues}
+                onChange={setWatchedWithValues}
+                label="Watched With"
+              />
+            ) : (
+              <RemoveFieldSelect
+                label="Remove names"
+                placeholder="Search names present on these entries…"
+                options={selectedWatchedWithCounts}
+                value={watchedWithValues}
+                onChange={setWatchedWithValues}
+                totalSelected={count}
+              />
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWatchedWithOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color={watchedWithMode === 'remove' ? 'error' : 'primary'}
+            onClick={handleWatchedWith}
+            disabled={watchedWithValues.length === 0}
+          >
+            {watchedWithMode === 'add' ? 'Add names' : 'Remove names'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Recommended By dialog — same Add/Remove pattern as Watched
+          With above. */}
+      <Dialog
+        open={recommendedByOpen}
+        onClose={() => setRecommendedByOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          Recommended By for {count} {count === 1 ? 'entry' : 'entries'}
+        </DialogTitle>
+        <DialogContent>
+          <ToggleButtonGroup
+            value={recommendedByMode}
+            exclusive
+            size="small"
+            fullWidth
+            sx={{ mb: 2 }}
+            onChange={(_, v: BulkListMode | null) => {
+              if (!v) return;
+              setRecommendedByMode(v);
+              setRecommendedByValues([]);
+            }}
+          >
+            <ToggleButton value="add">Add</ToggleButton>
+            <ToggleButton value="remove">Remove</ToggleButton>
+          </ToggleButtonGroup>
+          <Box sx={{ mt: 1 }}>
+            {recommendedByMode === 'add' ? (
+              <RecommendedByInput
+                value={recommendedByValues}
+                onChange={setRecommendedByValues}
+              />
+            ) : (
+              <RemoveFieldSelect
+                label="Remove names"
+                placeholder="Search names present on these entries…"
+                options={selectedRecommendedByCounts}
+                value={recommendedByValues}
+                onChange={setRecommendedByValues}
+                totalSelected={count}
+              />
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRecommendedByOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color={recommendedByMode === 'remove' ? 'error' : 'primary'}
+            onClick={handleRecommendedBy}
+            disabled={recommendedByValues.length === 0}
+          >
+            {recommendedByMode === 'add' ? 'Add names' : 'Remove names'}
           </Button>
         </DialogActions>
       </Dialog>

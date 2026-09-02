@@ -34,7 +34,10 @@ export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
   editor: 'Editors',
 };
 
-export const PERSON_ROLE_FIELDS: Record<PersonRole, { mediaTypeId: string; fieldKey: string }[]> = {
+export const PERSON_ROLE_FIELDS: Record<
+  PersonRole,
+  { mediaTypeId: string; fieldKey: string }[]
+> = {
   actor: [
     { mediaTypeId: 'film', fieldKey: 'cast' },
     { mediaTypeId: 'tv', fieldKey: 'cast' },
@@ -66,3 +69,23 @@ export function splitPeople(value: string): string[] {
     .map((name) => name.trim())
     .filter(Boolean);
 }
+
+/**
+ * The Statistics People tile's full set of selectable categories — the
+ * credited roles above, plus "Watched With" and "Recommended By" (see
+ * chat, Sept 2026: folded into this existing tile rather than getting
+ * their own, so the Stats page grid stays exactly 8 tiles / 4 balanced
+ * rows). Unlike a `PersonRole`, these two aren't sourced from
+ * `PERSON_ROLE_FIELDS` metadata splitting — they read the top-level
+ * `watchedWith`/`recommendedBy` arrays directly (see
+ * `statisticsService.ts`'s `getTopWatchedWithByCount`/
+ * `getTopRecommendedByByCount` and friends) — but the People tile
+ * presents them in the exact same chip-select + ranked-list UI.
+ */
+export type PeopleCategoryId = PersonRole | 'watchedWith' | 'recommendedBy';
+
+export const PEOPLE_CATEGORY_LABELS: Record<PeopleCategoryId, string> = {
+  ...PERSON_ROLE_LABELS,
+  watchedWith: 'Watched With',
+  recommendedBy: 'Recommended By',
+};

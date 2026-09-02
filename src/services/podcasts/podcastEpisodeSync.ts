@@ -5,7 +5,11 @@ import {
   listPodcastSubscriptions,
   touchPodcastSubscriptionLastChecked,
 } from '@/services/database/podcastSubscriptionService';
-import { fetchAndParseFeed, type PodcastEpisode, type FetchedPodcastFeed } from './podcastFeedService';
+import {
+  fetchAndParseFeed,
+  type PodcastEpisode,
+  type FetchedPodcastFeed,
+} from './podcastFeedService';
 import { importedFromTag } from '@/utils/importedFromTag';
 import type { PodcastSubscription, EntryMetadata } from '@/models';
 
@@ -15,9 +19,7 @@ const SOURCE = 'Podcast RSS';
  * entries at subscribe time — asked fresh every time someone
  * subscribes (see chat), no remembered default. */
 export type BackCatalogueOption =
-  | { type: 'all' }
-  | { type: 'none' }
-  | { type: 'lastN'; n: number };
+  { type: 'all' } | { type: 'none' } | { type: 'lastN'; n: number };
 
 function selectBackCatalogue(
   episodesNewestFirst: PodcastEpisode[],
@@ -42,8 +44,12 @@ async function createEpisodeEntry(
     // pattern as coverImagePath above, so a field absent from the
     // feed stays genuinely absent rather than saving as 0/''.
     ...(episode.seasonNumber !== undefined ? { seasonNumber: episode.seasonNumber } : {}),
-    ...(episode.episodeNumber !== undefined ? { episodeNumber: episode.episodeNumber } : {}),
-    ...(episode.durationMinutes !== undefined ? { duration: episode.durationMinutes } : {}),
+    ...(episode.episodeNumber !== undefined
+      ? { episodeNumber: episode.episodeNumber }
+      : {}),
+    ...(episode.durationMinutes !== undefined
+      ? { duration: episode.durationMinutes }
+      : {}),
     ...(episode.description ? { overview: episode.description } : {}),
   };
   await createEntry({
@@ -53,6 +59,8 @@ async function createEpisodeEntry(
     repeatConsumption: false,
     tags: [importedFromTag(SOURCE)],
     genres: [],
+    watchedWith: [],
+    recommendedBy: [],
     metadata,
   });
 }
@@ -71,7 +79,11 @@ export async function subscribeToPodcast(
   // fetched (to show an accurate episode count), so this accepts that
   // result directly rather than fetching a second time.
   prefetchedFeed?: FetchedPodcastFeed,
-): Promise<{ subscription: PodcastSubscription; addedCount: number; totalEpisodes: number }> {
+): Promise<{
+  subscription: PodcastSubscription;
+  addedCount: number;
+  totalEpisodes: number;
+}> {
   const feed = prefetchedFeed ?? (await fetchAndParseFeed(feedUrl));
 
   const subscription = await addPodcastSubscription({
@@ -86,7 +98,11 @@ export async function subscribeToPodcast(
   }
   await touchPodcastSubscriptionLastChecked(subscription.id);
 
-  return { subscription, addedCount: toImport.length, totalEpisodes: feed.episodes.length };
+  return {
+    subscription,
+    addedCount: toImport.length,
+    totalEpisodes: feed.episodes.length,
+  };
 }
 
 /** Every episode guid already imported for a given subscription, so a
@@ -95,7 +111,10 @@ export async function subscribeToPodcast(
  * filtered in JS. Podcast libraries are small relative to IndexedDB's
  * comfortable range, so this stays fast in practice. */
 async function loadExistingEpisodeGuids(subscriptionId: string): Promise<Set<string>> {
-  const podcastEntries = await db.mediaEntries.where('mediaType').equals('podcast').toArray();
+  const podcastEntries = await db.mediaEntries
+    .where('mediaType')
+    .equals('podcast')
+    .toArray();
   const guids = podcastEntries
     .filter((e) => e.metadata.podcastSubscriptionId === subscriptionId)
     .map((e) => e.metadata.episodeGuid)
@@ -119,7 +138,9 @@ export interface SubscriptionCheckResult {
  * new, and stamps `lastCheckedAt`. One subscription's feed failing
  * doesn't stop the rest from being checked.
  */
-export async function checkAllSubscriptionsForNewEpisodes(): Promise<SubscriptionCheckResult[]> {
+export async function checkAllSubscriptionsForNewEpisodes(): Promise<
+  SubscriptionCheckResult[]
+> {
   const subscriptions = await listPodcastSubscriptions();
   const results: SubscriptionCheckResult[] = [];
 

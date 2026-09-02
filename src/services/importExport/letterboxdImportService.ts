@@ -68,7 +68,8 @@ export function parseLetterboxdDiary(csvText: string): LetterboxdDiaryRow[] {
   return rows;
 }
 
-export type LetterboxdMatchStatus = 'auto' | 'ambiguous' | 'none' | 'duplicate' | 'skipped';
+export type LetterboxdMatchStatus =
+  'auto' | 'ambiguous' | 'none' | 'duplicate' | 'skipped';
 
 export interface LetterboxdMatchState {
   row: LetterboxdDiaryRow;
@@ -150,18 +151,34 @@ export async function matchRow(
 
   if (yearMatches.length === 1) {
     const match = yearMatches[0];
-    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id, included: true };
+    if (match)
+      return {
+        row,
+        candidates: results.slice(0, 5),
+        status: 'auto',
+        selectedId: match.id,
+        included: true,
+      };
   }
   if (yearMatches.length === 0 && exactTitleMatches.length === 1) {
     const match = exactTitleMatches[0];
-    if (match) return { row, candidates: results.slice(0, 5), status: 'auto', selectedId: match.id, included: true };
+    if (match)
+      return {
+        row,
+        candidates: results.slice(0, 5),
+        status: 'auto',
+        selectedId: match.id,
+        included: true,
+      };
   }
 
   // Ambiguous — pre-select the best guess (prefer a year match among
   // all results, not just exact-title ones) so Apply never silently
   // skips someone who didn't touch the radio group.
   const topCandidates = results.slice(0, 5);
-  const bestGuess = row.year ? topCandidates.find((c) => c.subtitle === row.year) : undefined;
+  const bestGuess = row.year
+    ? topCandidates.find((c) => c.subtitle === row.year)
+    : undefined;
   return {
     row,
     candidates: topCandidates,
@@ -196,7 +213,9 @@ function buildMetadata(fields: Record<string, string>): EntryMetadata {
 /** Creates the MJ Film entry for one resolved row. Returns 'skipped'
  * for duplicates, explicitly-skipped rows, or 'none' rows the person
  * chose not to import anyway. */
-export async function applyRow(state: LetterboxdMatchState): Promise<'imported' | 'skipped'> {
+export async function applyRow(
+  state: LetterboxdMatchState,
+): Promise<'imported' | 'skipped'> {
   const { row } = state;
 
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
@@ -224,6 +243,8 @@ export async function applyRow(state: LetterboxdMatchState): Promise<'imported' 
     repeatConsumption: row.rewatch,
     tags: Array.from(new Set([...row.tags, importedFromTag('Letterboxd')])),
     genres,
+    watchedWith: [],
+    recommendedBy: [],
     metadata,
   });
 

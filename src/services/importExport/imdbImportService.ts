@@ -1,7 +1,12 @@
 import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
-import { findByImdbId, getFilmDetails, getTVDetails, getTVShowSummary } from '@/services/metadata/tmdbService';
+import {
+  findByImdbId,
+  getFilmDetails,
+  getTVDetails,
+  getTVShowSummary,
+} from '@/services/metadata/tmdbService';
 import { parseCsv } from '@/utils/csvParser';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { importedFromTag } from '@/utils/importedFromTag';
@@ -26,7 +31,8 @@ import type { EntryMetadata } from '@/models';
  * one-entry-per-season model).
  */
 
-export type ImdbTitleType = 'Movie' | 'TV Series' | 'TV Mini Series' | 'TV Episode' | string;
+export type ImdbTitleType =
+  'Movie' | 'TV Series' | 'TV Mini Series' | 'TV Episode' | string;
 
 export interface ImdbRow {
   imdbId: string;
@@ -76,10 +82,7 @@ export function parseImdbRatings(csvText: string): ImdbRow[] {
 const TV_TITLE_TYPES = new Set(['TV Series', 'TV Mini Series', 'TV Episode']);
 
 export type SkipReason =
-  | 'unsupported_type'
-  | 'no_tmdb_match'
-  | 'missing_date'
-  | 'show_skipped';
+  'unsupported_type' | 'no_tmdb_match' | 'missing_date' | 'show_skipped';
 
 export interface SkippedRow {
   row: ImdbRow;
@@ -126,7 +129,9 @@ async function loadExistingKeys(): Promise<{ films: Set<string>; seasons: Set<st
   ]);
   return {
     films: new Set(
-      films.filter((e) => e.completedDate).map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
+      films
+        .filter((e) => e.completedDate)
+        .map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
     ),
     seasons: new Set(
       seasons
@@ -171,7 +176,9 @@ export async function matchRows(
       const result = await findByImdbId(row.imdbId);
       if (!result.movieId) {
         skipped.push({ row, reason: 'no_tmdb_match' });
-      } else if (existing.films.has(`${row.title.trim().toLowerCase()}|${row.dateRated ?? ''}`)) {
+      } else if (
+        existing.films.has(`${row.title.trim().toLowerCase()}|${row.dateRated ?? ''}`)
+      ) {
         // Already imported — silently excluded rather than counted as
         // "skipped" (that label is reserved for rows that genuinely
         // couldn't be imported).
@@ -204,7 +211,8 @@ export async function matchRows(
         } else if (result.episode) {
           const existingEvidence = group.episodeEvidence.get(result.episode.seasonNumber);
           const latestDate =
-            !existingEvidence?.latestDate || (row.dateRated && row.dateRated > existingEvidence.latestDate)
+            !existingEvidence?.latestDate ||
+            (row.dateRated && row.dateRated > existingEvidence.latestDate)
               ? row.dateRated
               : existingEvidence.latestDate;
           group.episodeEvidence.set(result.episode.seasonNumber, {
@@ -238,7 +246,11 @@ function buildFilmMetadata(fields: Record<string, string>): EntryMetadata {
   return metadata;
 }
 
-function buildTvMetadata(fields: Record<string, string>, seasonNumber: number, source: string): EntryMetadata {
+function buildTvMetadata(
+  fields: Record<string, string>,
+  seasonNumber: number,
+  source: string,
+): EntryMetadata {
   const metadata: EntryMetadata = {};
   for (const [key, value] of Object.entries(fields)) {
     if (key === 'runtime') metadata[key] = Number(value);
@@ -268,6 +280,8 @@ export async function applyMovies(movies: MovieMatch[]): Promise<number> {
       repeatConsumption: false,
       tags: [importedFromTag('IMDb')],
       genres: genres ?? [],
+      watchedWith: [],
+      recommendedBy: [],
       metadata: buildFilmMetadata(fields),
     });
     imported += 1;
@@ -332,6 +346,8 @@ export async function applyShowSeasons(
       repeatConsumption: false,
       tags: [importedFromTag(source)],
       genres: genres ?? [],
+      watchedWith: [],
+      recommendedBy: [],
       metadata: buildTvMetadata(fields, seasonNumber, source),
     });
     imported += 1;

@@ -52,6 +52,8 @@ export async function updateEntry(
     repeatConsumption: patch.repeatConsumption ?? existing.repeatConsumption,
     tags: patch.tags ?? existing.tags ?? [],
     genres: patch.genres ?? existing.genres ?? [],
+    watchedWith: patch.watchedWith ?? existing.watchedWith ?? [],
+    recommendedBy: patch.recommendedBy ?? existing.recommendedBy ?? [],
     metadata: patch.metadata ?? existing.metadata,
   };
 
@@ -227,6 +229,73 @@ export async function bulkRemoveGenres(ids: string[], genres: string[]): Promise
   await db.mediaEntries.bulkPut(updates);
 }
 
+/** Adds names to every selected entry's `watchedWith`, merging with
+ * whatever each entry already has. Mirrors `bulkAddTags`. */
+export async function bulkAddWatchedWith(ids: string[], names: string[]): Promise<void> {
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      watchedWith: Array.from(new Set([...(e.watchedWith ?? []), ...names])),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Removes the given names from every selected entry's `watchedWith`
+ * that has them. Mirrors `bulkRemoveTags`. */
+export async function bulkRemoveWatchedWith(
+  ids: string[],
+  names: string[],
+): Promise<void> {
+  const removeSet = new Set(names);
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      watchedWith: (e.watchedWith ?? []).filter((n) => !removeSet.has(n)),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Adds names to every selected entry's `recommendedBy`, merging with
+ * whatever each entry already has. Mirrors `bulkAddTags`. */
+export async function bulkAddRecommendedBy(
+  ids: string[],
+  names: string[],
+): Promise<void> {
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      recommendedBy: Array.from(new Set([...(e.recommendedBy ?? []), ...names])),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
+/** Removes the given names from every selected entry's `recommendedBy`
+ * that has them. Mirrors `bulkRemoveTags`. */
+export async function bulkRemoveRecommendedBy(
+  ids: string[],
+  names: string[],
+): Promise<void> {
+  const removeSet = new Set(names);
+  const entries = await db.mediaEntries.bulkGet(ids);
+  const updates = entries
+    .filter((e): e is MediaEntry => e !== undefined)
+    .map((e) => ({
+      ...e,
+      recommendedBy: (e.recommendedBy ?? []).filter((n) => !removeSet.has(n)),
+      updatedAt: nowIso(),
+    }));
+  await db.mediaEntries.bulkPut(updates);
+}
+
 /** Sets `metadata.source` to the same value on every selected entry,
  * regardless of media type — every type's metadata schema includes an
  * optional `source` field, so this is safe across a mixed-type
@@ -345,6 +414,20 @@ export interface EntryListFilter {
   /** An entry is dropped if its source is any of these — checked
    * before `sources`, see `passesCategory` below. */
   sourcesExclude?: string[];
+  /** OR-matched against `watchedWith` — an entry passes if it was
+   * watched/read/listened to/played with any of these people.
+   * Cross-media-type, same shape as Tags/Genres. */
+  watchedWith?: string[];
+  /** An entry is dropped if it was watched/read/listened to/played with
+   * any of these people — checked before `watchedWith`, see
+   * `passesCategory` below. */
+  watchedWithExclude?: string[];
+  /** OR-matched against `recommendedBy` — an entry passes if it was
+   * recommended by any of these people. */
+  recommendedBy?: string[];
+  /** An entry is dropped if it was recommended by any of these people —
+   * checked before `recommendedBy`, see `passesCategory` below. */
+  recommendedByExclude?: string[];
   /** Defaults to 'completed' when not provided so existing callers
    * (Dashboard, Statistics) see only finished entries. */
   status?: EntryStatus;
@@ -465,6 +548,26 @@ export async function listEntries(
         typeof e.metadata.source === 'string' ? [e.metadata.source] : [],
         filter.sources,
         filter.sourcesExclude,
+      ),
+    );
+  }
+  if (
+    (filter.watchedWith && filter.watchedWith.length > 0) ||
+    (filter.watchedWithExclude && filter.watchedWithExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory(e.watchedWith ?? [], filter.watchedWith, filter.watchedWithExclude),
+    );
+  }
+  if (
+    (filter.recommendedBy && filter.recommendedBy.length > 0) ||
+    (filter.recommendedByExclude && filter.recommendedByExclude.length > 0)
+  ) {
+    entries = entries.filter((e) =>
+      passesCategory(
+        e.recommendedBy ?? [],
+        filter.recommendedBy,
+        filter.recommendedByExclude,
       ),
     );
   }

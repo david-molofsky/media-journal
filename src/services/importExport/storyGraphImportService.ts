@@ -89,7 +89,10 @@ function parseDatesRead(raw: string | undefined): string[] {
 function buildTags(record: Record<string, string>): string[] {
   const tags: string[] = [];
 
-  for (const mood of (record['Moods'] ?? '').split(',').map((m) => m.trim()).filter(Boolean)) {
+  for (const mood of (record['Moods'] ?? '')
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean)) {
     tags.push(`mood: ${mood.toLowerCase()}`);
   }
   const pace = record['Pace']?.trim();
@@ -97,7 +100,9 @@ function buildTags(record: Record<string, string>): string[] {
 
   if (record['Character- or Plot-Driven?']?.trim().toLowerCase() === 'plot-driven') {
     tags.push('plot-driven');
-  } else if (record['Character- or Plot-Driven?']?.trim().toLowerCase() === 'character-driven') {
+  } else if (
+    record['Character- or Plot-Driven?']?.trim().toLowerCase() === 'character-driven'
+  ) {
     tags.push('character-driven');
   }
 
@@ -111,11 +116,17 @@ function buildTags(record: Record<string, string>): string[] {
     if (record[column]?.trim().toLowerCase() === 'yes') tags.push(label);
   }
 
-  for (const cw of (record['Content Warnings'] ?? '').split(',').map((c) => c.trim()).filter(Boolean)) {
+  for (const cw of (record['Content Warnings'] ?? '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)) {
     tags.push(`cw: ${cw.toLowerCase()}`);
   }
 
-  for (const tag of (record['Tags'] ?? '').split(',').map((t) => t.trim()).filter(Boolean)) {
+  for (const tag of (record['Tags'] ?? '')
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean)) {
     tags.push(tag.toLowerCase());
   }
 
@@ -154,7 +165,16 @@ export function parseStoryGraphLibrary(csvText: string): StoryGraphRow[] {
     const tags = buildTags(record);
 
     if (status !== 'completed') {
-      rows.push({ title, author, mediaType, status, rating, notes, tags, repeatConsumption: false });
+      rows.push({
+        title,
+        author,
+        mediaType,
+        status,
+        rating,
+        notes,
+        tags,
+        repeatConsumption: false,
+      });
       continue;
     }
 
@@ -162,12 +182,28 @@ export function parseStoryGraphLibrary(csvText: string): StoryGraphRow[] {
     if (readDates.length === 0) {
       // Completed but no parseable date — still imported, just flagged
       // for review the same way a dateless Goodreads "read" row is.
-      rows.push({ title, author, mediaType, status, rating, notes, tags, repeatConsumption: false });
+      rows.push({
+        title,
+        author,
+        mediaType,
+        status,
+        rating,
+        notes,
+        tags,
+        repeatConsumption: false,
+      });
     } else {
       const sortedDates = [...readDates].sort();
       sortedDates.forEach((completedDate, index) => {
         rows.push({
-          title, author, mediaType, status, completedDate, rating, notes, tags,
+          title,
+          author,
+          mediaType,
+          status,
+          completedDate,
+          rating,
+          notes,
+          tags,
           repeatConsumption: index > 0,
         });
       });
@@ -195,10 +231,14 @@ export interface StoryGraphRowState {
  * the library, used to skip rows re-imported on a later run — same
  * convention as the Goodreads import's dedupe key. */
 async function loadExistingKeys(): Promise<Set<string>> {
-  const existing = await db.mediaEntries.where('mediaType').anyOf(['book', 'audiobook']).toArray();
+  const existing = await db.mediaEntries
+    .where('mediaType')
+    .anyOf(['book', 'audiobook'])
+    .toArray();
   return new Set(
     existing.map(
-      (e) => `${e.mediaType}|${e.title.trim().toLowerCase()}|${e.status}|${e.completedDate ?? ''}`,
+      (e) =>
+        `${e.mediaType}|${e.title.trim().toLowerCase()}|${e.status}|${e.completedDate ?? ''}`,
     ),
   );
 }
@@ -233,7 +273,9 @@ function buildMetadata(row: StoryGraphRow): EntryMetadata {
  * duplicates, explicitly-skipped rows, or needs_date rows the person
  * never filled in a date for — mirrors applyRow in the Goodreads
  * import. */
-export async function applyRow(state: StoryGraphRowState): Promise<'imported' | 'skipped'> {
+export async function applyRow(
+  state: StoryGraphRowState,
+): Promise<'imported' | 'skipped'> {
   const { row } = state;
 
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
@@ -250,6 +292,8 @@ export async function applyRow(state: StoryGraphRowState): Promise<'imported' | 
     repeatConsumption: row.repeatConsumption,
     tags: Array.from(new Set([...row.tags, importedFromTag('StoryGraph')])),
     genres: [],
+    watchedWith: [],
+    recommendedBy: [],
     metadata: buildMetadata(row),
   });
 

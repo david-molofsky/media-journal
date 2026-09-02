@@ -2,7 +2,12 @@ import { db } from './db';
 import { generateId } from '@/utils/id';
 import { nowIso, todayIso } from '@/utils/dateUtils';
 import { createEntry } from './entryService';
-import type { InProgressEntry, NewInProgressInput, NewMediaEntryInput, MediaEntry } from '@/models';
+import type {
+  InProgressEntry,
+  NewInProgressInput,
+  NewMediaEntryInput,
+  MediaEntry,
+} from '@/models';
 
 export async function listInProgressEntries(): Promise<InProgressEntry[]> {
   return db.inProgressEntries.orderBy('createdAt').reverse().toArray();
@@ -65,6 +70,8 @@ export async function finishInProgressEntry(
     // InProgressEntry predates the Genre field and doesn't track it;
     // default to empty, same as a fresh entry would.
     genres: [],
+    watchedWith: [],
+    recommendedBy: [],
     metadata: inProgress.metadata,
   };
 

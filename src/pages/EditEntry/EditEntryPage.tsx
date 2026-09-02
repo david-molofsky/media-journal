@@ -217,6 +217,12 @@ export default function EditEntryPage() {
         (tag) => !tag.trim().toLowerCase().startsWith(IMPORTED_TAG_PREFIX),
       ),
       genres: entry.genres ?? [],
+      // Who you watched/read it with or heard it recommended by is
+      // specific to that past viewing — a rewatch/reread/replay starts
+      // fresh rather than carrying it over, same reasoning as rating/
+      // notes/dates above.
+      watchedWith: [],
+      recommendedBy: [],
       metadata: entry.metadata,
     };
     const state: RelogNavigationState = { relogValues };
@@ -301,6 +307,8 @@ export default function EditEntryPage() {
           repeatConsumption: entry.repeatConsumption,
           tags: entry.tags ?? [],
           genres: entry.genres ?? [],
+          watchedWith: entry.watchedWith ?? [],
+          recommendedBy: entry.recommendedBy ?? [],
           metadata: entry.metadata,
         }}
         submitLabel="Save Changes"

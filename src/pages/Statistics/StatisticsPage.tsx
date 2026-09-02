@@ -58,7 +58,7 @@ import { ROUTES, entryDetailPath } from '@/routes/paths';
 import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
-import { PERSON_ROLE_LABELS, type PersonRole } from '@/utils/personRoles';
+import { PEOPLE_CATEGORY_LABELS, type PeopleCategoryId } from '@/utils/personRoles';
 import {
   TopListSortSelect,
   sortTopListItems,
@@ -243,11 +243,13 @@ export default function StatisticsPage() {
   const [genresView, setGenresView] = useState<WatchedWishlistView>(
     restored?.genresView ?? 'watched',
   );
-  // Which role chip is selected in the People section (see chat, Aug
-  // 2026) — null until data loads, then defaults to the first role
-  // that actually has completed-entry data (set in the effect below).
-  const [selectedRole, setSelectedRole] = useState<PersonRole | null>(
-    (restored?.selectedRole as PersonRole | null) ?? null,
+  // Which chip is selected in the People section (see chat, Aug 2026;
+  // extended Sept 2026 to also cover "Watched With"/"Recommended By" —
+  // see PeopleCategoryId) — null until data loads, then defaults to
+  // the first category that actually has completed-entry data (set in
+  // the effect below).
+  const [selectedRole, setSelectedRole] = useState<PeopleCategoryId | null>(
+    (restored?.selectedRole as PeopleCategoryId | null) ?? null,
   );
   // Sort mode for the Sources (watched view) and People ranked lists
   // — see chat, Aug 2026. Default matches each section's prior fixed
@@ -443,9 +445,23 @@ export default function StatisticsPage() {
   const stats = data;
   const types = mediaTypes;
   const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
-  const rolesWithData = (Object.keys(PERSON_ROLE_LABELS) as PersonRole[]).filter(
-    (role) => Object.keys(data.topPeopleByRole[role]).length > 0,
-  );
+  // Merges the credited roles (Actor, Director, …) with the two
+  // top-level-field categories into one lookup the People tile can
+  // treat uniformly — see PeopleCategoryId's doc comment for why these
+  // don't share a data source but do share a UI.
+  const peopleByCategory: Record<PeopleCategoryId, Record<string, number>> = {
+    ...data.topPeopleByRole,
+    watchedWith: data.topWatchedWithByCount,
+    recommendedBy: data.topRecommendedByByCount,
+  };
+  const averageRatingByCategory: Record<PeopleCategoryId, Record<string, number>> = {
+    ...data.averageRatingByPersonRole,
+    watchedWith: data.averageRatingByWatchedWith,
+    recommendedBy: data.averageRatingByRecommendedBy,
+  };
+  const rolesWithData = (
+    Object.keys(PEOPLE_CATEGORY_LABELS) as PeopleCategoryId[]
+  ).filter((role) => Object.keys(peopleByCategory[role]).length > 0);
   const activeRole =
     selectedRole && rolesWithData.includes(selectedRole)
       ? selectedRole
@@ -790,7 +806,7 @@ export default function StatisticsPage() {
                   {rolesWithData.map((role) => (
                     <Chip
                       key={role}
-                      label={PERSON_ROLE_LABELS[role]}
+                      label={PEOPLE_CATEGORY_LABELS[role]}
                       size="small"
                       color={role === activeRole ? 'primary' : 'default'}
                       onClick={() => setSelectedRole(role)}
@@ -799,22 +815,33 @@ export default function StatisticsPage() {
                 </Stack>
                 <TopList
                   items={sortTopListItems(
-                    Object.entries(stats.topPeopleByRole[activeRole]).map(
-                      ([name, count]) => ({
-                        name,
-                        count,
-                        rating: stats.averageRatingByPersonRole[activeRole][name],
-                      }),
-                    ),
+                    Object.entries(peopleByCategory[activeRole]).map(([name, count]) => ({
+                      name,
+                      count,
+                      rating: averageRatingByCategory[activeRole][name],
+                    })),
                     peopleSort,
                   )}
-                  onSelectItem={(name) =>
-                    goToLibrary(
+                  onSelectItem={(name) => {
+                    const base =
                       typeof year === 'number'
-                        ? { year, searchText: name, status: 'completed' }
-                        : { searchText: name, status: 'completed' },
-                    )
-                  }
+                        ? { year, status: 'completed' as const }
+                        : { status: 'completed' as const };
+                    // Watched With / Recommended By are real structured
+                    // fields now (see the Library filter chips), so
+                    // clicking a name there filters on that field
+                    // directly rather than falling back to the
+                    // free-text search the credited-role chips still
+                    // use (those live in per-type metadata, not a
+                    // filterable top-level field).
+                    if (activeRole === 'watchedWith') {
+                      return goToLibrary({ ...base, watchedWith: [name] });
+                    }
+                    if (activeRole === 'recommendedBy') {
+                      return goToLibrary({ ...base, recommendedBy: [name] });
+                    }
+                    return goToLibrary({ ...base, searchText: name });
+                  }}
                 />
               </>
             ) : (

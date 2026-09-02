@@ -50,7 +50,11 @@ export interface GoodreadsRow {
  * → tags mapping since they're redundant with `status`. */
 const BUILTIN_SHELVES = new Set(['read', 'to-read', 'currently-reading']);
 
-function parseSeries(rawTitle: string): { title: string; series?: string; volume?: string } {
+function parseSeries(rawTitle: string): {
+  title: string;
+  series?: string;
+  volume?: string;
+} {
   const match = rawTitle.match(SERIES_PATTERN);
   if (!match) return { title: rawTitle };
   const [, title, series, volume] = match;
@@ -115,7 +119,8 @@ export function parseGoodreadsLibrary(csvText: string): GoodreadsRow[] {
       author: record['Author']?.trim() || undefined,
       mediaType,
       status,
-      completedDate: status === 'completed' ? parseGoodreadsDate(record['Date Read']) : undefined,
+      completedDate:
+        status === 'completed' ? parseGoodreadsDate(record['Date Read']) : undefined,
       rating,
       repeatConsumption: readCount > 1,
       tags,
@@ -146,10 +151,14 @@ export interface GoodreadsRowState {
  * lower-cased/trimmed for a forgiving match; completedDate is blank
  * for in_progress/wishlist rows, matching how those are keyed below. */
 async function loadExistingKeys(): Promise<Set<string>> {
-  const existing = await db.mediaEntries.where('mediaType').anyOf(['book', 'audiobook']).toArray();
+  const existing = await db.mediaEntries
+    .where('mediaType')
+    .anyOf(['book', 'audiobook'])
+    .toArray();
   return new Set(
     existing.map(
-      (e) => `${e.mediaType}|${e.title.trim().toLowerCase()}|${e.status}|${e.completedDate ?? ''}`,
+      (e) =>
+        `${e.mediaType}|${e.title.trim().toLowerCase()}|${e.status}|${e.completedDate ?? ''}`,
     ),
   );
 }
@@ -188,7 +197,9 @@ function buildMetadata(row: GoodreadsRow): EntryMetadata {
 /** Creates the MJ entry for one resolved row. Returns 'skipped' for
  * duplicates, explicitly-skipped rows, or needs_date rows the person
  * never filled in a date for. */
-export async function applyRow(state: GoodreadsRowState): Promise<'imported' | 'skipped'> {
+export async function applyRow(
+  state: GoodreadsRowState,
+): Promise<'imported' | 'skipped'> {
   const { row } = state;
 
   if (state.status === 'duplicate' || state.status === 'skipped') return 'skipped';
@@ -204,6 +215,8 @@ export async function applyRow(state: GoodreadsRowState): Promise<'imported' | '
     repeatConsumption: row.repeatConsumption,
     tags: Array.from(new Set([...row.tags, importedFromTag('Goodreads')])),
     genres: [],
+    watchedWith: [],
+    recommendedBy: [],
     metadata: buildMetadata(row),
   });
 

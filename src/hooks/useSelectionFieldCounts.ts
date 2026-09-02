@@ -8,18 +8,20 @@ export interface FieldCount {
 }
 
 /**
- * Returns every distinct genre or tag present across the given set of
- * entry ids, each with how many of those entries have it — e.g. "Sci-Fi
- * (4 of 6)". Powers the Remove-mode autocomplete in BulkActionBar's
- * Genre/Tag dialogs, which is deliberately scoped to the current
+ * Returns every distinct genre, tag, watched-with or recommended-by
+ * name present across the given set of entry ids, each with how many
+ * of those entries have it — e.g. "Sci-Fi (4 of 6)". Powers the
+ * Remove-mode autocomplete in BulkActionBar's Genre/Tag/Watched With/
+ * Recommended By dialogs, which is deliberately scoped to the current
  * selection only (unlike Add mode's library-wide `useAvailableGenres`/
- * `useAvailableTags`) — removing a genre no entry in the selection has
- * would always be a no-op, so it shouldn't be offered as an option.
- * Sorted by count descending (most common first), then alphabetically.
+ * `useAvailableTags`/`useAvailableWatchedWith`/`useAvailableRecommendedBy`)
+ * — removing a value no entry in the selection has would always be a
+ * no-op, so it shouldn't be offered as an option. Sorted by count
+ * descending (most common first), then alphabetically.
  */
 export function useSelectionFieldCounts(
   ids: string[],
-  field: 'genres' | 'tags',
+  field: 'genres' | 'tags' | 'watchedWith' | 'recommendedBy',
 ): FieldCount[] {
   return (
     useLiveQuery(async () => {

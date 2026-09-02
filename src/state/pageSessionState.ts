@@ -32,6 +32,10 @@ export interface LibrarySessionState {
   genresExclude: string[];
   sources: string[];
   sourcesExclude: string[];
+  watchedWith: string[];
+  watchedWithExclude: string[];
+  recommendedBy: string[];
+  recommendedByExclude: string[];
   sort: EntrySortOrder;
   viewMode: 'entries' | 'series';
   scrollY: number;

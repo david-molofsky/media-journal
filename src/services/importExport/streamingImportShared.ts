@@ -1,6 +1,11 @@
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
-import { searchFilms, searchTV, getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
+import {
+  searchFilms,
+  searchTV,
+  getFilmDetails,
+  getTVDetails,
+} from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
 import { importedFromTag } from '@/utils/importedFromTag';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
@@ -66,7 +71,9 @@ export function detectGap(seasonNumbers: number[]): boolean {
 export async function loadExistingFilmKeys(): Promise<Set<string>> {
   const films = await db.mediaEntries.where('mediaType').equals('film').toArray();
   return new Set(
-    films.filter((e) => e.completedDate).map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
+    films
+      .filter((e) => e.completedDate)
+      .map((e) => `${e.title.trim().toLowerCase()}|${e.completedDate}`),
   );
 }
 
@@ -88,7 +95,11 @@ async function matchTitle(
   title: string,
   cache: Map<string, SearchResult[]>,
   search: (query: string) => Promise<SearchResult[]>,
-): Promise<{ status: 'auto' | 'ambiguous' | 'none'; candidates: SearchResult[]; selectedId?: string }> {
+): Promise<{
+  status: 'auto' | 'ambiguous' | 'none';
+  candidates: SearchResult[];
+  selectedId?: string;
+}> {
   const cacheKey = title.trim().toLowerCase();
   let results = cache.get(cacheKey);
   if (!results) {
@@ -99,11 +110,19 @@ async function matchTitle(
 
   const exactMatches = results.filter((r) => r.title.trim().toLowerCase() === cacheKey);
   if (exactMatches.length === 1) {
-    return { status: 'auto', candidates: results.slice(0, 5), selectedId: exactMatches[0]!.id };
+    return {
+      status: 'auto',
+      candidates: results.slice(0, 5),
+      selectedId: exactMatches[0]!.id,
+    };
   }
 
   const topCandidates = results.slice(0, 5);
-  return { status: 'ambiguous', candidates: topCandidates, selectedId: topCandidates[0]?.id };
+  return {
+    status: 'ambiguous',
+    candidates: topCandidates,
+    selectedId: topCandidates[0]?.id,
+  };
 }
 
 export const matchMovieTitle = (title: string, cache: Map<string, SearchResult[]>) =>
@@ -112,7 +131,10 @@ export const matchMovieTitle = (title: string, cache: Map<string, SearchResult[]
 export const matchShowTitle = (title: string, cache: Map<string, SearchResult[]>) =>
   matchTitle(title, cache, searchTV);
 
-function buildFilmMetadata(fields: Record<string, string>, source: string): EntryMetadata {
+function buildFilmMetadata(
+  fields: Record<string, string>,
+  source: string,
+): EntryMetadata {
   const metadata: EntryMetadata = {};
   for (const [key, value] of Object.entries(fields)) {
     if (key === 'runtime') metadata[key] = Number(value);
@@ -123,7 +145,11 @@ function buildFilmMetadata(fields: Record<string, string>, source: string): Entr
   return metadata;
 }
 
-function buildTvMetadata(fields: Record<string, string>, seasonNumber: number, source: string): EntryMetadata {
+function buildTvMetadata(
+  fields: Record<string, string>,
+  seasonNumber: number,
+  source: string,
+): EntryMetadata {
   const metadata: EntryMetadata = {};
   for (const [key, value] of Object.entries(fields)) {
     if (key === 'runtime') metadata[key] = Number(value);
@@ -144,7 +170,10 @@ export interface ApplyResult {
 
 /** Creates entries for every ticked item. Only called once the person
  * confirms the review/tick step — nothing is written before this. */
-export async function applyStreamingImport(items: ReviewItem[], source: string): Promise<ApplyResult> {
+export async function applyStreamingImport(
+  items: ReviewItem[],
+  source: string,
+): Promise<ApplyResult> {
   let moviesImported = 0;
   let seasonsImported = 0;
   let flaggedForReview = 0;
@@ -170,6 +199,8 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
           repeatConsumption: false,
           tags: [importedFromTag(source)],
           genres: [],
+          watchedWith: [],
+          recommendedBy: [],
           metadata: { source },
         });
         moviesImported += 1;
@@ -188,6 +219,8 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
         repeatConsumption: false,
         tags: [importedFromTag(source)],
         genres: genres ?? [],
+        watchedWith: [],
+        recommendedBy: [],
         metadata: buildFilmMetadata(fields, source),
       });
       moviesImported += 1;
@@ -213,6 +246,8 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
           repeatConsumption: false,
           tags: [importedFromTag(source)],
           genres: genres ?? [],
+          watchedWith: [],
+          recommendedBy: [],
           metadata: buildTvMetadata(fields, seasonNumber, source),
         });
         seasonsImported += 1;
@@ -232,7 +267,12 @@ export async function applyStreamingImport(items: ReviewItem[], source: string):
  */
 export async function matchAndGroupRows(
   movieRows: { title: string; date: string }[],
-  seriesRows: { title: string; showTitle: string; seasonNumber: number | undefined; date: string }[],
+  seriesRows: {
+    title: string;
+    showTitle: string;
+    seasonNumber: number | undefined;
+    date: string;
+  }[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<ReviewItem[]> {
   const [existingFilmKeys, existingSeasonKeys] = await Promise.all([
@@ -249,7 +289,15 @@ export async function matchAndGroupRows(
   for (const row of movieRows) {
     const filmKey = `${row.title.trim().toLowerCase()}|${row.date}`;
     if (existingFilmKeys.has(filmKey)) {
-      movies.push({ kind: 'movie', key: row.title, title: row.title, date: row.date, status: 'duplicate', candidates: [], included: false });
+      movies.push({
+        kind: 'movie',
+        key: row.title,
+        title: row.title,
+        date: row.date,
+        status: 'duplicate',
+        candidates: [],
+        included: false,
+      });
     } else {
       const match = await matchMovieTitle(row.title, movieCache);
       movies.push({
@@ -273,12 +321,18 @@ export async function matchAndGroupRows(
   >();
   for (const row of seriesRows) {
     const key = row.showTitle.trim().toLowerCase();
-    const group = showGroups.get(key) ?? { title: row.showTitle, seasonEvidence: new Map() };
+    const group = showGroups.get(key) ?? {
+      title: row.showTitle,
+      seasonEvidence: new Map(),
+    };
     if (row.seasonNumber !== undefined) {
       const existing = group.seasonEvidence.get(row.seasonNumber);
       group.seasonEvidence.set(row.seasonNumber, {
         count: (existing?.count ?? 0) + 1,
-        latestDate: !existing?.latestDate || row.date > existing.latestDate ? row.date : existing.latestDate,
+        latestDate:
+          !existing?.latestDate || row.date > existing.latestDate
+            ? row.date
+            : existing.latestDate,
       });
     }
     showGroups.set(key, group);
@@ -291,7 +345,9 @@ export async function matchAndGroupRows(
     const match = await matchShowTitle(group.title, showCache);
     const seasonNumbers = Array.from(group.seasonEvidence.keys());
     const includedSeasons = new Set(
-      seasonNumbers.filter((n) => !existingSeasonKeys.has(`${group.title.trim().toLowerCase()}|${n}`)),
+      seasonNumbers.filter(
+        (n) => !existingSeasonKeys.has(`${group.title.trim().toLowerCase()}|${n}`),
+      ),
     );
     shows.push({
       kind: 'show',

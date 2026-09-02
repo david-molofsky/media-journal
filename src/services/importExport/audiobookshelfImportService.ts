@@ -17,7 +17,10 @@ import type { EntryMetadata } from '@/models';
 const SOURCE = 'Audiobookshelf';
 
 async function loadExistingKeys(): Promise<Set<string>> {
-  const entries = await db.mediaEntries.where('mediaType').anyOf('book', 'audiobook').toArray();
+  const entries = await db.mediaEntries
+    .where('mediaType')
+    .anyOf('book', 'audiobook')
+    .toArray();
   return new Set(entries.map((e) => `${e.mediaType}|${e.title.trim().toLowerCase()}`));
 }
 
@@ -29,15 +32,21 @@ async function loadExistingKeys(): Promise<Set<string>> {
  * shows a picker for anything ambiguous, pre-selected to the best
  * guess so nothing is silently misfiled if the person doesn't touch it.
  */
-function classify(item: AbsLibraryItem, libraryName: string): { mediaType: 'book' | 'audiobook'; ambiguous: boolean } {
+function classify(
+  item: AbsLibraryItem,
+  libraryName: string,
+): { mediaType: 'book' | 'audiobook'; ambiguous: boolean } {
   const hasAudio = (item.media.audioFiles?.length ?? 0) > 0;
   const hasEbook = Boolean(item.media.ebookFormat);
-  const librarySignal: 'book' | 'audiobook' = /audio/i.test(libraryName) ? 'audiobook' : 'book';
+  const librarySignal: 'book' | 'audiobook' = /audio/i.test(libraryName)
+    ? 'audiobook'
+    : 'book';
 
   const formatSignal: 'book' | 'audiobook' | undefined =
     hasAudio && !hasEbook ? 'audiobook' : !hasAudio && hasEbook ? 'book' : undefined;
 
-  if (formatSignal) return { mediaType: formatSignal, ambiguous: formatSignal !== librarySignal };
+  if (formatSignal)
+    return { mediaType: formatSignal, ambiguous: formatSignal !== librarySignal };
   return { mediaType: librarySignal, ambiguous: true };
 }
 
@@ -154,7 +163,9 @@ export interface AbsImportSummary {
 /** Creates entries for every ticked item — only called once the
  * person confirms the review step. `typeChoice.selected` (if the
  * person changed it) wins over the auto-classified `mediaType`. */
-export async function applyAudiobookshelfImport(items: ExternalReviewItem[]): Promise<AbsImportSummary> {
+export async function applyAudiobookshelfImport(
+  items: ExternalReviewItem[],
+): Promise<AbsImportSummary> {
   let imported = 0;
   let skipped = 0;
 
@@ -177,6 +188,8 @@ export async function applyAudiobookshelfImport(items: ExternalReviewItem[]): Pr
       repeatConsumption: false,
       tags: [importedFromTag(SOURCE)],
       genres: [],
+      watchedWith: [],
+      recommendedBy: [],
       metadata,
     });
     imported += 1;

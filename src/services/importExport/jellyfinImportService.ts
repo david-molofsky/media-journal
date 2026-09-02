@@ -91,7 +91,8 @@ export async function fetchJellyfinLibrary(
       } else if (imdbId) {
         try {
           const found = await findByImdbId(imdbId);
-          const resolvedId = mediaType === 'film' ? found.movieId : found.tvId ?? found.episode?.showId;
+          const resolvedId =
+            mediaType === 'film' ? found.movieId : (found.tvId ?? found.episode?.showId);
           if (resolvedId) {
             status = 'matched';
             selectedCandidateId = resolvedId;
@@ -146,7 +147,9 @@ export interface JellyfinImportSummary {
  * person confirms the review step. Movies/TV pull full metadata from
  * TMDB via the matched id; Books/Audiobooks just carry over title and
  * (if Jellyfin provided one) author. */
-export async function applyJellyfinImport(items: ExternalReviewItem[]): Promise<JellyfinImportSummary> {
+export async function applyJellyfinImport(
+  items: ExternalReviewItem[],
+): Promise<JellyfinImportSummary> {
   let imported = 0;
   let skipped = 0;
 
@@ -173,6 +176,8 @@ export async function applyJellyfinImport(items: ExternalReviewItem[]): Promise<
         repeatConsumption: false,
         tags: [importedFromTag(SOURCE)],
         genres: details.genres ?? [],
+        watchedWith: [],
+        recommendedBy: [],
         metadata,
       });
     } else {
@@ -187,6 +192,8 @@ export async function applyJellyfinImport(items: ExternalReviewItem[]): Promise<
         repeatConsumption: false,
         tags: [importedFromTag(SOURCE)],
         genres: [],
+        watchedWith: [],
+        recommendedBy: [],
         metadata,
       });
     }

@@ -133,6 +133,10 @@ export interface LibraryFilterRequest {
   genresExclude?: string[];
   sources?: string[];
   sourcesExclude?: string[];
+  watchedWith?: string[];
+  watchedWithExclude?: string[];
+  recommendedBy?: string[];
+  recommendedByExclude?: string[];
   searchText?: string;
   status?: EntryStatus;
 }
@@ -228,6 +232,18 @@ export default function LibraryPage() {
   const [sourcesExclude, setSourcesExclude] = useState<string[]>(
     incoming?.sourcesExclude ?? restored?.sourcesExclude ?? [],
   );
+  const [watchedWith, setWatchedWith] = useState<string[]>(
+    incoming?.watchedWith ?? restored?.watchedWith ?? [],
+  );
+  const [watchedWithExclude, setWatchedWithExclude] = useState<string[]>(
+    incoming?.watchedWithExclude ?? restored?.watchedWithExclude ?? [],
+  );
+  const [recommendedBy, setRecommendedBy] = useState<string[]>(
+    incoming?.recommendedBy ?? restored?.recommendedBy ?? [],
+  );
+  const [recommendedByExclude, setRecommendedByExclude] = useState<string[]>(
+    incoming?.recommendedByExclude ?? restored?.recommendedByExclude ?? [],
+  );
   const [sort, setSort] = useState<EntrySortOrder>(
     incoming
       ? defaultSortForStatus(incoming.status ?? 'wishlist')
@@ -270,6 +286,10 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    watchedWith,
+    watchedWithExclude,
+    recommendedBy,
+    recommendedByExclude,
     sort,
     viewMode,
   });
@@ -287,6 +307,10 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       sort,
       viewMode,
     };
@@ -322,6 +346,10 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    watchedWith,
+    watchedWithExclude,
+    recommendedBy,
+    recommendedByExclude,
     sort,
   ]);
 
@@ -336,6 +364,10 @@ export default function LibraryPage() {
     genresExclude.length > 0 ||
     sources.length > 0 ||
     sourcesExclude.length > 0 ||
+    watchedWith.length > 0 ||
+    watchedWithExclude.length > 0 ||
+    recommendedBy.length > 0 ||
+    recommendedByExclude.length > 0 ||
     searchText,
   );
 
@@ -356,6 +388,10 @@ export default function LibraryPage() {
     setGenresExclude([]);
     setSources([]);
     setSourcesExclude([]);
+    setWatchedWith([]);
+    setWatchedWithExclude([]);
+    setRecommendedBy([]);
+    setRecommendedByExclude([]);
   };
 
   // Picks up `incoming` on every navigation to this route, not just the
@@ -386,6 +422,10 @@ export default function LibraryPage() {
       setGenresExclude(incoming.genresExclude ?? []);
       setSources(incoming.sources ?? []);
       setSourcesExclude(incoming.sourcesExclude ?? []);
+      setWatchedWith(incoming.watchedWith ?? []);
+      setWatchedWithExclude(incoming.watchedWithExclude ?? []);
+      setRecommendedBy(incoming.recommendedBy ?? []);
+      setRecommendedByExclude(incoming.recommendedByExclude ?? []);
       setStatusTab(incoming.status ?? 'completed');
       setSort(defaultSortForStatus(incoming.status ?? 'completed'));
       // Arriving via a filter always means "show me a matching entries
@@ -443,6 +483,10 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       status: statusTab,
     }),
     [
@@ -457,6 +501,10 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       statusTab,
     ],
   );
@@ -530,6 +578,10 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       status: statusTab,
     }),
     [
@@ -542,6 +594,10 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       statusTab,
     ],
   );
@@ -556,6 +612,10 @@ export default function LibraryPage() {
       tagsExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       status: statusTab,
     }),
     [
@@ -568,6 +628,10 @@ export default function LibraryPage() {
       tagsExclude,
       sources,
       sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       statusTab,
     ],
   );
@@ -582,6 +646,10 @@ export default function LibraryPage() {
       tagsExclude,
       genres,
       genresExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
       status: statusTab,
     }),
     [
@@ -594,16 +662,96 @@ export default function LibraryPage() {
       tagsExclude,
       genres,
       genresExclude,
+      watchedWith,
+      watchedWithExclude,
+      recommendedBy,
+      recommendedByExclude,
+      statusTab,
+    ],
+  );
+  const watchedWithFacetFilter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      recommendedBy,
+      recommendedByExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      recommendedBy,
+      recommendedByExclude,
+      statusTab,
+    ],
+  );
+  const recommendedByFacetFilter = useMemo(
+    () => ({
+      year: year ? Number(year) : undefined,
+      month: month ? Number(month) : undefined,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
+      status: statusTab,
+    }),
+    [
+      year,
+      month,
+      mediaTypeIds,
+      mediaTypeIdsExclude,
+      searchText,
+      tags,
+      tagsExclude,
+      genres,
+      genresExclude,
+      sources,
+      sourcesExclude,
+      watchedWith,
+      watchedWithExclude,
       statusTab,
     ],
   );
 
   // Sort choice is irrelevant here — these entry lists only ever get
-  // reduced to a set of distinct tag/genre/source values below, never
-  // rendered in order.
+  // reduced to a set of distinct tag/genre/source/watched-with/
+  // recommended-by values below, never rendered in order.
   const tagFacetEntries = useMediaEntries(tagFacetFilter, 'createdAtDesc');
   const genreFacetEntries = useMediaEntries(genreFacetFilter, 'createdAtDesc');
   const sourceFacetEntries = useMediaEntries(sourceFacetFilter, 'createdAtDesc');
+  const watchedWithFacetEntries = useMediaEntries(
+    watchedWithFacetFilter,
+    'createdAtDesc',
+  );
+  const recommendedByFacetEntries = useMediaEntries(
+    recommendedByFacetFilter,
+    'createdAtDesc',
+  );
 
   const tagOptions = useMemo(() => {
     const values = new Set<string>();
@@ -641,6 +789,30 @@ export default function LibraryPage() {
       .sort()
       .map((s) => ({ label: s, value: s }));
   }, [sourceFacetEntries, sources, sourcesExclude]);
+
+  const watchedWithOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of watchedWithFacetEntries ?? []) {
+      for (const name of entry.watchedWith ?? []) values.add(name);
+    }
+    for (const name of watchedWith) values.add(name);
+    for (const name of watchedWithExclude) values.add(name);
+    return Array.from(values)
+      .sort()
+      .map((n) => ({ label: n, value: n }));
+  }, [watchedWithFacetEntries, watchedWith, watchedWithExclude]);
+
+  const recommendedByOptions = useMemo(() => {
+    const values = new Set<string>();
+    for (const entry of recommendedByFacetEntries ?? []) {
+      for (const name of entry.recommendedBy ?? []) values.add(name);
+    }
+    for (const name of recommendedBy) values.add(name);
+    for (const name of recommendedByExclude) values.add(name);
+    return Array.from(values)
+      .sort()
+      .map((n) => ({ label: n, value: n }));
+  }, [recommendedByFacetEntries, recommendedBy, recommendedByExclude]);
 
   if (mediaTypes === undefined || entries === undefined) return <LoadingIndicator />;
   const mediaTypeById = new Map(mediaTypes.map((t) => [t.id, t]));
@@ -726,6 +898,10 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    watchedWith,
+    watchedWithExclude,
+    recommendedBy,
+    recommendedByExclude,
     searchText,
     status: statusTab,
   };
@@ -996,6 +1172,28 @@ export default function LibraryPage() {
                 onChange={(v: TriStateSelection) => {
                   setTags(v.include);
                   setTagsExclude(v.exclude);
+                }}
+              />
+            )}
+            {watchedWithOptions.length > 0 && (
+              <MultiFilterChip
+                label="Watched With"
+                value={{ include: watchedWith, exclude: watchedWithExclude }}
+                options={watchedWithOptions}
+                onChange={(v: TriStateSelection) => {
+                  setWatchedWith(v.include);
+                  setWatchedWithExclude(v.exclude);
+                }}
+              />
+            )}
+            {recommendedByOptions.length > 0 && (
+              <MultiFilterChip
+                label="Recommended By"
+                value={{ include: recommendedBy, exclude: recommendedByExclude }}
+                options={recommendedByOptions}
+                onChange={(v: TriStateSelection) => {
+                  setRecommendedBy(v.include);
+                  setRecommendedByExclude(v.exclude);
                 }}
               />
             )}

@@ -464,6 +464,98 @@ export async function getAverageRatingByPersonRole(
   ) as Record<PersonRole, Record<string, number>>;
 }
 
+/** Completed-entry counts by name in `watchedWith`, within `year`,
+ * weighted by `getEntryWeight` — same "each thing it has gets the
+ * entry's full weight" approach as `getTopGenresByCount`/
+ * `getTopPeopleByRole`. Unlike those, `watchedWith` is already a plain
+ * array (not a comma-separated metadata field to split), so this reads
+ * it directly across every media type. Feeds the Statistics People
+ * tile's "Watched With" category (folded in alongside the credited
+ * roles — see StatisticsPage.tsx, not its own tile). */
+export async function getTopWatchedWithByCount(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    const weight = getEntryWeight(entry, tvMode);
+    for (const name of entry.watchedWith ?? []) {
+      totals[name] = (totals[name] ?? 0) + weight;
+    }
+  }
+  return totals;
+}
+
+/** Average rating per name in `watchedWith`, ignoring unrated entries —
+ * mirrors `getAverageRatingByGenre`. */
+export async function getAverageRatingByWatchedWith(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
+  const sums: Record<string, { total: number; count: number }> = {};
+  for (const entry of entries) {
+    for (const name of entry.watchedWith ?? []) {
+      const bucket = sums[name] ?? { total: 0, count: 0 };
+      bucket.total += entry.rating ?? 0;
+      bucket.count += 1;
+      sums[name] = bucket;
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(sums).map(([name, { total, count }]) => [name, total / count]),
+  );
+}
+
+/** Completed-entry counts by name in `recommendedBy`, within `year` —
+ * mirrors `getTopWatchedWithByCount`. */
+export async function getTopRecommendedByByCount(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const [entries, tvMode] = await Promise.all([
+    entriesForYear(year, filters),
+    getTvTrackingMode(),
+  ]);
+  const totals: Record<string, number> = {};
+  for (const entry of entries) {
+    const weight = getEntryWeight(entry, tvMode);
+    for (const name of entry.recommendedBy ?? []) {
+      totals[name] = (totals[name] ?? 0) + weight;
+    }
+  }
+  return totals;
+}
+
+/** Average rating per name in `recommendedBy`, ignoring unrated
+ * entries — mirrors `getAverageRatingByWatchedWith`. */
+export async function getAverageRatingByRecommendedBy(
+  year: StatsYearScope,
+  filters?: StatsFilters,
+): Promise<Record<string, number>> {
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
+  const sums: Record<string, { total: number; count: number }> = {};
+  for (const entry of entries) {
+    for (const name of entry.recommendedBy ?? []) {
+      const bucket = sums[name] ?? { total: 0, count: 0 };
+      bucket.total += entry.rating ?? 0;
+      bucket.count += 1;
+      sums[name] = bucket;
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(sums).map(([name, { total, count }]) => [name, total / count]),
+  );
+}
+
 /** Average rating per Genre within `year`, ignoring unrated entries.
  * Flat, for the same reason as `getTopGenresByCount`. An entry with
  * multiple genres contributes its rating to each genre's average. */

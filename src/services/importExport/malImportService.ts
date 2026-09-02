@@ -46,8 +46,10 @@ function buildAnimeMetadata(entry: MalListEntry): EntryMetadata {
   const { node, list_status: status } = entry;
   const metadata: EntryMetadata = { malId: String(node.id), source: 'MyAnimeList' };
   if (node.studios?.[0]?.name) metadata['studio'] = node.studios[0].name;
-  if (node.media_type) metadata['format'] = FORMAT_LABELS[node.media_type] ?? node.media_type;
-  if (status.num_episodes_watched !== undefined) metadata['episodesWatched'] = status.num_episodes_watched;
+  if (node.media_type)
+    metadata['format'] = FORMAT_LABELS[node.media_type] ?? node.media_type;
+  if (status.num_episodes_watched !== undefined)
+    metadata['episodesWatched'] = status.num_episodes_watched;
   if (node.num_episodes) metadata['totalEpisodes'] = node.num_episodes;
   if (node.main_picture?.large ?? node.main_picture?.medium) {
     metadata['coverImagePath'] = node.main_picture.large ?? node.main_picture.medium;
@@ -60,9 +62,11 @@ function buildMangaMetadata(entry: MalListEntry): EntryMetadata {
   const metadata: EntryMetadata = { malId: String(node.id), source: 'MyAnimeList' };
   const author = node.authors?.[0]?.node;
   if (author) metadata['author'] = `${author.first_name} ${author.last_name}`.trim();
-  if (status.num_chapters_read !== undefined) metadata['chaptersRead'] = status.num_chapters_read;
+  if (status.num_chapters_read !== undefined)
+    metadata['chaptersRead'] = status.num_chapters_read;
   if (node.num_chapters) metadata['totalChapters'] = node.num_chapters;
-  if (status.num_volumes_read !== undefined) metadata['volumesRead'] = status.num_volumes_read;
+  if (status.num_volumes_read !== undefined)
+    metadata['volumesRead'] = status.num_volumes_read;
   if (node.num_volumes) metadata['totalVolumes'] = node.num_volumes;
   if (node.main_picture?.large ?? node.main_picture?.medium) {
     metadata['coverImagePath'] = node.main_picture.large ?? node.main_picture.medium;
@@ -70,7 +74,10 @@ function buildMangaMetadata(entry: MalListEntry): EntryMetadata {
   return metadata;
 }
 
-function buildTags(rewatchCount: number | undefined, mediaType: 'anime' | 'manga'): string[] {
+function buildTags(
+  rewatchCount: number | undefined,
+  mediaType: 'anime' | 'manga',
+): string[] {
   if (!rewatchCount || rewatchCount <= 0) return [];
   const verb = mediaType === 'anime' ? 'rewatched' : 'reread';
   return [`${verb}: ${rewatchCount}x`];
@@ -82,7 +89,9 @@ function buildTags(rewatchCount: number | undefined, mediaType: 'anime' | 'manga
 async function loadExistingMalIds(mediaType: 'anime' | 'manga'): Promise<Set<string>> {
   const existing = await db.mediaEntries.where('mediaType').equals(mediaType).toArray();
   return new Set(
-    existing.map((e) => (typeof e.metadata.malId === 'string' ? e.metadata.malId : '')).filter(Boolean),
+    existing
+      .map((e) => (typeof e.metadata.malId === 'string' ? e.metadata.malId : ''))
+      .filter(Boolean),
   );
 }
 
@@ -115,7 +124,13 @@ function classifyEntry(
 ): MalRowState {
   const malId = String(entry.node.id);
   if (existingIds.has(malId)) {
-    return { entry, mediaType, status: 'duplicate', resolvedStatus: 'completed', included: false };
+    return {
+      entry,
+      mediaType,
+      status: 'duplicate',
+      resolvedStatus: 'completed',
+      included: false,
+    };
   }
 
   const resolvedStatus = statusForMalStatus(entry.list_status.status);
@@ -125,7 +140,14 @@ function classifyEntry(
 
   const finishDate = entry.list_status.finish_date;
   if (finishDate) {
-    return { entry, mediaType, status: 'ready', resolvedStatus, completedDate: finishDate, included: true };
+    return {
+      entry,
+      mediaType,
+      status: 'ready',
+      resolvedStatus,
+      completedDate: finishDate,
+      included: true,
+    };
   }
 
   // Completed with no finish_date — needs the person to confirm or
@@ -157,13 +179,17 @@ export async function fetchAndClassifyMal(
     fetchMalList('anime', (count) => onProgress?.({ phase: 'anime', fetched: count })),
     loadExistingMalIds('anime'),
   ]);
-  const animeRows = animeList.map((entry) => classifyEntry(entry, 'anime', existingAnimeIds));
+  const animeRows = animeList.map((entry) =>
+    classifyEntry(entry, 'anime', existingAnimeIds),
+  );
 
   const [mangaList, existingMangaIds] = await Promise.all([
     fetchMalList('manga', (count) => onProgress?.({ phase: 'manga', fetched: count })),
     loadExistingMalIds('manga'),
   ]);
-  const mangaRows = mangaList.map((entry) => classifyEntry(entry, 'manga', existingMangaIds));
+  const mangaRows = mangaList.map((entry) =>
+    classifyEntry(entry, 'manga', existingMangaIds),
+  );
 
   return [...animeRows, ...mangaRows];
 }
@@ -182,7 +208,9 @@ export async function applyMalRow(state: MalRowState): Promise<'imported' | 'ski
 
   const { entry, mediaType, resolvedStatus, completedDate } = state;
   const rewatchCount =
-    mediaType === 'anime' ? entry.list_status.num_times_rewatched : entry.list_status.num_times_reread;
+    mediaType === 'anime'
+      ? entry.list_status.num_times_rewatched
+      : entry.list_status.num_times_reread;
 
   try {
     await createEntry({
@@ -195,7 +223,10 @@ export async function applyMalRow(state: MalRowState): Promise<'imported' | 'ski
       repeatConsumption: (rewatchCount ?? 0) > 0,
       tags: [...buildTags(rewatchCount, mediaType), importedFromTag('MyAnimeList')],
       genres: entry.node.genres?.map((g) => g.name) ?? [],
-      metadata: mediaType === 'anime' ? buildAnimeMetadata(entry) : buildMangaMetadata(entry),
+      watchedWith: [],
+      recommendedBy: [],
+      metadata:
+        mediaType === 'anime' ? buildAnimeMetadata(entry) : buildMangaMetadata(entry),
     });
     return 'imported';
   } catch {

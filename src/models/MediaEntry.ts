@@ -33,6 +33,17 @@ export interface MediaEntry {
    * conventions as `tags` but kept as a distinct field so Genre can be
    * its own filter/suggestion list rather than mixed in with Tags. */
   genres: string[];
+  /** Names of people this was watched/listened to/read/played with.
+   * Same shape and conventions as `tags`/`genres` (freeform, multi-value,
+   * own suggestion list) — universal across every media type, but the
+   * label shown for it varies by media type (see
+   * `companionFieldLabels.ts`: "Watched With" for Film/TV/Anime/
+   * Theatre/Art/Sport, "Listened With" for Audiobook/Podcast, "Read
+   * With" for Book/Comic/Manga/Magazine, "Played With" for Game). */
+  watchedWith: string[];
+  /** Names of people who recommended this entry. Same shape as
+   * `watchedWith`, but its label never varies by media type. */
+  recommendedBy: string[];
   /**
    * Calendar year of `completedDate`, stored redundantly for indexing.
    * Absent for in_progress and wishlist entries. Always kept in sync

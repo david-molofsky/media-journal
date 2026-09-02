@@ -1011,19 +1011,30 @@ export class MediaJournalDatabase extends Dexie {
             ...book,
             fields: [
               ...book.fields,
-              { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
+              {
+                key: 'releaseYear',
+                label: 'Release Year',
+                type: 'number',
+                required: false,
+              },
             ],
           });
         }
 
         for (const typeId of ['film', 'tv']) {
           const mediaType = await table.get(typeId);
-          if (!mediaType || mediaType.fields.some((f) => f.key === 'releaseDate')) continue;
+          if (!mediaType || mediaType.fields.some((f) => f.key === 'releaseDate'))
+            continue;
           await table.put({
             ...mediaType,
             fields: [
               ...mediaType.fields,
-              { key: 'releaseDate', label: 'Release Date', type: 'date', required: false },
+              {
+                key: 'releaseDate',
+                label: 'Release Date',
+                type: 'date',
+                required: false,
+              },
             ],
           });
         }
@@ -1084,7 +1095,9 @@ export class MediaJournalDatabase extends Dexie {
           const fields = podcast.fields.map((field) => {
             if (field.key !== 'source' || field.type !== 'autocomplete') return field;
             const existingOptions = new Set(field.options ?? []);
-            const toAdd = ['Podcast Addict', 'PodBean'].filter((s) => !existingOptions.has(s));
+            const toAdd = ['Podcast Addict', 'PodBean'].filter(
+              (s) => !existingOptions.has(s),
+            );
             if (toAdd.length === 0) return field;
             return { ...field, options: [...(field.options ?? []), ...toAdd] };
           });
@@ -1207,7 +1220,12 @@ export class MediaJournalDatabase extends Dexie {
           if (!existingKeys.has('series')) {
             const seasonIndex = anime.fields.findIndex((f) => f.key === 'seasonNumber');
             const fields = [...anime.fields];
-            const newField = { key: 'series', label: 'Series', type: 'text' as const, required: false };
+            const newField = {
+              key: 'series',
+              label: 'Series',
+              type: 'text' as const,
+              required: false,
+            };
             // Inserted right after seasonNumber to match the order
             // seen in the field list elsewhere (Number, then Series),
             // falling back to appending if seasonNumber is somehow
@@ -1226,7 +1244,12 @@ export class MediaJournalDatabase extends Dexie {
             toAdd.push({ key: 'series', label: 'Series', type: 'text', required: false });
           }
           if (!existingKeys.has('volumeNumber')) {
-            toAdd.push({ key: 'volumeNumber', label: 'Volume Number', type: 'number', required: false });
+            toAdd.push({
+              key: 'volumeNumber',
+              label: 'Volume Number',
+              type: 'number',
+              required: false,
+            });
           }
           if (toAdd.length > 0) {
             // Inserted right after `author` (index 0), same "new
@@ -1331,7 +1354,12 @@ export class MediaJournalDatabase extends Dexie {
         if (book) {
           const fields = [...book.fields];
           if (!fields.some((f) => f.key === 'pageCount')) {
-            fields.push({ key: 'pageCount', label: 'Page Count', type: 'number', required: false });
+            fields.push({
+              key: 'pageCount',
+              label: 'Page Count',
+              type: 'number',
+              required: false,
+            });
           }
           if (!fields.some((f) => f.key === 'isbn')) {
             fields.push({ key: 'isbn', label: 'ISBN', type: 'text', required: false });
@@ -1347,6 +1375,30 @@ export class MediaJournalDatabase extends Dexie {
           }
           await table.put({ ...audiobook, fields });
         }
+      });
+
+    // "Watched/Read With" and "Recommended By" (see chat, Sept 2026) —
+    // two new universal entry fields, same shape and conventions as
+    // `tags`/`genres` (freeform, multi-value, own suggestion list), so
+    // they get the same non-indexed, in-memory-filtered treatment (see
+    // v7's comment above on why `tags`/`genres` never got a
+    // `multiEntry` index). `.stores()` is unchanged from v29 — only a
+    // backfill is needed, same pattern as v15's `genres: []` backfill.
+    this.version(30)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaEntry>('mediaEntries');
+        await table.toCollection().modify((entry) => {
+          if (entry.watchedWith === undefined) entry.watchedWith = [];
+          if (entry.recommendedBy === undefined) entry.recommendedBy = [];
+        });
       });
   }
 }

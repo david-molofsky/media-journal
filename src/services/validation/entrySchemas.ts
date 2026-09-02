@@ -24,6 +24,8 @@ export const mediaEntrySchema = z
     repeatConsumption: z.boolean(),
     tags: z.array(z.string()),
     genres: z.array(z.string()),
+    watchedWith: z.array(z.string()),
+    recommendedBy: z.array(z.string()),
     metadata: z.record(
       z.string(),
       z.union([z.string(), z.number(), z.boolean(), z.undefined()]),

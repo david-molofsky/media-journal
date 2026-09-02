@@ -17,7 +17,11 @@ import { useNumberSetting } from '@/hooks/useNumberSetting';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { createEntry, normalizeWishlistOrder, jumpWishlistOrder } from '@/services/database/entryService';
+import {
+  createEntry,
+  normalizeWishlistOrder,
+  jumpWishlistOrder,
+} from '@/services/database/entryService';
 import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { getIssueDetails, searchSeries } from '@/services/metadata/comicVineService';
@@ -86,7 +90,8 @@ export default function AddEntryPage() {
   const sharedIssue = searchParams.get('issue');
   const sharedSeries = searchParams.get('series');
   const isComicPreciseLink = sharedType === 'comic' && Boolean(sharedId && sharedIssue);
-  const isComicSeriesLink = sharedType === 'comic' && !isComicPreciseLink && Boolean(sharedSeries);
+  const isComicSeriesLink =
+    sharedType === 'comic' && !isComicPreciseLink && Boolean(sharedSeries);
   const isSharedLink =
     Boolean(sharedType && sharedId && SHARED_ID_KEY[sharedType]) ||
     isComicPreciseLink ||
@@ -126,7 +131,11 @@ export default function AddEntryPage() {
     relogMediaType && activeType?.id === relogMediaType.id ? relogValues : undefined;
 
   const sharedLoading =
-    isSharedLink && !sharedTypeMissing && !sharedValues && !sharedError && Boolean(mediaTypes);
+    isSharedLink &&
+    !sharedTypeMissing &&
+    !sharedValues &&
+    !sharedError &&
+    Boolean(mediaTypes);
 
   // Resolve the shared id into pre-filled values once the type is known.
   useEffect(() => {
@@ -159,8 +168,12 @@ export default function AddEntryPage() {
               repeatConsumption: false,
               tags: [],
               genres: [],
+              watchedWith: [],
+              recommendedBy: [],
               metadata: {
-                ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
+                ...Object.fromEntries(
+                  sharedMediaType.fields.map((f) => [f.key, undefined]),
+                ),
                 ...fields,
                 series: seriesName,
                 issueStart: sharedIssue,
@@ -190,8 +203,12 @@ export default function AddEntryPage() {
               repeatConsumption: false,
               tags: [],
               genres: [],
+              watchedWith: [],
+              recommendedBy: [],
               metadata: {
-                ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
+                ...Object.fromEntries(
+                  sharedMediaType.fields.map((f) => [f.key, undefined]),
+                ),
                 ...(best?.fields ?? { series: sharedSeries }),
               },
             });
@@ -230,6 +247,8 @@ export default function AddEntryPage() {
           repeatConsumption: false,
           tags: [],
           genres: genres ?? [],
+          watchedWith: [],
+          recommendedBy: [],
           metadata: {
             ...Object.fromEntries(sharedMediaType.fields.map((f) => [f.key, undefined])),
             ...fields,
@@ -342,7 +361,11 @@ export default function AddEntryPage() {
         </Typography>
       </Stack>
       {sharedValues && (
-        <Alert icon={<LinkOutlinedIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
+        <Alert
+          icon={<LinkOutlinedIcon fontSize="inherit" />}
+          severity="info"
+          sx={{ mb: 2 }}
+        >
           Filled in from a shared link — review and save.
         </Alert>
       )}
