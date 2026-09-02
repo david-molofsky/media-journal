@@ -103,6 +103,24 @@ export function isWithinYearScope(
   return dayjs(dateStr).year() === year;
 }
 
+/** True when `dateStr` falls within the trailing 12-month window
+ * ending at `endDate` (inclusive of `endDate`'s own day) — the same
+ * "last 12 months" rule as `isWithinYearScope`'s `'last12'` case, just
+ * anchored at an arbitrary point in the past instead of always today.
+ * Used by the Subscriptions calculator's good-value history
+ * (`getGoodValueHistory` in subscriptionValueService.ts) to score each
+ * past month the exact same way Statistics scores "Last 12 months"
+ * today — see chat, Sept 2026 (Subscriptions page redesign). */
+export function isWithinRollingWindowEnding(
+  dateStr: string | undefined,
+  endDate: dayjs.Dayjs,
+  months: number,
+): boolean {
+  if (!dateStr) return false;
+  const d = dayjs(dateStr);
+  return !d.isAfter(endDate) && d.isAfter(endDate.subtract(months, 'month'));
+}
+
 /** `year === null` means "All" (every completed entry, no year
  * filter) — a full-table scan rather than the indexed `completedYear`
  * lookup, which is fine at personal-library scale and keeps this one
@@ -373,7 +391,10 @@ export async function getTopPeopleByRole(
     getTvTrackingMode(),
   ]);
   const totals = Object.fromEntries(
-    (Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]).map((role) => [role, {} as Record<string, number>]),
+    (Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]).map((role) => [
+      role,
+      {} as Record<string, number>,
+    ]),
   ) as Record<PersonRole, Record<string, number>>;
 
   for (const entry of entries) {
@@ -404,7 +425,9 @@ export async function getAverageRatingByPersonRole(
   year: StatsYearScope,
   filters?: StatsFilters,
 ): Promise<Record<PersonRole, Record<string, number>>> {
-  const entries = (await entriesForYear(year, filters)).filter((entry) => entry.rating !== undefined);
+  const entries = (await entriesForYear(year, filters)).filter(
+    (entry) => entry.rating !== undefined,
+  );
   const sums = Object.fromEntries(
     (Object.keys(PERSON_ROLE_FIELDS) as PersonRole[]).map((role) => [
       role,
@@ -431,7 +454,12 @@ export async function getAverageRatingByPersonRole(
   return Object.fromEntries(
     (Object.keys(sums) as PersonRole[]).map((role) => [
       role,
-      Object.fromEntries(Object.entries(sums[role]).map(([name, { total, count }]) => [name, total / count])),
+      Object.fromEntries(
+        Object.entries(sums[role]).map(([name, { total, count }]) => [
+          name,
+          total / count,
+        ]),
+      ),
     ]),
   ) as Record<PersonRole, Record<string, number>>;
 }
@@ -950,9 +978,16 @@ export async function getInsights(
     'Friday',
     'Saturday',
   ];
-  const scope = year === null ? 'overall' : year === 'last12' ? 'in the last 12 months' : 'this year';
-  const daySuffix = year === null ? ' overall' : year === 'last12' ? ' in the last 12 months' : '';
-  const revisitedSuffix = year === null ? 'in total' : year === 'last12' ? 'in the last 12 months' : 'this year';
+  const scope =
+    year === null ? 'overall' : year === 'last12' ? 'in the last 12 months' : 'this year';
+  const daySuffix =
+    year === null ? ' overall' : year === 'last12' ? ' in the last 12 months' : '';
+  const revisitedSuffix =
+    year === null
+      ? 'in total'
+      : year === 'last12'
+        ? 'in the last 12 months'
+        : 'this year';
 
   if (favourite && totals[favourite] !== undefined) {
     const share = Math.round((totals[favourite] / totalEntries) * 100);
@@ -972,7 +1007,9 @@ export async function getInsights(
   }
 
   if (weekday !== null && WEEKDAY_NAMES[weekday]) {
-    insights.push(`${WEEKDAY_NAMES[weekday]} is your most active completion day${daySuffix}.`);
+    insights.push(
+      `${WEEKDAY_NAMES[weekday]} is your most active completion day${daySuffix}.`,
+    );
   }
 
   if (typeof year === 'number') {

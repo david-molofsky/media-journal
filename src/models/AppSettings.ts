@@ -131,6 +131,19 @@ export const SETTINGS_KEYS = {
    * two supported pricing regions), this is the *only* price source.
    * See chat, Sept 2026. */
   subscriptionPriceOverrides: 'subscriptionPriceOverrides',
+  /** Billing cycle per source (Subscriptions calculator) — `'monthly'`
+   * or `'annual'`. Missing/absent means `'monthly'`, same as before
+   * this feature existed. When `'annual'`, `subscriptionAnnualPrices`
+   * (below) is what's actually charged; `subscriptionPriceOverrides`
+   * and the tier price are kept only as the "monthly plan" baseline
+   * shown for comparison, not used as the effective price. See chat,
+   * Sept 2026 (Subscriptions page redesign). */
+  subscriptionBillingCycle: 'subscriptionBillingCycle',
+  /** Manual annual price per source, in the current pricing region's
+   * currency — what the person is actually billed once a year when
+   * `subscriptionBillingCycle[source] === 'annual'`. The effective
+   * monthly price is this divided by 12. See chat, Sept 2026. */
+  subscriptionAnnualPrices: 'subscriptionAnnualPrices',
   /** Per-year, per-media-type consumption targets (Dashboard > Goals).
    * Shape: `Record<year, Record<mediaTypeId, number>>` — see
    * goalsService.ts. Registered here (rather than goalsService.ts

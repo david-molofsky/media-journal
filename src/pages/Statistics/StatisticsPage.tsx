@@ -59,7 +59,11 @@ import { TYPE_SORT_ORDER } from '@/services/database/entryService';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import { SETTINGS_KEYS, type MediaType } from '@/models';
 import { PERSON_ROLE_LABELS, type PersonRole } from '@/utils/personRoles';
-import { TopListSortSelect, sortTopListItems, type TopListSortMode } from '@/components/statistics/TopListSort';
+import {
+  TopListSortSelect,
+  sortTopListItems,
+  type TopListSortMode,
+} from '@/components/statistics/TopListSort';
 import {
   getStatisticsSessionState,
   setStatisticsSessionState,
@@ -147,11 +151,23 @@ const STAT_TILES: {
     id: 'subscriptionValue',
     icon: PaidOutlinedIcon,
     colour: '#FF6F5E',
-    title: 'Subscription value',
+    title: 'Subscription Score',
     description: "What you're getting for what you pay",
   },
-  { id: 'sources', icon: TvOutlinedIcon, colour: '#E0117F', title: 'Sources', description: 'Where you watch, read and play' },
-  { id: 'ratings', icon: StarOutlineIcon, colour: '#00A388', title: 'Ratings', description: 'How you score things, by type' },
+  {
+    id: 'sources',
+    icon: TvOutlinedIcon,
+    colour: '#E0117F',
+    title: 'Sources',
+    description: 'Where you watch, read and play',
+  },
+  {
+    id: 'ratings',
+    icon: StarOutlineIcon,
+    colour: '#00A388',
+    title: 'Ratings',
+    description: 'How you score things, by type',
+  },
   {
     id: 'insights',
     icon: LightbulbOutlinedIcon,
@@ -166,7 +182,13 @@ const STAT_TILES: {
     title: 'People',
     description: 'Most-credited actors, directors and more',
   },
-  { id: 'genres', icon: LocalOfferOutlinedIcon, colour: '#A0C000', title: 'Genres', description: "What you're drawn to most" },
+  {
+    id: 'genres',
+    icon: LocalOfferOutlinedIcon,
+    colour: '#A0C000',
+    title: 'Genres',
+    description: "What you're drawn to most",
+  },
   {
     id: 'timeline',
     icon: TimelineOutlinedIcon,
@@ -211,10 +233,16 @@ export default function StatisticsPage() {
   // reset page. Resets on an actual app reload, same as Library/
   // Timeline's equivalent restoration already does.
   const [restored] = useState(() => getStatisticsSessionState());
-  const [year, setYear] = useState<StatsYearScope>(() => restored?.year ?? dayjs().year());
+  const [year, setYear] = useState<StatsYearScope>(
+    () => restored?.year ?? dayjs().year(),
+  );
   const [filters, setFilters] = useState<StatsFilters>(restored?.filters ?? {});
-  const [sourcesView, setSourcesView] = useState<WatchedWishlistView>(restored?.sourcesView ?? 'watched');
-  const [genresView, setGenresView] = useState<WatchedWishlistView>(restored?.genresView ?? 'watched');
+  const [sourcesView, setSourcesView] = useState<WatchedWishlistView>(
+    restored?.sourcesView ?? 'watched',
+  );
+  const [genresView, setGenresView] = useState<WatchedWishlistView>(
+    restored?.genresView ?? 'watched',
+  );
   // Which role chip is selected in the People section (see chat, Aug
   // 2026) — null until data loads, then defaults to the first role
   // that actually has completed-entry data (set in the effect below).
@@ -340,7 +368,9 @@ export default function StatisticsPage() {
   // leaving gaps — same as the old standalone page.
   const timelineEntries = useTimelineEntries();
   const timelineBars = timelineEntries
-    ? packTimelineBars(timelineEntries.filter((e) => !timelineExcludedTypeIds.has(e.mediaType)))
+    ? packTimelineBars(
+        timelineEntries.filter((e) => !timelineExcludedTypeIds.has(e.mediaType)),
+      )
     : undefined;
 
   const data = useStatisticsData(year, filters);
@@ -416,7 +446,10 @@ export default function StatisticsPage() {
   const rolesWithData = (Object.keys(PERSON_ROLE_LABELS) as PersonRole[]).filter(
     (role) => Object.keys(data.topPeopleByRole[role]).length > 0,
   );
-  const activeRole = selectedRole && rolesWithData.includes(selectedRole) ? selectedRole : (rolesWithData[0] ?? null);
+  const activeRole =
+    selectedRole && rolesWithData.includes(selectedRole)
+      ? selectedRole
+      : (rolesWithData[0] ?? null);
 
   return (
     <Box>
@@ -528,7 +561,10 @@ export default function StatisticsPage() {
             </Typography>
             <Stack spacing={2}>
               {SUBSCRIPTION_VALUE_GROUPS.map((group) => {
-                const effectiveIds = effectiveGroupMediaTypeIds(group, filters.mediaTypeIds);
+                const effectiveIds = effectiveGroupMediaTypeIds(
+                  group,
+                  filters.mediaTypeIds,
+                );
                 // None of this group's media types survive the Media
                 // Type filter — hide the card entirely rather than
                 // show an empty/misleading one.
@@ -555,13 +591,19 @@ export default function StatisticsPage() {
       case 'sources':
         return (
           <Box>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 0.5 }}
+            >
               <Typography variant="subtitle2" color="text.secondary">
                 Sources
               </Typography>
-              {sourcesView === 'watched' && Object.keys(stats.topSourcesByCount).length > 0 && (
-                <TopListSortSelect value={sourcesSort} onChange={setSourcesSort} />
-              )}
+              {sourcesView === 'watched' &&
+                Object.keys(stats.topSourcesByCount).length > 0 && (
+                  <TopListSortSelect value={sourcesSort} onChange={setSourcesSort} />
+                )}
             </Stack>
             <WatchedWishlistToggle value={sourcesView} onChange={setSourcesView} />
 
@@ -587,8 +629,17 @@ export default function StatisticsPage() {
                         onSelectItem={(source) =>
                           goToLibrary(
                             typeof year === 'number'
-                              ? { year, status: 'completed', sources: [source], mediaTypeIds: [group.mediaTypeId] }
-                              : { status: 'completed', sources: [source], mediaTypeIds: [group.mediaTypeId] },
+                              ? {
+                                  year,
+                                  status: 'completed',
+                                  sources: [source],
+                                  mediaTypeIds: [group.mediaTypeId],
+                                }
+                              : {
+                                  status: 'completed',
+                                  sources: [source],
+                                  mediaTypeIds: [group.mediaTypeId],
+                                },
                           )
                         }
                       />
@@ -604,7 +655,10 @@ export default function StatisticsPage() {
             {sourcesView === 'wishlist' &&
               (Object.keys(stats.wishlistSourceTotals).length > 0 ? (
                 (() => {
-                  const groups = sortedSourceGroups(stats.wishlistSourceTotals, mediaTypeById);
+                  const groups = sortedSourceGroups(
+                    stats.wishlistSourceTotals,
+                    mediaTypeById,
+                  );
                   // "Most saved on" is still a single all-time headline —
                   // computed across every group's sources, not per group.
                   const top = groups
@@ -670,7 +724,11 @@ export default function StatisticsPage() {
                   {Object.entries(stats.averageRatingByMediaType)
                     .sort(([, a], [, b]) => b - a)
                     .map(([mediaType, average]) => (
-                      <Stack key={mediaType} direction="row" justifyContent="space-between">
+                      <Stack
+                        key={mediaType}
+                        direction="row"
+                        justifyContent="space-between"
+                      >
                         <Typography variant="body2">
                           {mediaTypeById.get(mediaType)?.displayName ?? mediaType}
                         </Typography>
@@ -714,10 +772,21 @@ export default function StatisticsPage() {
           <Box>
             {activeRole ? (
               <>
-                <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 0.5 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="flex-end"
+                  sx={{ mb: 0.5 }}
+                >
                   <TopListSortSelect value={peopleSort} onChange={setPeopleSort} />
                 </Stack>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  sx={{ mb: 1.5 }}
+                >
                   {rolesWithData.map((role) => (
                     <Chip
                       key={role}
@@ -730,11 +799,13 @@ export default function StatisticsPage() {
                 </Stack>
                 <TopList
                   items={sortTopListItems(
-                    Object.entries(stats.topPeopleByRole[activeRole]).map(([name, count]) => ({
-                      name,
-                      count,
-                      rating: stats.averageRatingByPersonRole[activeRole][name],
-                    })),
+                    Object.entries(stats.topPeopleByRole[activeRole]).map(
+                      ([name, count]) => ({
+                        name,
+                        count,
+                        rating: stats.averageRatingByPersonRole[activeRole][name],
+                      }),
+                    ),
                     peopleSort,
                   )}
                   onSelectItem={(name) =>
@@ -748,7 +819,8 @@ export default function StatisticsPage() {
               </>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No completed entries with a credited role (actor, director, writer, etc.) yet.
+                No completed entries with a credited role (actor, director, writer, etc.)
+                yet.
               </Typography>
             )}
           </Box>
@@ -784,7 +856,9 @@ export default function StatisticsPage() {
                     items={Object.entries(stats.wishlistGenreTotals)
                       .map(([name, count]) => ({ name, count }))
                       .sort((a, b) => b.count - a.count)}
-                    onSelectItem={(genre) => goToLibrary({ genres: [genre], status: 'wishlist' })}
+                    onSelectItem={(genre) =>
+                      goToLibrary({ genres: [genre], status: 'wishlist' })
+                    }
                   />
                 ) : (
                   <Typography variant="body2" color="text.secondary">
@@ -793,7 +867,10 @@ export default function StatisticsPage() {
                 ))}
 
               {stats.topGenreShareByMediaType && mediaTypes && (
-                <GenreShareByType data={stats.topGenreShareByMediaType} mediaTypes={mediaTypes} />
+                <GenreShareByType
+                  data={stats.topGenreShareByMediaType}
+                  mediaTypes={mediaTypes}
+                />
               )}
             </Stack>
           </Box>
@@ -808,7 +885,13 @@ export default function StatisticsPage() {
         return (
           <Box>
             {mediaTypes && mediaTypes.length > 0 && (
-              <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" sx={{ mb: 1.5 }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1.5}
+                flexWrap="wrap"
+                sx={{ mb: 1.5 }}
+              >
                 <ToggleButtonGroup
                   value={timelineZoomState}
                   exclusive
@@ -846,7 +929,15 @@ export default function StatisticsPage() {
                   : 'Nothing completed or in progress yet — your timeline will appear here once you have.'}
               </Typography>
             ) : (
-              <Box sx={{ maxHeight: 320, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
+              <Box
+                sx={{
+                  maxHeight: 320,
+                  overflow: 'auto',
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                }}
+              >
                 <TimelineChart
                   bars={timelineBars}
                   zoom={timelineZoomState}
@@ -856,10 +947,15 @@ export default function StatisticsPage() {
               </Box>
             )}
 
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
-              A dot means no start date was recorded for that entry, so only the day it was
-              completed is shown. A fading edge with an arrow means it's still in progress,
-              running through to today. Tap a type above to hide it, double-tap to solo it.
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1.5, display: 'block' }}
+            >
+              A dot means no start date was recorded for that entry, so only the day it
+              was completed is shown. A fading edge with an arrow means it's still in
+              progress, running through to today. Tap a type above to hide it, double-tap
+              to solo it.
             </Typography>
           </Box>
         );

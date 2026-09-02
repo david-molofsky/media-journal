@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import {
   getEntryWeight,
@@ -5,6 +6,7 @@ import {
   sourceOf,
   applyStatsFilters,
   isWithinYearScope,
+  isWithinRollingWindowEnding,
   type StatsFilters,
   type StatsYearScope,
 } from '@/services/statistics/statisticsService';
@@ -238,4 +240,153 @@ export async function getFavouriteSubscription(
 
   return eligible.reduce((best, current) => (current.score > best.score ? current : best))
     .source;
+}
+
+/** A source's "good value" score, at or above which the Subscriptions
+ * calculator considers it worth what's being paid — same bar as the
+ * `Good` label used everywhere else (`score >= 60`), so a source's
+ * good-value history and its live chip can never disagree. */
+const GOOD_VALUE_SCORE_THRESHOLD = 60;
+
+/** How many months of history `getGoodValueHistory` will scan back,
+ * regardless of how long a source has actually been logged for — five
+ * years of monthly rolling-window recomputation already answers "when
+ * did this last qualify" for any practical purpose, and an unbounded
+ * scan would get slower with every year a library keeps growing. */
+const MAX_GOOD_VALUE_MONTHS_TO_SCAN = 60;
+
+export interface GoodValueStatus {
+  /** `'current'` — good value right now; `month` is the first month
+   * ('YYYY-MM') of the unbroken streak leading up to today (may equal
+   * the current month). `'past'` — was good value before but isn't
+   * now; `month` is the last month it was. `'never'` — hasn't cleared
+   * the bar for any trailing-12-month window in the scanned history. */
+  state: 'current' | 'past' | 'never';
+  month: string | null;
+}
+
+/**
+ * For every source flagged as a subscription, finds the most recent
+ * month whose *trailing 12-month* score (ending that month, same
+ * formula as `getSubscriptionValue`) cleared `GOOD_VALUE_SCORE_THRESHOLD`
+ * — "the last month this service qualified as good value" (see chat,
+ * Sept 2026, Subscriptions page redesign). Deliberately scores each
+ * past month against a rolling year rather than that single month's
+ * own (usually sparse) activity — confirmed in chat as the less noisy
+ * definition — reusing the exact `isWithinRollingWindowEnding` rule
+ * Statistics already uses for "Last 12 months", just anchored at each
+ * month in the past instead of always today.
+ *
+ * Always scored across every enabled media type (mirrors
+ * `getSubscriptionCostSummary`'s cross-media aggregation, not a single
+ * Statistics group) and independent of the Subscriptions page's own
+ * time-scope selector — "when did this last qualify" is a fixed
+ * historical fact, not something that should change depending on what
+ * window you happen to be viewing.
+ */
+export async function getGoodValueHistory(
+  mediaTypeIds: string[],
+): Promise<Map<string, GoodValueStatus>> {
+  const [rawEntries, tvMode, subsConfig] = await Promise.all([
+    db.mediaEntries.where('mediaType').anyOf(mediaTypeIds).toArray(),
+    getTvTrackingMode(),
+    getSubscriptionSourceConfig(),
+  ]);
+
+  const isSub = (source: string) => isSubscriptionSource(subsConfig, source);
+  const completed = rawEntries.filter(
+    (entry) => (!entry.status || entry.status === 'completed') && entry.completedDate,
+  );
+
+  const sources = new Set<string>();
+  let earliest: dayjs.Dayjs | null = null;
+  for (const entry of completed) {
+    const source = sourceOf(entry);
+    if (!source || !isSub(source)) continue;
+    sources.add(source);
+    const completedAt = dayjs(entry.completedDate);
+    if (!earliest || completedAt.isBefore(earliest)) earliest = completedAt;
+  }
+
+  const result = new Map<string, GoodValueStatus>();
+  if (sources.size === 0 || !earliest) return result;
+
+  const now = dayjs();
+  const monthsBack = Math.min(
+    MAX_GOOD_VALUE_MONTHS_TO_SCAN,
+    Math.max(0, now.diff(earliest, 'month')),
+  );
+
+  // index 0 = the current month, index i = i months before that —
+  // whether each source cleared the good-value bar for the trailing
+  // 12 months ending in that month.
+  const monthlyGood = new Map<string, boolean[]>();
+  for (const source of sources) monthlyGood.set(source, []);
+
+  for (let i = 0; i <= monthsBack; i++) {
+    const monthEnd = now.subtract(i, 'month').endOf('month');
+    const windowEntries = completed.filter((entry) =>
+      isWithinRollingWindowEnding(entry.completedDate, monthEnd, 12),
+    );
+
+    const bucket = new Map<
+      string,
+      { count: number; ratingTotal: number; ratingCount: number }
+    >();
+    for (const entry of windowEntries) {
+      const source = sourceOf(entry);
+      if (!source || !isSub(source)) continue;
+      const weight = getEntryWeight(entry, tvMode);
+      const b = bucket.get(source) ?? { count: 0, ratingTotal: 0, ratingCount: 0 };
+      b.count += weight;
+      if (entry.rating !== undefined) {
+        b.ratingTotal += entry.rating;
+        b.ratingCount += 1;
+      }
+      bucket.set(source, b);
+    }
+
+    const maxCount = Math.max(0, ...Array.from(bucket.values()).map((b) => b.count));
+
+    for (const source of sources) {
+      const b = bucket.get(source);
+      const count = b?.count ?? 0;
+      const avgRating = b && b.ratingCount > 0 ? b.ratingTotal / b.ratingCount : null;
+      const usageScore = maxCount > 0 ? (count / maxCount) * 100 : 0;
+      const ratingScore = avgRating !== null ? (avgRating / 10) * 100 : 0;
+      const score = Math.round(USAGE_WEIGHT * usageScore + RATING_WEIGHT * ratingScore);
+      const isGood =
+        count >= MIN_WATCHES_FOR_RANKING && score >= GOOD_VALUE_SCORE_THRESHOLD;
+      monthlyGood.get(source)!.push(isGood);
+    }
+  }
+
+  for (const source of sources) {
+    const monthFlags = monthlyGood.get(source)!;
+    const lastGoodIndex = monthFlags.findIndex(Boolean);
+
+    if (lastGoodIndex === -1) {
+      result.set(source, { state: 'never', month: null });
+      continue;
+    }
+
+    if (lastGoodIndex === 0) {
+      // Still good now — walk back to find where the unbroken streak
+      // started, so the UI can say "every month since <streakStart>"
+      // rather than just "good this month".
+      let streakEnd = 0;
+      while (streakEnd + 1 < monthFlags.length && monthFlags[streakEnd + 1]) streakEnd++;
+      result.set(source, {
+        state: 'current',
+        month: now.subtract(streakEnd, 'month').format('YYYY-MM'),
+      });
+    } else {
+      result.set(source, {
+        state: 'past',
+        month: now.subtract(lastGoodIndex, 'month').format('YYYY-MM'),
+      });
+    }
+  }
+
+  return result;
 }
