@@ -1,57 +1,38 @@
-# Media Journal — Delta 2026-09-01 (part 7)
+# Changelog — Library card: comic issue count + universal title wrap
 
-Reverts the 3-month moving-average trend line, switches the Monthly chart to a rolling 12-month
-window instead of a fixed calendar year — applied to **both** places that share this chart
-(Dashboard and Statistics page's Monthly tab), per your call.
+## Changed
+- `src/components/library/EntryCard.tsx`
 
-## What changed and why
+## What changed
 
-`MonthlyActivityChart` was previously tied to whichever calendar year was selected on each page
-(Jan–Dec of that year), always displayed in that fixed Jan→Dec order. It's now a self-contained,
-trailing-12-months chart — e.g. run today (Sept 2026), it always shows Sep '25 through Sep '26,
-in that chronological order, **independent of any year selector** either page has for its other
-stats. Recomputed fresh on every load/query (no caching), which is what makes it "roll" day to
-day without extra scheduling logic — ask again tomorrow, or in October, and the window has moved
-because it's built off the current date each time.
+**1. Comic issue-count suffix**
+`getTitleSuffix()` now also builds an issue-count segment for Comic entries
+when both `issueStart` and `issueEnd` are set (`entrySchemas.ts` already
+enforces `issueEnd >= issueStart`, so the count is never negative):
+`issueEnd - issueStart + 1` → "9 issues" (singular "1 issue" handled too).
+If a Volume is also set, both render together, e.g. "- Vol. 2 - 9 issues".
+Colour is the Comic media-type colour (`#F57C00`), same as before.
 
-- **`src/services/statistics/statisticsService.ts`** — new `getRollingMonthlyBreakdown(filters?)`,
-  returning 12 `{ year, month, label, count }` entries. Replaces the old `getMonthlyTrend` stub
-  entirely (it had zero callers anywhere, confirmed by grep last session) — that dead code is now
-  actually gone rather than just flagged, since this rework directly supersedes it.
-- **New `src/hooks/useRollingMonthlyBreakdown.ts`** — reactive wrapper shared by both pages.
-- **`src/components/charts/MonthlyActivityChart.tsx`** — reverted from `ComposedChart`+`Line`
-  back to a plain `BarChart`, no trend line. Prop changed from `monthlyBreakdown: Record<number,
-  number>` to `data: RollingMonthDatum[]`; `onSelectMonth` now takes `(year, month)` instead of
-  just `month` — necessary since a rolling window spans two calendar years, so month number alone
-  ("Sep") would be ambiguous between this September and last.
-- **`src/components/statistics/TrendsTabs.tsx`** — prop threaded through as `monthlyData`/
-  `onSelectMonth(year, month)` to match.
-- **`src/pages/Statistics/StatisticsPage.tsx`** — new `rollingMonthlyData` from the hook (passing
-  the page's existing filter bar state, but *not* its year selector — the Monthly tab now always
-  shows the rolling window regardless of which year is picked at the top of the page). Click
-  handler simplified to always pass both `year` and `month` from the tapped bar directly.
-- **`src/pages/Dashboard/DashboardPage.tsx`** — same pattern, no filters (matching its previous
-  behaviour, which also had no filters).
+**2. Title suffix is now a standalone line (Option B, confirmed in chat)**
+Previously the season/volume suffix was appended inline to the title text
+and only showed at all when a suffix existed (otherwise the title used
+`noWrap`, truncating to one line). Now:
+- The title always wraps and clamps to a maximum of **3 lines** (2 lines
+  when a suffix is present, freeing a guaranteed line for the suffix)
+  using `-webkit-line-clamp`, with an ellipsis if it overflows further.
+- The season/issue suffix (TV "— S2", Comic "- Vol. X - N issues") renders
+  on its own line directly beneath the title, always in full — it can
+  never be clipped by the title's line-clamp regardless of title length.
 
-## A pre-existing thing I left alone, flagging it
+## Why
+- Per-request: comics should show a TV-season-style "- X issues" count.
+- Per-request: all Library card titles should wrap (not just TV/Comic),
+  capped at 3 lines before truncating.
+- Per-request: the season/issue suffix must always be visible regardless
+  of title length — moving it to its own unclamped line guarantees this
+  (confirmed via wireframe, Option B chosen over inline-clamped Option A).
 
-Dashboard's month-click handler has never explicitly forced `status: 'completed'` on the Library
-filter it navigates to (unlike Statistics' equivalent, which does) — I preserved that exact
-behaviour rather than silently changing it while I was already touching this handler. Worth a
-look if it's not intentional, but out of scope for what was asked here.
-
-## Verification
-`npx tsc -b --force`, `npx eslint .`, `npx vite build` all pass clean — same pre-existing warnings
-as every prior delivery, nothing new.
-
-## Files changed
-- `src/services/statistics/statisticsService.ts`
-- `src/components/charts/MonthlyActivityChart.tsx`
-- `src/components/statistics/TrendsTabs.tsx`
-- `src/pages/Statistics/StatisticsPage.tsx`
-- `src/pages/Dashboard/DashboardPage.tsx`
-
-## Files added
-- `src/hooks/useRollingMonthlyBreakdown.ts`
-
-No new npm dependencies, no Dexie migration, no Worker changes.
+## Verified
+- `npx tsc -b --force` — clean
+- `npx eslint .` — clean (0 errors; 4 pre-existing warnings in unrelated files)
+- `npx vite build` — clean

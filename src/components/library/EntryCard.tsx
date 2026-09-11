@@ -99,23 +99,37 @@ function buildSubtitle(entry: MediaEntry): string {
 }
 
 /**
- * Title suffix shown on the Library card for TV/Anime (Season) and
- * Comics (Volume) — see chat, confirmed against a real-app reference
- * screenshot ("Avatar: The Last Airbender (Live Action) — S2"). Title
- * wraps instead of truncating when a suffix is present, so it's never
- * silently hidden behind an ellipsis. Manual-only fields on both sides
- * (seasonNumber isn't set by TMDB/MAL auto-fill, volume isn't set by
- * ComicVine auto-fill), so this only ever reflects what the person
- * typed in themselves.
+ * Title suffix shown on the Library card for TV/Anime (Season), Comics
+ * (Volume, issue count) — see chat, confirmed against a real-app
+ * reference screenshot ("Avatar: The Last Airbender (Live Action) —
+ * S2"). Rendered as its own line beneath the title (see
+ * TITLE_SUFFIX_STANDALONE below) rather than appended inline, so it's
+ * always visible regardless of title length — the title itself clamps
+ * to 2 lines instead of 3 when a suffix is present, guaranteeing room.
+ * Manual-only fields (seasonNumber isn't set by TMDB/MAL auto-fill,
+ * volume isn't set by ComicVine auto-fill), so this only ever reflects
+ * what the person typed in themselves — except issue count, which is
+ * derived from issueStart/issueEnd (also manual-only, same as volume).
+ * Issue count only shows when BOTH issueStart and issueEnd are set;
+ * entrySchemas.ts already enforces issueEnd >= issueStart at the form
+ * level, so the count here is never negative.
  */
 function getTitleSuffix(entry: MediaEntry): string | null {
   if (entry.mediaType === 'tv' || entry.mediaType === 'anime') {
     const season = entry.metadata.seasonNumber;
-    if (typeof season === 'number') return ` — S${season}`;
+    if (typeof season === 'number') return `— S${season}`;
   }
   if (entry.mediaType === 'comic') {
+    const parts: string[] = [];
     const volume = entry.metadata.volume;
-    if (typeof volume === 'string' && volume.trim()) return ` - Vol. ${volume.trim()}`;
+    if (typeof volume === 'string' && volume.trim()) parts.push(`Vol. ${volume.trim()}`);
+    const issueStart = entry.metadata.issueStart;
+    const issueEnd = entry.metadata.issueEnd;
+    if (typeof issueStart === 'number' && typeof issueEnd === 'number' && issueEnd >= issueStart) {
+      const count = issueEnd - issueStart + 1;
+      parts.push(`${count} issue${count === 1 ? '' : 's'}`);
+    }
+    if (parts.length > 0) return `- ${parts.join(' - ')}`;
   }
   return null;
 }
@@ -250,24 +264,29 @@ export function EntryCard({
                 </Box>
               )}
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Stack direction="row" spacing={0.5} alignItems={titleSuffix ? 'flex-start' : 'center'}>
+                <Stack direction="row" spacing={0.5} alignItems="flex-start">
                   <Typography
                     variant="subtitle1"
                     fontWeight={600}
-                    noWrap={!titleSuffix}
-                    sx={titleSuffix ? { whiteSpace: 'normal', wordBreak: 'break-word' } : undefined}
+                    sx={{
+                      wordBreak: 'break-word',
+                      display: '-webkit-box',
+                      WebkitLineClamp: titleSuffix ? 2 : 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
                   >
                     {entry.title}
-                    {titleSuffix && (
-                      <Box component="span" sx={{ color: colour, fontWeight: 700 }}>
-                        {titleSuffix}
-                      </Box>
-                    )}
                   </Typography>
                   {entry.repeatConsumption && (
-                    <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0, mt: titleSuffix ? 0.4 : 0 }} /></Tooltip>
+                    <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0, mt: 0.3 }} /></Tooltip>
                   )}
                 </Stack>
+                {titleSuffix && (
+                  <Typography variant="body2" sx={{ color: colour, fontWeight: 700, lineHeight: 1.3 }}>
+                    {titleSuffix}
+                  </Typography>
+                )}
                 <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
                   <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
                   {completedSource && (
