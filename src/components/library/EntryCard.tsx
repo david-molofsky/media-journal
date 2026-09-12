@@ -18,6 +18,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import type { MediaEntry, MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
+import { comicIssueCount } from '@/utils/comicIssues';
 import { getEntryImageUrl } from '@/utils/entryImage';
 
 /** Position badge shown during Reorder mode — gold for the top 10 per
@@ -123,11 +124,19 @@ function getTitleSuffix(entry: MediaEntry): string | null {
     const parts: string[] = [];
     const volume = entry.metadata.volume;
     if (typeof volume === 'string' && volume.trim()) parts.push(`Vol. ${volume.trim()}`);
-    const issueStart = entry.metadata.issueStart;
-    const issueEnd = entry.metadata.issueEnd;
-    if (typeof issueStart === 'number' && typeof issueEnd === 'number' && issueEnd >= issueStart) {
-      const count = issueEnd - issueStart + 1;
-      parts.push(`${count} issue${count === 1 ? '' : 's'}`);
+    if (entry.metadata.isGraphicNovel) {
+      // Graphic Novel entries never show an issue count, regardless of
+      // whatever Issue Start/End happen to hold underneath — see chat,
+      // Sept 2026 (EntryForm silently defaults Issue Start to 1 when
+      // this is checked, purely to power the ComicVine fetch button).
+      parts.push('Graphic Novel');
+    } else {
+      const issueStart = entry.metadata.issueStart;
+      const issueEnd = entry.metadata.issueEnd;
+      if (typeof issueStart === 'number' && typeof issueEnd === 'number' && issueEnd >= issueStart) {
+        const count = comicIssueCount(issueStart, issueEnd);
+        parts.push(`${count} issue${count === 1 ? '' : 's'}`);
+      }
     }
     if (parts.length > 0) return `- ${parts.join(' - ')}`;
   }

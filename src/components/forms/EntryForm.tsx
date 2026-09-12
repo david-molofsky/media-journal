@@ -332,6 +332,7 @@ export function EntryForm({
   const status = watch('status') as EntryStatus | undefined;
   const issueStart = watch('metadata.issueStart' as 'metadata');
   const issueEnd = watch('metadata.issueEnd' as 'metadata');
+  const isGraphicNovel = Boolean(watch('metadata.isGraphicNovel' as 'metadata'));
   const episodeStart = watch('metadata.episodeStart' as 'metadata');
   const episodeEnd = watch('metadata.episodeEnd' as 'metadata');
   // Poster only ever renders here, in Edit Entry — never in the Library
@@ -1092,6 +1093,56 @@ export function EntryForm({
                 if (consumedAsSecond.has(field.key)) return null; // rendered as part of its pair below
                 const pairedKey = secondOfPair.get(field.key);
                 const pairedField = pairedKey ? fieldByKey.get(pairedKey) : undefined;
+
+                // Comic Issue Start/End + the Graphic Novel toggle are
+                // handled together here rather than through the generic
+                // pair renderer above: checking the toggle hides both
+                // number fields (values stay stored, just not rendered
+                // — see chat, Sept 2026) while the toggle itself always
+                // renders in their place, checked or not.
+                if (mediaType.id === 'comic' && field.key === 'issueStart') {
+                  return (
+                    <Stack key={field.key} spacing={2}>
+                      {!isGraphicNovel && pairedField && (
+                        <Stack direction="row" spacing={2}>
+                          <Box sx={{ flex: 1 }}>{renderMetadataField(field)}</Box>
+                          <Box sx={{ flex: 1 }}>{renderMetadataField(pairedField)}</Box>
+                        </Stack>
+                      )}
+                      <Controller
+                        name={'metadata.isGraphicNovel' as 'metadata'}
+                        control={control}
+                        render={({ field: controllerField }) => (
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={Boolean(controllerField.value)}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  controllerField.onChange(checked);
+                                  // Silently default Issue Start to 1 so
+                                  // "Fetch issue details from ComicVine"
+                                  // (keyed off issueStart) keeps working
+                                  // without exposing a field the person
+                                  // never asked to fill in — see chat.
+                                  if (checked && typeof issueStart !== 'number') {
+                                    setValue(
+                                      'metadata.issueStart' as 'metadata',
+                                      1 as unknown as EntryMetadata,
+                                      { shouldDirty: true },
+                                    );
+                                  }
+                                }}
+                              />
+                            }
+                            label="Graphic Novel"
+                          />
+                        )}
+                      />
+                    </Stack>
+                  );
+                }
+
                 if (pairedField) {
                   return (
                     <Stack key={field.key} direction="row" spacing={2}>
@@ -1104,6 +1155,7 @@ export function EntryForm({
               });
             })()}
             {mediaType.id === 'comic' &&
+              !isGraphicNovel &&
               typeof issueStart === 'number' &&
               typeof issueEnd === 'number' &&
               issueEnd >= issueStart && (

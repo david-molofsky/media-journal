@@ -217,6 +217,15 @@ const comicMetadataSchema = z
     // buildEntryLink). Optional: manually-created comics never have it,
     // and fall back to a series-name-only share link instead.
     comicVineVolumeId: z.string().optional(),
+    // Bespoke toggle (EntryForm) — hides Issue Start/Issue End when set,
+    // and swaps the Library card's issue-count suffix for "Graphic
+    // Novel". See chat, Sept 2026. Checking it does NOT clear any
+    // existing issueStart/issueEnd values (left stored but hidden, per
+    // chat), and EntryForm silently defaults issueStart to 1 when it's
+    // still unset at check-time, purely so "Fetch issue details from
+    // ComicVine" (keyed off issueStart) keeps working without exposing
+    // a field the person never asked to fill in.
+    isGraphicNovel: z.boolean().optional(),
   })
   .refine(
     (data) =>

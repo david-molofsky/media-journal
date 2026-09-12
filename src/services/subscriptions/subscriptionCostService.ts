@@ -89,6 +89,17 @@ export interface SubscriptionCostRow {
    * runtime data". Deliberately always rolling-12, not the page's
    * time-scope selector — see chat. */
   hoursThisYear: number | null;
+  /** Monetary value comparison: `effectivePrice / score` — a lower
+   * number means better value (less paid per "value point"). `null`
+   * when there's no price, or the row is `belowThreshold` / has a
+   * `score` of 0, since dividing by either would be meaningless.
+   * Deliberately separate from `score`/the Good-Fair-Poor label above,
+   * which stay usage-and-rating-only (a service can be excellently
+   * used and rated regardless of what it costs) — this is the one
+   * place price and usage actually combine. See chat, Sept 2026:
+   * "compare the monetary values based on the subscription score".
+   */
+  costPerValuePoint: number | null;
   /** Tier options for this source in the current pricing region, or
    * `undefined` if none exist (self-hosted source, or a hardcoded
    * service not offered in this region). */
@@ -248,16 +259,24 @@ export async function getSubscriptionCostSummary(
       isOverridden = typeof override === 'number';
     }
 
+    const score = valueRow?.score ?? 0;
+    const belowThreshold = valueRow?.belowThreshold ?? true;
+    const costPerValuePoint =
+      effectivePrice !== null && !belowThreshold && score > 0
+        ? effectivePrice / score
+        : null;
+
     return {
       source,
       watchedCount: valueRow?.watchedCount ?? 0,
       avgRating: valueRow?.avgRating ?? null,
       queuedCount: valueRow?.queuedCount ?? 0,
-      score: valueRow?.score ?? 0,
-      belowThreshold: valueRow?.belowThreshold ?? true,
+      score,
+      belowThreshold,
       topTitles: valueRow?.topTitles ?? [],
       goodValueHistory: goodValueHistory.get(source) ?? { state: 'never', month: null },
       hoursThisYear: hoursBySource.get(source) ?? null,
+      costPerValuePoint,
       tiers,
       selectedTierId,
       billingCycle,
@@ -285,13 +304,32 @@ export async function getSubscriptionCostSummary(
   let bestValueSource: string | null = null;
   let worstValueSource: string | null = null;
   if (eligibleForValue.length > 0) {
+    // The overall Good/Fair/Poor label stays usage-and-rating-only,
+    // same as each row's own label — see costPerValuePoint's doc
+    // comment for why. Best/Worst below is the one place price
+    // actually factors in.
     const avgScore =
       eligibleForValue.reduce((sum, r) => sum + r.score, 0) / eligibleForValue.length;
     overallValueLabel = avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Poor';
-    const best = eligibleForValue.reduce((a, b) => (b.score > a.score ? b : a));
-    const worst = eligibleForValue.reduce((a, b) => (b.score < a.score ? b : a));
+  }
+
+  // Best/Worst value is price-aware: lowest/highest £ paid per "value
+  // point" (score), not just highest/lowest raw score — see chat,
+  // Sept 2026. Only rows with a resolvable costPerValuePoint (priced,
+  // clears the usage threshold, non-zero score) can be ranked at all.
+  const eligibleForMoneyValue = eligibleForValue.filter(
+    (r): r is SubscriptionCostRow & { costPerValuePoint: number } =>
+      r.costPerValuePoint !== null,
+  );
+  if (eligibleForMoneyValue.length > 0) {
+    const best = eligibleForMoneyValue.reduce((a, b) =>
+      b.costPerValuePoint < a.costPerValuePoint ? b : a,
+    );
+    const worst = eligibleForMoneyValue.reduce((a, b) =>
+      b.costPerValuePoint > a.costPerValuePoint ? b : a,
+    );
     bestValueSource = best.source;
-    worstValueSource = eligibleForValue.length > 1 ? worst.source : null;
+    worstValueSource = eligibleForMoneyValue.length > 1 ? worst.source : null;
   }
 
   return {

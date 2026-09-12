@@ -43,7 +43,10 @@ import { PRICING_CURRENCY_SYMBOL } from '@/services/subscriptions/subscriptionPr
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ROUTES } from '@/routes/paths';
-import type { SubscriptionCostRow } from '@/services/subscriptions/subscriptionCostService';
+import type {
+  SubscriptionCostRow,
+  SubscriptionCostSummary,
+} from '@/services/subscriptions/subscriptionCostService';
 import type { GoodValueStatus } from '@/services/statistics/subscriptionValueService';
 import type { StatsYearScope } from '@/services/statistics/statisticsService';
 
@@ -73,6 +76,24 @@ function scoreBarColour(
   if (row.score >= 60) return 'success.main';
   if (row.score >= 40) return 'warning.main';
   return 'error.main';
+}
+
+/** Formats the " — £X.XX/pt" suffix for the Best/Worst value summary
+ * chips — looks the source's row up in `data.rows` since
+ * `bestValueSource`/`worstValueSource` are plain source-name strings.
+ * Empty string if the row can't be found or has no resolvable
+ * `costPerValuePoint` (shouldn't happen in practice, since a source
+ * can only become best/worst by having one — see
+ * `getSubscriptionCostSummary` — but keeps this purely defensive
+ * rather than asserting non-null). */
+function costPerValuePointSuffix(
+  data: SubscriptionCostSummary,
+  source: string,
+  currencySymbol: string,
+): string {
+  const row = data.rows.find((r) => r.source === source);
+  if (!row || row.costPerValuePoint === null) return '';
+  return ` — ${currencySymbol}${row.costPerValuePoint.toFixed(2)}/pt`;
 }
 
 function formatMonth(monthKey: string): string {
@@ -410,6 +431,13 @@ function SubscriptionCard({ row, currencySymbol }: SubscriptionCardProps) {
         ) : (
           <Chip size="small" variant="outlined" label="Add a price to see value" />
         )}
+        {row.costPerValuePoint !== null && (
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`${currencySymbol}${row.costPerValuePoint.toFixed(2)}/pt`}
+          />
+        )}
         {row.queuedCount > 0 && (
           <Chip
             size="small"
@@ -609,7 +637,7 @@ export default function SubscriptionsPage() {
                 size="small"
                 color="success"
                 variant="outlined"
-                label={`Best value: ${data.bestValueSource}`}
+                label={`Best value: ${data.bestValueSource}${costPerValuePointSuffix(data, data.bestValueSource, currencySymbol)}`}
               />
             )}
             {data.worstValueSource && (
@@ -617,7 +645,7 @@ export default function SubscriptionsPage() {
                 size="small"
                 color="warning"
                 variant="outlined"
-                label={`Worst value: ${data.worstValueSource}`}
+                label={`Worst value: ${data.worstValueSource}${costPerValuePointSuffix(data, data.worstValueSource, currencySymbol)}`}
               />
             )}
           </Stack>
