@@ -271,22 +271,23 @@ export function EntryCard({
                     sx={{
                       wordBreak: 'break-word',
                       display: '-webkit-box',
-                      WebkitLineClamp: titleSuffix ? 2 : 3,
+                      WebkitLineClamp: 3,
                       WebkitBoxOrient: 'vertical',
                       overflow: 'hidden',
                     }}
                   >
                     {entry.title}
+                    {titleSuffix && (
+                      <Box component="span" sx={{ color: colour, fontWeight: 700 }}>
+                        {' '}
+                        {titleSuffix}
+                      </Box>
+                    )}
                   </Typography>
                   {entry.repeatConsumption && (
                     <Tooltip title="Re-read / Re-watch"><ReplayIcon sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0, mt: 0.3 }} /></Tooltip>
                   )}
                 </Stack>
-                {titleSuffix && (
-                  <Typography variant="body2" sx={{ color: colour, fontWeight: 700, lineHeight: 1.3 }}>
-                    {titleSuffix}
-                  </Typography>
-                )}
                 <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
                   <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
                   {completedSource && (
