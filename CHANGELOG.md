@@ -1,56 +1,28 @@
-# Changelog — Graphic Novel toggle + Subscription price/score value metric
+# Changelog — Wishlist card: taller image + aligned badge row
 
 ## Changed
-- `src/services/validation/entrySchemas.ts`
-- `src/components/forms/EntryForm.tsx`
 - `src/components/library/EntryCard.tsx`
-- `src/services/subscriptions/subscriptionCostService.ts`
-- `src/pages/Subscriptions/SubscriptionsPage.tsx`
 
-## 1. Graphic Novel toggle (Comic entries)
+## What changed
+Wishlist-status cards only — Journal (completed/in-progress) cards are
+completely untouched.
 
-- **`entrySchemas.ts`**: added `isGraphicNovel: z.boolean().optional()` to
-  `comicMetadataSchema`. Bespoke field (like `coverImagePath`), not added
-  to `defaultMediaTypes.ts`'s `fields[]` array.
-- **`EntryForm.tsx`**: a "Graphic Novel" switch now renders directly
-  below Issue Start/Issue End on Comic entries. When checked:
-  - Issue Start/Issue End hide from the form. Any existing values stay
-    stored underneath, untouched — unchecking brings them back exactly
-    as they were.
-  - If Issue Start wasn't already a number, it's silently set to `1` —
-    purely so "Fetch issue details from ComicVine" (which is keyed off
-    Issue Start) keeps working without asking for a field the person
-    never wanted to fill in. Issue End is left alone either way.
-  - The "Issues X–Y count as N issues" hint is suppressed.
-  - The single-issue UPC/barcode scanner is untouched, still visible.
-- **`EntryCard.tsx`**: the Library card suffix shows "- Graphic Novel"
-  instead of an issue count for these entries (Volume, if set, still
-  shows alongside it, e.g. "- Vol. 2 - Graphic Novel"). Also switched
-  the issue-count math to the shared `comicIssueCount()` util instead
-  of a duplicated inline calculation.
-- **Statistics**: no changes needed. `getEntryWeight()` already falls
-  back to counting a comic as 1 item whenever Issue End isn't a number,
-  which every Graphic Novel entry satisfies.
+- **Badge row alignment**: the Wishlist/Source badge row (previously
+  flush under the card's own left padding, i.e. under the cover image)
+  now indents to line up under the title/date text instead. Computed
+  from the actual rendered thumb width so it stays correct whether an
+  entry has a cover image or falls back to the icon circle.
+- **Cover image size**: on Wishlist cards, the cover image is slightly
+  larger — 44×62 → 48×68, same aspect ratio (~1.1x). The icon-fallback
+  circle (entries with no cover image) is unchanged at 44×44, since
+  it's a circular badge rather than a poster.
+- Date, action icons, and everything else on the card are unchanged.
 
-## 2. Subscriptions page — price ÷ score value metric
-
-- **`subscriptionCostService.ts`**: added `costPerValuePoint` to
-  `SubscriptionCostRow` — `effectivePrice / score`, `null` when there's
-  no price or the row doesn't clear the usage threshold. Deliberately
-  separate from `score`/the Good-Fair-Poor label, which stay
-  usage-and-rating only. `bestValueSource`/`worstValueSource` in
-  `getSubscriptionCostSummary` now pick the lowest/highest
-  `costPerValuePoint` instead of the highest/lowest raw score —
-  price-aware for the first time. `overallValueLabel` is unchanged
-  (still the usage/rating average).
-- **`SubscriptionsPage.tsx`**: each card shows a new "£X.XX/pt" chip
-  next to its Good/Fair/Poor label. The page summary's "Best value" /
-  "Worst value" chips now include the figure too, e.g.
-  "Best value: Digital — £0.10/pt". The "hrs (Film/TV) last 12mo" stat
-  is untouched.
-- **`getEntryWeight()`** and every other Statistics consumer of it are
-  completely untouched — this only touches the Subscriptions
-  calculator's own value metric, per chat.
+## Why
+Per chat: the badge row read oddly starting under the image rather than
+the title, and the cover image could stand to be a touch more
+prominent — both scoped to Wishlist only since Journal cards weren't
+part of the request.
 
 ## Verified
 - `npx tsc -b --force` — clean

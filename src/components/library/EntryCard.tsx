@@ -210,6 +210,23 @@ export function EntryCard({
       ? entry.metadata.source
       : null;
   const titleSuffix = getTitleSuffix(entry);
+  // Wishlist-only card tweaks (see chat, Sept 2026) — Journal
+  // (completed/in-progress) cards are untouched. The cover image is
+  // slightly larger (same aspect ratio, ~1.1x: 44x62 -> 48x68), and the
+  // badge row below (which only Wishlist/In Progress cards have at all)
+  // is indented to align under the title/date text instead of sitting
+  // flush under the image, for Wishlist specifically.
+  const isWishlist = entry.status === 'wishlist';
+  const posterWidth = isWishlist ? 48 : 44;
+  const posterHeight = isWishlist ? 68 : 62;
+  // Actual rendered thumb width, accounting for the icon-fallback case
+  // (no cover image available) which stays 44 regardless of status —
+  // it's a circular icon badge, not a poster, so the "slightly taller"
+  // request doesn't apply to it.
+  const thumbWidth = showImage && imageUrl ? posterWidth : 44;
+  const CARD_PADDING = 16; // p: 2
+  const STACK_GAP = 16; // Stack spacing={2}
+  const badgeRowIndent = isWishlist ? CARD_PADDING + thumbWidth + STACK_GAP : CARD_PADDING;
 
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, borderLeft: `4px solid ${colour}`, overflow: 'hidden', ...(selected !== undefined && { outline: selected ? `2px solid ${colour}` : '2px solid transparent' }) }}>
@@ -258,8 +275,8 @@ export function EntryCard({
                   alt=""
                   onError={() => setFailedImageUrl(imageUrl)}
                   sx={{
-                    width: 44,
-                    height: 62,
+                    width: posterWidth,
+                    height: posterHeight,
                     borderRadius: 1.5,
                     flexShrink: 0,
                     objectFit: 'cover',
@@ -315,7 +332,7 @@ export function EntryCard({
           </CardActionArea>
 
           {statusCfg && (
-            <Box sx={{ px: 2, pb: 1.5 }}>
+            <Box sx={{ pl: `${badgeRowIndent}px`, pr: 2, pb: 1.5 }}>
               <Stack direction="row" flexWrap="wrap" alignItems="center" rowGap={1} columnGap={1}>
                 <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
                   {statusCfg.label}
