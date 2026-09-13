@@ -58,7 +58,13 @@ export function MediaTypePicker({ mediaTypes, onSelect }: MediaTypePickerProps) 
           const Icon = getMediaTypeIcon(mediaType.icon);
           return (
             <Grid key={mediaType.id} size={{ xs: 6, sm: 4 }}>
-              <Card variant="outlined" sx={{ borderRadius: 4, height: '100%' }}>
+              <Card
+                variant="outlined"
+                data-tour-target={
+                  mediaType.id === 'film' ? 'add-media-type-film' : undefined
+                }
+                sx={{ borderRadius: 4, height: '100%' }}
+              >
                 <CardActionArea
                   onClick={() => onSelect(mediaType)}
                   sx={{
@@ -113,7 +119,9 @@ export function MediaTypePicker({ mediaTypes, onSelect }: MediaTypePickerProps) 
                   height: '100%',
                 }}
               >
-                <TipsAndUpdatesOutlinedIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                <TipsAndUpdatesOutlinedIcon
+                  sx={{ fontSize: 40, color: 'primary.main' }}
+                />
                 <Typography
                   variant="body2"
                   fontWeight={600}

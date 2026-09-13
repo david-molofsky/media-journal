@@ -1236,38 +1236,40 @@ export default function LibraryPage() {
         </Stack>
       </Stack>
 
-      {viewMode === 'series' ? (
-        <SeriesView entries={entries} mediaTypes={mediaTypes} status={statusTab} />
-      ) : entries.length === 0 ? (
-        <PagePlaceholder
-          title={statusPlaceholder.title}
-          description={statusPlaceholder.description}
-        />
-      ) : groups ? (
-        <Stack spacing={3}>
-          {groups.map(({ header, entries: groupEntries }) => (
-            <Box key={header}>
-              <Typography
-                variant="caption"
-                fontWeight={700}
-                color="text.secondary"
-                sx={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.07em',
-                  display: 'block',
-                  mb: 1,
-                  px: 0.5,
-                }}
-              >
-                {header}
-              </Typography>
-              <Stack spacing={1.5}>{groupEntries.map(renderCard)}</Stack>
-            </Box>
-          ))}
-        </Stack>
-      ) : (
-        <Stack spacing={1.5}>{entries.map(renderCard)}</Stack>
-      )}
+      <Box data-tour-target="journal-list">
+        {viewMode === 'series' ? (
+          <SeriesView entries={entries} mediaTypes={mediaTypes} status={statusTab} />
+        ) : entries.length === 0 ? (
+          <PagePlaceholder
+            title={statusPlaceholder.title}
+            description={statusPlaceholder.description}
+          />
+        ) : groups ? (
+          <Stack spacing={3}>
+            {groups.map(({ header, entries: groupEntries }) => (
+              <Box key={header}>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  color="text.secondary"
+                  sx={{
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.07em',
+                    display: 'block',
+                    mb: 1,
+                    px: 0.5,
+                  }}
+                >
+                  {header}
+                </Typography>
+                <Stack spacing={1.5}>{groupEntries.map(renderCard)}</Stack>
+              </Box>
+            ))}
+          </Stack>
+        ) : (
+          <Stack spacing={1.5}>{entries.map(renderCard)}</Stack>
+        )}
+      </Box>
 
       {selectionMode && selectedIds.size > 0 && (
         <BulkActionBar selectedIds={Array.from(selectedIds)} onClear={clearSelection} />

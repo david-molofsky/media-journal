@@ -30,8 +30,13 @@ import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection
 import { PodcastSubscriptionsSection } from '@/components/settings/PodcastSubscriptionsSection';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
+import Button from '@mui/material/Button';
+import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import { useGuidedTour } from '@/tour/GuidedTourContext';
 
 export default function SettingsPage() {
+  const { start: startGuidedTour } = useGuidedTour();
+
   return (
     <Box>
       <Typography variant="h6" component="h1" fontWeight={600} sx={{ mb: 3 }}>
@@ -39,7 +44,9 @@ export default function SettingsPage() {
       </Typography>
 
       <Stack spacing={4} divider={<Divider />}>
-        <GoogleDriveSection />
+        <Box data-tour-target="settings-backup">
+          <GoogleDriveSection />
+        </Box>
 
         <CollapsibleSection title="General" icon={TuneOutlinedIcon}>
           <Stack spacing={3}>
@@ -66,7 +73,9 @@ export default function SettingsPage() {
           </Stack>
         </CollapsibleSection>
 
-        <MediaTypeManager />
+        <Box data-tour-target="settings-media-types">
+          <MediaTypeManager />
+        </Box>
 
         <TmdbAutofillSection />
 
@@ -89,6 +98,22 @@ export default function SettingsPage() {
             read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
           <PwaUpdateSection />
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Guided Tour" icon={ExploreOutlinedIcon}>
+          <Stack spacing={1.5} alignItems="flex-start">
+            <Typography variant="body2" color="text.secondary">
+              Replay the spotlight walkthrough of the Dashboard, Journal, Add Entry,
+              Statistics and Subscriptions pages.
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<ExploreOutlinedIcon />}
+              onClick={() => startGuidedTour()}
+            >
+              Replay Guided Tour
+            </Button>
+          </Stack>
         </CollapsibleSection>
 
         <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>

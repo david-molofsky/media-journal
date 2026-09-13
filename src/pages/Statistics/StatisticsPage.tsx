@@ -546,6 +546,11 @@ export default function StatisticsPage() {
                   description={tile.description}
                   expanded={expandedSections.has(tile.id)}
                   onClick={() => toggleSection(tile.id)}
+                  tourTargetId={
+                    tile.id === 'subscriptionValue'
+                      ? 'stats-subscription-score'
+                      : undefined
+                  }
                 />
               ))}
             </Box>

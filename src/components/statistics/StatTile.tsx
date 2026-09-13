@@ -20,12 +20,23 @@ interface StatTileProps {
    * shortcut to the Timeline page). */
   expanded?: boolean;
   onClick: () => void;
+  /** Guided Tour spotlight target id, e.g. "stats-subscription-score". */
+  tourTargetId?: string;
 }
 
-export function StatTile({ icon: Icon, colour, title, description, expanded, onClick }: StatTileProps) {
+export function StatTile({
+  icon: Icon,
+  colour,
+  title,
+  description,
+  expanded,
+  onClick,
+  tourTargetId,
+}: StatTileProps) {
   return (
     <ButtonBase
       onClick={onClick}
+      data-tour-target={tourTargetId}
       sx={{
         display: 'block',
         textAlign: 'left',
@@ -57,7 +68,11 @@ export function StatTile({ icon: Icon, colour, title, description, expanded, onC
           <Typography variant="body2" fontWeight={600} noWrap>
             {title}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.3 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', lineHeight: 1.3 }}
+          >
             {description}
           </Typography>
         </Box>

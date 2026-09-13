@@ -22,6 +22,7 @@ import { GettingStartedCard } from '@/components/dashboard/GettingStartedCard';
 import { BackupNudgeBanner } from '@/components/dashboard/BackupNudgeBanner';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
+import { useGuidedTour } from '@/tour/GuidedTourContext';
 import { SETTINGS_KEYS } from '@/models';
 import { ROUTES, entryDetailPath } from '@/routes/paths';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
@@ -35,7 +36,11 @@ export default function DashboardPage() {
   // Always a rolling 12 months, independent of the Dashboard's own
   // year selector above — see chat, Sept 2026.
   const rollingMonthlyData = useRollingMonthlyBreakdown();
-  const [hasSeenWelcome, setHasSeenWelcome] = useBooleanSetting(SETTINGS_KEYS.hasSeenWelcome, false);
+  const [hasSeenWelcome, setHasSeenWelcome] = useBooleanSetting(
+    SETTINGS_KEYS.hasSeenWelcome,
+    false,
+  );
+  const { active: tourActive } = useGuidedTour();
 
   const goToLibrary = (filter: LibraryFilterRequest) => {
     navigate(ROUTES.library, { state: filter });
@@ -47,9 +52,25 @@ export default function DashboardPage() {
 
   const mediaTypeById = new Map(mediaTypes.map((type) => [type.id, type]));
 
+  // While the Guided Tour is running we always want the real Dashboard
+  // content underneath the dimmed overlay (there's something to
+  // spotlight), even for a brand-new install with just the tour's own
+  // entry. Once the tour ends, WelcomeScreen reappears — <= 1 rather
+  // than === 0 so it still shows after the tour's single guided entry
+  // (see chat). hasSeenWelcome is untouched by the tour, so this only
+  // ever affects a device that has never seen it.
+  const showWelcomeScreen = !tourActive && data.totalEntries <= 1 && !hasSeenWelcome;
+  const showEmptyPlaceholder =
+    !tourActive && !showWelcomeScreen && data.totalEntries === 0;
+
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 3 }}
+      >
         <Typography variant="h6" component="h1" fontWeight={600}>
           Overview
         </Typography>
@@ -59,30 +80,29 @@ export default function DashboardPage() {
       <Stack spacing={4}>
         <InProgressSection mediaTypes={mediaTypes} />
 
-        {data.totalEntries === 0 ? (
-          hasSeenWelcome ? (
-            <PagePlaceholder
-              title="No entries yet"
-              description="Add your first entry to start seeing your yearly overview here."
-            />
-          ) : (
-            <WelcomeScreen
-              onAddEntry={() => {
-                setHasSeenWelcome(true);
-                navigate(ROUTES.addEntry);
-              }}
-              onOpenSettings={() => {
-                setHasSeenWelcome(true);
-                navigate(ROUTES.settings);
-              }}
-            />
-          )
+        {showWelcomeScreen ? (
+          <WelcomeScreen
+            onAddEntry={() => {
+              setHasSeenWelcome(true);
+              navigate(ROUTES.addEntry);
+            }}
+            onOpenSettings={() => {
+              setHasSeenWelcome(true);
+              navigate(ROUTES.settings);
+            }}
+          />
+        ) : showEmptyPlaceholder ? (
+          <PagePlaceholder
+            title="No entries yet"
+            description="Add your first entry to start seeing your yearly overview here."
+          />
         ) : (
           <>
             <GettingStartedCard />
             <BackupNudgeBanner />
 
             <Box
+              data-tour-target="dashboard-stats"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
@@ -92,7 +112,9 @@ export default function DashboardPage() {
               {mediaTypes.map((mediaType) => {
                 const count = data.totalsByMediaType[mediaType.id] ?? 0;
                 const percentOfYear =
-                  data.totalEntries === 0 ? 0 : Math.round((count / data.totalEntries) * 100);
+                  data.totalEntries === 0
+                    ? 0
+                    : Math.round((count / data.totalEntries) * 100);
                 return (
                   <SummaryCard
                     key={mediaType.id}
@@ -112,7 +134,11 @@ export default function DashboardPage() {
             </Box>
 
             {year !== null && (
-              <GoalsSection year={year} mediaTypes={mediaTypes} totalsByMediaType={data.totalsByMediaType} />
+              <GoalsSection
+                year={year}
+                mediaTypes={mediaTypes}
+                totalsByMediaType={data.totalsByMediaType}
+              />
             )}
 
             <Box>

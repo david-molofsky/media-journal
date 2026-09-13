@@ -546,6 +546,7 @@ export default function SubscriptionsPage() {
       <PagePlaceholder
         title="No subscriptions flagged yet"
         description="Head to Settings > Subscriptions and flag the sources you pay for — Netflix, Spotify, and so on — to start tracking their cost and value here."
+        tourTargetId="subscriptions-calculator"
       />
     );
   }
@@ -581,6 +582,7 @@ export default function SubscriptionsPage() {
       )}
 
       <Box
+        data-tour-target="subscriptions-calculator"
         sx={{
           border: 1,
           borderColor: 'divider',

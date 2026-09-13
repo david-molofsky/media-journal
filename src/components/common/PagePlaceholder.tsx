@@ -4,6 +4,9 @@ import Typography from '@mui/material/Typography';
 interface PagePlaceholderProps {
   title: string;
   description: string;
+  /** Guided Tour spotlight target id, when this placeholder doubles
+   * as a tour step's target (e.g. Subscriptions' empty state). */
+  tourTargetId?: string;
 }
 
 /**
@@ -13,9 +16,14 @@ interface PagePlaceholderProps {
  * Also doubles as the visual basis for genuine empty states (UI & UX
  * Specification, section 10) once real pages are wired up.
  */
-export function PagePlaceholder({ title, description }: PagePlaceholderProps) {
+export function PagePlaceholder({
+  title,
+  description,
+  tourTargetId,
+}: PagePlaceholderProps) {
   return (
     <Box
+      data-tour-target={tourTargetId}
       sx={{
         display: 'flex',
         flexDirection: 'column',

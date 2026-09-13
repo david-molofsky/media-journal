@@ -195,6 +195,14 @@ export const SETTINGS_KEYS = {
    * to 0 via getSetting's fallback, so an existing library already
    * past 10 entries with no Drive connected sees it immediately. */
   backupNudgeDismissedThreshold: 'backupNudgeDismissedThreshold',
+  /** Set true once the Guided Tour (spotlight walkthrough of Dashboard,
+   * Journal, Add Entry, Statistics, Subscriptions and Settings) has
+   * been completed or dismissed. Deliberately separate from
+   * `hasSeenWelcome` / the onboarding package above — the Guided Tour
+   * is a distinct feature that runs once automatically, then again
+   * only via Settings > Replay Guided Tour. Device-local, same as
+   * `hasSeenWelcome`. */
+  hasCompletedGuidedTour: 'hasCompletedGuidedTour',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

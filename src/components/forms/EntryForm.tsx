@@ -1317,7 +1317,7 @@ export function EntryForm({
           </>
         )}
 
-        <Stack spacing={2}>
+        <Stack spacing={2} data-tour-target="add-rating-notes">
           <Typography variant="subtitle2" color="text.secondary">
             Personal Notes
           </Typography>

@@ -15,6 +15,8 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AppRoutes } from '@/routes/AppRoutes';
 import { ensureDatabaseSeeded } from '@/services/database/seed';
 import { PwaUpdateProvider } from '@/pwa/PwaUpdateContext';
+import { GuidedTourProvider } from '@/tour/GuidedTourContext';
+import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -41,7 +43,10 @@ export default function App() {
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={dateLocale}>
           <ErrorBoundary>
             <HashRouter>
-              <AppRoutes />
+              <GuidedTourProvider>
+                <AppRoutes />
+                <GuidedTourOverlay />
+              </GuidedTourProvider>
             </HashRouter>
           </ErrorBoundary>
         </LocalizationProvider>

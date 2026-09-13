@@ -1,28 +1,29 @@
-# Changelog — Wishlist card: taller image + aligned badge row
+# Changelog — Unify Wishlist/In Progress cards with Completed layout
 
 ## Changed
 - `src/components/library/EntryCard.tsx`
 
 ## What changed
-Wishlist-status cards only — Journal (completed/in-progress) cards are
-completely untouched.
+Per chat, Sept 2026, confirmed against a real screenshot ("The Housemaid"
+= new design, "Isabella And Blodwen" = old): Wishlist and In Progress
+cards now use the same single-row layout as Completed cards, instead of
+their own image+title row followed by a separate status-chip row below.
 
-- **Badge row alignment**: the Wishlist/Source badge row (previously
-  flush under the card's own left padding, i.e. under the cover image)
-  now indents to line up under the title/date text instead. Computed
-  from the actual rendered thumb width so it stays correct whether an
-  entry has a cover image or falls back to the icon circle.
-- **Cover image size**: on Wishlist cards, the cover image is slightly
-  larger — 44×62 → 48×68, same aspect ratio (~1.1x). The icon-fallback
-  circle (entries with no cover image) is unchanged at 44×44, since
-  it's a circular badge rather than a poster.
-- Date, action icons, and everything else on the card are unchanged.
-
-## Why
-Per chat: the badge row read oddly starting under the image rather than
-the title, and the cover image could stand to be a touch more
-prominent — both scoped to Wishlist only since Journal cards weren't
-part of the request.
+- **Removed**: the "★ Wishlist" / "▶ In Progress" status chip entirely
+  (`STATUS_CONFIG` deleted). The separate badge/action row underneath
+  the card is gone.
+- **Source badge**: now shows inline next to the date for every status
+  (previously Completed-only via `completedSource`; Wishlist/In
+  Progress showed it in the now-removed row instead). Unified into a
+  single `source` variable.
+- **Action icons** (Mark finished / Start tracking / Move to wishlist):
+  moved into the same slot the rating badge occupies on Completed cards
+  — Wishlist/In Progress entries never have a rating, so this is a
+  straight swap: rating if present, else the action icons if any apply.
+- **Reverts** the Wishlist-specific 48×68 image size and indented badge
+  row from the previous change (now unnecessary/superseded) — the
+  cover image is back to a flat 44×62 for every status, matching
+  Completed exactly, per "align the design with the Completed cards."
 
 ## Verified
 - `npx tsc -b --force` — clean
