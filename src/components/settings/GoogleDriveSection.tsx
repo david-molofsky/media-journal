@@ -31,7 +31,6 @@ import {
   type DriveExportFile,
 } from '@/services/googleDrive/googleDriveService';
 import { db } from '@/services/database/db';
-import { setSetting } from '@/services/database/settingsService';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
 import { useDriveConnected } from '@/hooks/useDriveConnected';
 import { SETTINGS_KEYS } from '@/models';
@@ -43,6 +42,12 @@ import {
 } from '@/services/importExport/importExportService';
 import { downloadPreRestoreBackup } from '@/services/importExport/restoreSafetyService';
 import { RestoreBackupDialog } from '@/components/settings/RestoreBackupDialog';
+import {
+  clearAutomaticBackupFailure,
+  isAutomaticBackupStale,
+  recordAutomaticBackupFailure,
+  recordAutomaticBackupSuccess,
+} from '@/services/googleDrive/backupHealthService';
 
 interface PendingDriveImport {
   raw: unknown;
@@ -101,6 +106,19 @@ export function GoogleDriveSection() {
   const handleConfirmAutoBackup = () => {
     setAutoBackupConfirmOpen(false);
     setAutoBackupEnabled(true);
+    void run(async () => {
+      try {
+        const fileName = await exportToGoogleDrive();
+        await recordAutomaticBackupSuccess();
+        setStatus({
+          type: 'success',
+          message: `Automatic backup enabled and verified with "${fileName}".`,
+        });
+      } catch (error) {
+        await recordAutomaticBackupFailure(error);
+        throw error;
+      }
+    });
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -128,19 +146,30 @@ export function GoogleDriveSection() {
     run(async () => {
       await signOutOfDrive();
       setAutoBackupEnabled(false);
-      await setSetting(SETTINGS_KEYS.lastAutoBackupError, null);
+      await clearAutomaticBackupFailure();
       setStatus(null);
     });
 
   const handleExport = () =>
     run(async () => {
       const fileName = await exportToGoogleDrive();
-      await setSetting(SETTINGS_KEYS.lastAutoBackupError, null);
+      if (autoBackupEnabled) {
+        await recordAutomaticBackupSuccess();
+      } else {
+        await clearAutomaticBackupFailure();
+      }
       setStatus({
         type: 'success',
         message: `Saved as "${fileName}" in your Media Journal Drive folder.`,
       });
     });
+
+  const automaticBackupOverdue =
+    autoBackupEnabled &&
+    !busy &&
+    !lastAutoBackupError &&
+    lastAutoBackupAt !== undefined &&
+    isAutomaticBackupStale(lastAutoBackupAt);
 
   const handleOpenImport = async () => {
     setImportOpen(true);
@@ -303,6 +332,13 @@ export function GoogleDriveSection() {
                 above to retry now; a successful backup will clear this warning.
               </Alert>
             )}
+
+            {automaticBackupOverdue && (
+              <Alert severity="warning" sx={{ mt: 1.5 }}>
+                Automatic backup has not completed in the last 48 hours. Use “Export to
+                Drive” above to protect the latest changes now.
+              </Alert>
+            )}
           </Box>
         </>
       )}
@@ -360,7 +396,8 @@ export function GoogleDriveSection() {
         <DialogTitle>Enable automatic daily backup?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            This device will back up your library to Google Drive every day at 23:59.
+            Media Journal will create the first backup now, then this device will back
+            up your library every day at 23:59.
           </Typography>
           <Alert severity="warning">
             Enable this on one device only, to avoid backups overwriting each other.

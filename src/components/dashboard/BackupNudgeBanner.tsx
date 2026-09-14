@@ -22,7 +22,7 @@ export function BackupNudgeBanner() {
 
   if (nudge === undefined || !nudge.visible) return null;
 
-  const backupFailed = nudge.kind === 'failed';
+  const backupIssue = nudge.kind !== 'connect';
 
   return (
     <Stack
@@ -40,20 +40,22 @@ export function BackupNudgeBanner() {
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1.5}>
-        {backupFailed ? (
+        {backupIssue ? (
           <WarningAmberOutlinedIcon color="warning" fontSize="small" />
         ) : (
           <CloudOffOutlinedIcon color="action" fontSize="small" />
         )}
         <Typography variant="body2">
-          {backupFailed
+          {nudge.kind === 'failed'
             ? 'Your latest automatic backup failed. Your Drive copy may be out of date.'
-            : `You've logged ${nudge.entryCount} entries with no backup connected. Your library only exists on this device.`}
+            : nudge.kind === 'stale'
+              ? 'Automatic backup is overdue. Your Drive copy may be out of date.'
+              : `You've logged ${nudge.entryCount} entries with no backup connected. Your library only exists on this device.`}
         </Typography>
       </Stack>
       <Stack direction="row" alignItems="center" spacing={0.5} flexShrink={0}>
         <Button size="small" onClick={() => navigate(ROUTES.settings)}>
-          {backupFailed ? 'Check backup' : 'Connect Drive'}
+          {backupIssue ? 'Check backup' : 'Connect Drive'}
         </Button>
         {nudge.dismiss && (
           <IconButton
