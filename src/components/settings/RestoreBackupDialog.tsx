@@ -67,7 +67,14 @@ export function RestoreBackupDialog({
 
             <List dense sx={{ mt: 1 }}>
               <ListItem disableGutters>
-                <ListItemText primary="Entries" secondary={preview.entryCount} />
+                <ListItemText
+                  primary="Entries in backup"
+                  secondary={
+                    preview.entryCount === 0
+                      ? 'None'
+                      : `${preview.entryCount} total · ${preview.newEntryCount} new · ${preview.matchingEntryCount} matching`
+                  }
+                />
               </ListItem>
               <ListItem disableGutters>
                 <ListItemText primary="Media types" secondary={preview.mediaTypeCount} />
@@ -88,9 +95,19 @@ export function RestoreBackupDialog({
 
             <Stack spacing={1.5}>
               <Alert severity="info">
-                Merge updates matching records and keeps anything else already on this
-                device.
+                This device currently has {preview.currentEntryCount}{' '}
+                {preview.currentEntryCount === 1 ? 'entry' : 'entries'}. Merge will add{' '}
+                {preview.newEntryCount} and update {preview.matchingEntryCount} with
+                matching backup IDs, while keeping everything else.
               </Alert>
+
+              {preview.entriesRemovedOnReplace > 0 && (
+                <Alert severity="warning">
+                  Replace will remove {preview.entriesRemovedOnReplace}{' '}
+                  {preview.entriesRemovedOnReplace === 1 ? 'entry' : 'entries'} that
+                  exist on this device but not in the backup.
+                </Alert>
+              )}
 
               {preview.legacy && (
                 <Alert severity="warning">
@@ -103,9 +120,12 @@ export function RestoreBackupDialog({
               {preview.skippedEntryCount > 0 && (
                 <Alert severity="warning">
                   {preview.skippedEntryCount}{' '}
-                  {preview.skippedEntryCount === 1 ? 'entry is' : 'entries are'} invalid
-                  and will be skipped. Replace is disabled to protect the current
-                  journal.
+                  {preview.skippedEntryCount === 1 ? 'entry cannot' : 'entries cannot'} be
+                  restored and will be skipped
+                  {preview.duplicateEntryCount > 0
+                    ? `, including ${preview.duplicateEntryCount} with duplicate IDs`
+                    : ''}
+                  . Replace is disabled to protect the current journal.
                 </Alert>
               )}
             </Stack>
@@ -136,8 +156,10 @@ export function RestoreBackupDialog({
           <DialogTitle>Replace this journal?</DialogTitle>
           <DialogContent>
             <Alert severity="error" sx={{ mb: 2 }}>
-              Entries, media types, podcast subscriptions and portable preferences on
-              this device that are not in the backup will be removed.
+              {preview.entriesRemovedOnReplace > 0
+                ? `${preview.entriesRemovedOnReplace} current ${preview.entriesRemovedOnReplace === 1 ? 'entry' : 'entries'}, plus any media types, podcast subscriptions and portable preferences`
+                : 'Media types, podcast subscriptions and portable preferences'}{' '}
+              on this device that are not in the backup will be removed.
             </Alert>
             <DialogContentText>
               Before replacing anything, Media Journal will download a safety copy of

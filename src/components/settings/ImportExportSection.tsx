@@ -59,7 +59,7 @@ export function ImportExportSection() {
     try {
       const text = await file.text();
       const raw = JSON.parse(text) as unknown;
-      const preview = inspectLibraryImport(raw);
+      const preview = await inspectLibraryImport(raw);
       setPendingImport({ raw, preview, sourceName: file.name });
     } catch (error) {
       setStatus({
