@@ -6,8 +6,14 @@ import {
   type AbsImportSummary,
 } from '@/services/importExport/audiobookshelfImportService';
 import type { ExternalReviewItem } from '@/services/importExport/externalMediaReview';
+import {
+  trackImportCompleted,
+  trackImportFailed,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type AbsImportPhase = 'idle' | 'threshold' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
+export type AbsImportPhase =
+  'idle' | 'threshold' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
 
 const DEFAULT_THRESHOLD = 0.9;
 
@@ -24,7 +30,10 @@ export function useAudiobookshelfImportFlow() {
   const [phase, setPhase] = useState<AbsImportPhase>('idle');
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
   const [data, setData] = useState<ExternalReviewItem[]>([]);
-  const [fetchProgress, setFetchProgress] = useState<AbsFetchProgress>({ done: 0, total: 0 });
+  const [fetchProgress, setFetchProgress] = useState<AbsFetchProgress>({
+    done: 0,
+    total: 0,
+  });
   const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0 });
   const [summary, setSummary] = useState<AbsImportSummary>(EMPTY_SUMMARY);
   const [error, setError] = useState<string | null>(null);
@@ -35,25 +44,39 @@ export function useAudiobookshelfImportFlow() {
   };
 
   const fetchLibrary = async () => {
+    trackImportStarted('audiobookshelf', 'api');
     setPhase('fetching');
     setFetchProgress({ done: 0, total: 0 });
     try {
-      const result = await fetchAudiobookshelfLibrary(threshold, (p) => setFetchProgress(p));
+      const result = await fetchAudiobookshelfLibrary(threshold, (p) =>
+        setFetchProgress(p),
+      );
       setData(result);
       setPhase('review');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong fetching your Audiobookshelf library.');
+      trackImportFailed('audiobookshelf', 'api', 'fetch');
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Something went wrong fetching your Audiobookshelf library.',
+      );
       setPhase('error');
     }
   };
 
   const toggleIncluded = (key: string) => {
-    setData((prev) => prev.map((item) => (item.key === key ? { ...item, included: !item.included } : item)));
+    setData((prev) =>
+      prev.map((item) =>
+        item.key === key ? { ...item, included: !item.included } : item,
+      ),
+    );
   };
 
   const selectCandidate = (key: string, candidateId: string) => {
     setData((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, selectedCandidateId: candidateId } : item)),
+      prev.map((item) =>
+        item.key === key ? { ...item, selectedCandidateId: candidateId } : item,
+      ),
     );
   };
 
@@ -61,7 +84,11 @@ export function useAudiobookshelfImportFlow() {
     setData((prev) =>
       prev.map((item) =>
         item.key === key && item.typeChoice
-          ? { ...item, mediaType: value, typeChoice: { ...item.typeChoice, selected: value } }
+          ? {
+              ...item,
+              mediaType: value,
+              typeChoice: { ...item.typeChoice, selected: value },
+            }
           : item,
       ),
     );
@@ -75,6 +102,11 @@ export function useAudiobookshelfImportFlow() {
     setPhase('importing');
     setApplyProgress({ done: 0, total: data.length });
     const result = await applyAudiobookshelfImport(data);
+    trackImportCompleted('audiobookshelf', 'api', {
+      itemsFound: data.length,
+      itemsImported: result.imported,
+      itemsSkipped: result.skipped,
+    });
     setSummary(result);
     setPhase('done');
   };

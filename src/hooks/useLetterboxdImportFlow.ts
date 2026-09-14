@@ -7,8 +7,13 @@ import {
   type LetterboxdMatchState,
 } from '@/services/importExport/letterboxdImportService';
 import type { SearchResult } from '@/services/metadata/openLibraryService';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type LetterboxdImportPhase = 'idle' | 'matching' | 'review' | 'importing' | 'done' | 'empty';
+export type LetterboxdImportPhase =
+  'idle' | 'matching' | 'review' | 'importing' | 'done' | 'empty';
 
 /**
  * Owns the "Import from Letterboxd" flow's state and async steps —
@@ -22,6 +27,7 @@ export function useLetterboxdImportFlow() {
   const [summary, setSummary] = useState({ imported: 0, skipped: 0 });
 
   const start = async (file: File) => {
+    trackImportStarted('letterboxd', 'csv');
     setPhase('matching');
     setMatches([]);
     setProgress({ done: 0, total: 0 });
@@ -60,25 +66,33 @@ export function useLetterboxdImportFlow() {
 
   const pickCandidate = (index: number, tmdbId: string) => {
     setMatches((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, status: 'ambiguous', selectedId: tmdbId } : m)),
+      prev.map((m, i) =>
+        i === index ? { ...m, status: 'ambiguous', selectedId: tmdbId } : m,
+      ),
     );
   };
 
   const skipEntry = (index: number) => {
     setMatches((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, status: 'skipped', selectedId: undefined } : m)),
+      prev.map((m, i) =>
+        i === index ? { ...m, status: 'skipped', selectedId: undefined } : m,
+      ),
     );
   };
 
   const setImportAnyway = (index: number, value: boolean) => {
-    setMatches((prev) => prev.map((m, i) => (i === index ? { ...m, importAnyway: value } : m)));
+    setMatches((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, importAnyway: value } : m)),
+    );
   };
 
   /** Tick/untick a single 'auto'-matched row — the "tick box" feature
    * (see chat): previously auto-matched rows had no way to be excluded
    * short of skipping the whole import. */
   const setIncluded = (index: number, value: boolean) => {
-    setMatches((prev) => prev.map((m, i) => (i === index ? { ...m, included: value } : m)));
+    setMatches((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, included: value } : m)),
+    );
   };
 
   /** Ticks/unticks every 'auto'-matched row at once. Ambiguous/none
@@ -86,7 +100,9 @@ export function useLetterboxdImportFlow() {
    * rather than being touched by this — they're not "ticked" in the
    * same sense until a choice has been made. */
   const setAllIncluded = (value: boolean) => {
-    setMatches((prev) => prev.map((m) => (m.status === 'auto' ? { ...m, included: value } : m)));
+    setMatches((prev) =>
+      prev.map((m) => (m.status === 'auto' ? { ...m, included: value } : m)),
+    );
   };
 
   const applyAll = async () => {
@@ -101,6 +117,11 @@ export function useLetterboxdImportFlow() {
       setProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSummary({ imported, skipped });
+    trackImportCompleted('letterboxd', 'csv', {
+      itemsFound: matches.length,
+      itemsImported: imported,
+      itemsSkipped: skipped,
+    });
     setPhase('done');
   };
 

@@ -22,6 +22,8 @@ import {
   normalizeWishlistOrder,
   jumpWishlistOrder,
 } from '@/services/database/entryService';
+import { db } from '@/services/database/db';
+import { trackEntryCreated } from '@/services/analytics/analyticsService';
 import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { getIssueDetails, searchSeries } from '@/services/metadata/comicVineService';
@@ -381,7 +383,16 @@ export default function AddEntryPage() {
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
         onSubmit={async (values) => {
+          const librarySizeBefore = await db.mediaEntries.count();
           const entry = await createEntry(values);
+          trackEntryCreated(entry, {
+            creationSource: sharedValues
+              ? 'shared_link'
+              : relogInitialValues
+                ? 'relog'
+                : 'manual',
+            librarySizeBefore,
+          });
           if (entry.status === 'wishlist') {
             await normalizeWishlistOrder();
             await jumpWishlistOrder(entry.id, DEFAULT_WISHLIST_POSITION);

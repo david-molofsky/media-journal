@@ -6,8 +6,14 @@ import {
   type JellyfinImportSummary,
 } from '@/services/importExport/jellyfinImportService';
 import type { ExternalReviewItem } from '@/services/importExport/externalMediaReview';
+import {
+  trackImportCompleted,
+  trackImportFailed,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type JellyfinImportPhase = 'idle' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
+export type JellyfinImportPhase =
+  'idle' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
 
 const EMPTY_SUMMARY: JellyfinImportSummary = { imported: 0, skipped: 0 };
 
@@ -19,11 +25,15 @@ const EMPTY_SUMMARY: JellyfinImportSummary = { imported: 0, skipped: 0 };
 export function useJellyfinImportFlow() {
   const [phase, setPhase] = useState<JellyfinImportPhase>('idle');
   const [data, setData] = useState<ExternalReviewItem[]>([]);
-  const [fetchProgress, setFetchProgress] = useState<JellyfinFetchProgress>({ done: 0, total: 0 });
+  const [fetchProgress, setFetchProgress] = useState<JellyfinFetchProgress>({
+    done: 0,
+    total: 0,
+  });
   const [summary, setSummary] = useState<JellyfinImportSummary>(EMPTY_SUMMARY);
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
+    trackImportStarted('jellyfin', 'api');
     setPhase('fetching');
     setFetchProgress({ done: 0, total: 0 });
     setError(null);
@@ -32,18 +42,29 @@ export function useJellyfinImportFlow() {
       setData(result);
       setPhase('review');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong fetching your Jellyfin library.');
+      trackImportFailed('jellyfin', 'api', 'fetch');
+      setError(
+        e instanceof Error
+          ? e.message
+          : 'Something went wrong fetching your Jellyfin library.',
+      );
       setPhase('error');
     }
   };
 
   const toggleIncluded = (key: string) => {
-    setData((prev) => prev.map((item) => (item.key === key ? { ...item, included: !item.included } : item)));
+    setData((prev) =>
+      prev.map((item) =>
+        item.key === key ? { ...item, included: !item.included } : item,
+      ),
+    );
   };
 
   const selectCandidate = (key: string, candidateId: string) => {
     setData((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, selectedCandidateId: candidateId } : item)),
+      prev.map((item) =>
+        item.key === key ? { ...item, selectedCandidateId: candidateId } : item,
+      ),
     );
   };
 
@@ -54,6 +75,11 @@ export function useJellyfinImportFlow() {
   const applyAll = async () => {
     setPhase('importing');
     const result = await applyJellyfinImport(data);
+    trackImportCompleted('jellyfin', 'api', {
+      itemsFound: data.length,
+      itemsImported: result.imported,
+      itemsSkipped: result.skipped,
+    });
     setSummary(result);
     setPhase('done');
   };

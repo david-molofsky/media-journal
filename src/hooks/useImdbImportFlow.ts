@@ -9,15 +9,13 @@ import {
   type ShowGroup,
   type SkippedRow,
 } from '@/services/importExport/imdbImportService';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
 export type ImdbImportPhase =
-  | 'idle'
-  | 'matching'
-  | 'review'
-  | 'show_prompt'
-  | 'importing'
-  | 'done'
-  | 'empty';
+  'idle' | 'matching' | 'review' | 'show_prompt' | 'importing' | 'done' | 'empty';
 
 interface Summary {
   filmsImported: number;
@@ -65,6 +63,7 @@ export function useImdbImportFlow() {
   });
 
   const start = async (file: File) => {
+    trackImportStarted('imdb', 'csv');
     const text = await file.text();
     const rows: ImdbRow[] = parseImdbRatings(text);
     if (rows.length === 0) {
@@ -74,7 +73,9 @@ export function useImdbImportFlow() {
 
     setPhase('matching');
     setMatchProgress({ done: 0, total: rows.length });
-    const result = await matchRows(rows, (done, total) => setMatchProgress({ done, total }));
+    const result = await matchRows(rows, (done, total) =>
+      setMatchProgress({ done, total }),
+    );
 
     if (result.movies.length === 0 && result.showGroups.length === 0) {
       setSkipped(result.skipped);
@@ -119,6 +120,11 @@ export function useImdbImportFlow() {
     }
 
     setSummary({ filmsImported, seasonsImported, skipped, seasonsMissingDate });
+    trackImportCompleted('imdb', 'csv', {
+      itemsFound: movies.length + showGroups.length + skipped.length,
+      itemsImported: filmsImported + seasonsImported,
+      itemsSkipped: skipped.length + seasonsMissingDate,
+    });
     setPhase('done');
   };
 
@@ -162,7 +168,9 @@ export function useImdbImportFlow() {
    * triggers the actual import, computing the final skip set inline
    * rather than via the skippedShowIds state (see runImport's doc). */
   const finishShow = async (showId: string, skip: boolean) => {
-    const nextSkippedShowIds = skip ? new Set(skippedShowIds).add(showId) : skippedShowIds;
+    const nextSkippedShowIds = skip
+      ? new Set(skippedShowIds).add(showId)
+      : skippedShowIds;
     if (skip) setSkippedShowIds(nextSkippedShowIds);
 
     const nextIndex = showIndex + 1;
@@ -184,7 +192,12 @@ export function useImdbImportFlow() {
     setSkippedShowIds(new Set());
     setExcludedMovies(new Set());
     setImportProgress({ done: 0, total: 0 });
-    setSummary({ filmsImported: 0, seasonsImported: 0, skipped: [], seasonsMissingDate: 0 });
+    setSummary({
+      filmsImported: 0,
+      seasonsImported: 0,
+      skipped: [],
+      seasonsMissingDate: 0,
+    });
   };
 
   return {

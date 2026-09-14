@@ -6,6 +6,10 @@ import {
   type StoryGraphRow,
   type StoryGraphRowState,
 } from '@/services/importExport/storyGraphImportService';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
 export type StoryGraphImportPhase = 'idle' | 'review' | 'importing' | 'done' | 'empty';
 
@@ -23,6 +27,7 @@ export function useStoryGraphImportFlow() {
   const [summary, setSummary] = useState({ imported: 0, skipped: 0 });
 
   const start = async (file: File) => {
+    trackImportStarted('storygraph', 'csv');
     const text = await file.text();
     const parsed: StoryGraphRow[] = parseStoryGraphLibrary(text);
     if (parsed.length === 0) {
@@ -35,12 +40,16 @@ export function useStoryGraphImportFlow() {
   };
 
   const setCompletedDate = (index: number, date: string) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)),
+    );
   };
 
   const skipEntry = (index: number) => {
     setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, status: 'skipped', completedDate: undefined } : r)),
+      prev.map((r, i) =>
+        i === index ? { ...r, status: 'skipped', completedDate: undefined } : r,
+      ),
     );
   };
 
@@ -51,7 +60,9 @@ export function useStoryGraphImportFlow() {
   };
 
   const setAllIncluded = (value: boolean) => {
-    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
+    setRows((prev) =>
+      prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)),
+    );
   };
 
   const applyAll = async () => {
@@ -66,6 +77,11 @@ export function useStoryGraphImportFlow() {
       setProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSummary({ imported, skipped });
+    trackImportCompleted('storygraph', 'csv', {
+      itemsFound: rows.length,
+      itemsImported: imported,
+      itemsSkipped: skipped,
+    });
     setPhase('done');
   };
 
@@ -76,5 +92,17 @@ export function useStoryGraphImportFlow() {
     setSummary({ imported: 0, skipped: 0 });
   };
 
-  return { phase, rows, progress, summary, start, setCompletedDate, skipEntry, setIncluded, setAllIncluded, applyAll, reset };
+  return {
+    phase,
+    rows,
+    progress,
+    summary,
+    start,
+    setCompletedDate,
+    skipEntry,
+    setIncluded,
+    setAllIncluded,
+    applyAll,
+    reset,
+  };
 }

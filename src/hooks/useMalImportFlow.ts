@@ -5,6 +5,10 @@ import {
   type MalRowState,
   type MalFetchProgress,
 } from '@/services/importExport/malImportService';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
 export type MalImportPhase = 'idle' | 'fetching' | 'review' | 'importing' | 'done';
 
@@ -23,7 +27,10 @@ export interface MalImportSummary {
 export function useMalImportFlow() {
   const [phase, setPhase] = useState<MalImportPhase>('idle');
   const [rows, setRows] = useState<MalRowState[]>([]);
-  const [fetchProgress, setFetchProgress] = useState<MalFetchProgress>({ phase: 'anime', fetched: 0 });
+  const [fetchProgress, setFetchProgress] = useState<MalFetchProgress>({
+    phase: 'anime',
+    fetched: 0,
+  });
   const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0 });
   const [summary, setSummary] = useState<MalImportSummary>({ imported: 0, skipped: 0 });
 
@@ -39,10 +46,16 @@ export function useMalImportFlow() {
       setApplyProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSummary({ imported, skipped });
+    trackImportCompleted('myanimelist', 'api', {
+      itemsFound: rowsToImport.length,
+      itemsImported: imported,
+      itemsSkipped: skipped,
+    });
     setPhase('done');
   };
 
   const start = async () => {
+    trackImportStarted('myanimelist', 'api');
     setPhase('fetching');
     const classified = await fetchAndClassifyMal((p) => setFetchProgress(p));
     setRows(classified);
@@ -57,11 +70,17 @@ export function useMalImportFlow() {
   };
 
   const setCompletedDate = (index: number, date: string) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)),
+    );
   };
 
   const skipRow = (index: number) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, status: 'skipped', completedDate: undefined } : r)));
+    setRows((prev) =>
+      prev.map((r, i) =>
+        i === index ? { ...r, status: 'skipped', completedDate: undefined } : r,
+      ),
+    );
   };
 
   /** Tick/untick a single 'ready' row — the "tick box" feature (see
@@ -73,7 +92,9 @@ export function useMalImportFlow() {
   };
 
   const setAllIncluded = (value: boolean) => {
-    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
+    setRows((prev) =>
+      prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)),
+    );
   };
 
   const confirmReview = () => runImport(rows);

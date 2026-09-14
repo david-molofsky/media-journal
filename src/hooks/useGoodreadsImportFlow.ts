@@ -7,8 +7,13 @@ import {
   type GoodreadsRowState,
 } from '@/services/importExport/goodreadsImportService';
 import type { EntryStatus } from '@/models';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type GoodreadsImportPhase = 'idle' | 'select_shelves' | 'review' | 'importing' | 'done' | 'empty';
+export type GoodreadsImportPhase =
+  'idle' | 'select_shelves' | 'review' | 'importing' | 'done' | 'empty';
 
 /** All three shelves selected, every time — deliberately not persisted
  * between imports (see chat), unlike the Timeline type filter which
@@ -27,13 +32,18 @@ const ALL_STATUSES: EntryStatus[] = ['completed', 'in_progress', 'wishlist'];
 export function useGoodreadsImportFlow() {
   const [phase, setPhase] = useState<GoodreadsImportPhase>('idle');
   const [rawRows, setRawRows] = useState<GoodreadsRow[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<Set<EntryStatus>>(new Set(ALL_STATUSES));
-  const [emptyReason, setEmptyReason] = useState<'no_rows' | 'no_selection_match'>('no_rows');
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<EntryStatus>>(
+    new Set(ALL_STATUSES),
+  );
+  const [emptyReason, setEmptyReason] = useState<'no_rows' | 'no_selection_match'>(
+    'no_rows',
+  );
   const [rows, setRows] = useState<GoodreadsRowState[]>([]);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [summary, setSummary] = useState({ imported: 0, skipped: 0 });
 
   const start = async (file: File) => {
+    trackImportStarted('goodreads', 'csv');
     const text = await file.text();
     const parsed = parseGoodreadsLibrary(text);
     if (parsed.length === 0) {
@@ -68,12 +78,16 @@ export function useGoodreadsImportFlow() {
   };
 
   const setCompletedDate = (index: number, date: string) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)));
+    setRows((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, completedDate: date } : r)),
+    );
   };
 
   const skipEntry = (index: number) => {
     setRows((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, status: 'skipped', completedDate: undefined } : r)),
+      prev.map((r, i) =>
+        i === index ? { ...r, status: 'skipped', completedDate: undefined } : r,
+      ),
     );
   };
 
@@ -84,7 +98,9 @@ export function useGoodreadsImportFlow() {
   };
 
   const setAllIncluded = (value: boolean) => {
-    setRows((prev) => prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)));
+    setRows((prev) =>
+      prev.map((r) => (r.status === 'ready' ? { ...r, included: value } : r)),
+    );
   };
 
   const applyAll = async () => {
@@ -99,6 +115,11 @@ export function useGoodreadsImportFlow() {
       setProgress((p) => ({ ...p, done: p.done + 1 }));
     }
     setSummary({ imported, skipped });
+    trackImportCompleted('goodreads', 'csv', {
+      itemsFound: rows.length,
+      itemsImported: imported,
+      itemsSkipped: skipped,
+    });
     setPhase('done');
   };
 

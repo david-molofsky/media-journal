@@ -6,8 +6,14 @@ import {
   type TraktFetchProgress,
   type TraktImportSummary,
 } from '@/services/importExport/traktImportService';
+import {
+  trackImportCompleted,
+  trackImportFailed,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type TraktImportPhase = 'idle' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
+export type TraktImportPhase =
+  'idle' | 'fetching' | 'review' | 'importing' | 'done' | 'error';
 
 const EMPTY_DATA: TraktReviewData = {
   movies: [],
@@ -39,12 +45,17 @@ const EMPTY_SUMMARY: TraktImportSummary = {
 export function useTraktImportFlow() {
   const [phase, setPhase] = useState<TraktImportPhase>('idle');
   const [data, setData] = useState<TraktReviewData>(EMPTY_DATA);
-  const [fetchProgress, setFetchProgress] = useState<TraktFetchProgress>({ phase: 'movies', done: 0, total: 0 });
+  const [fetchProgress, setFetchProgress] = useState<TraktFetchProgress>({
+    phase: 'movies',
+    done: 0,
+    total: 0,
+  });
   const [applyProgress, setApplyProgress] = useState({ done: 0, total: 0 });
   const [summary, setSummary] = useState<TraktImportSummary>(EMPTY_SUMMARY);
   const [error, setError] = useState<string | null>(null);
 
   const start = async () => {
+    trackImportStarted('trakt', 'api');
     setPhase('fetching');
     setData(EMPTY_DATA);
     setError(null);
@@ -53,7 +64,10 @@ export function useTraktImportFlow() {
       setData(result);
       setPhase('review');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong fetching your Trakt data.');
+      trackImportFailed('trakt', 'api', 'fetch');
+      setError(
+        e instanceof Error ? e.message : 'Something went wrong fetching your Trakt data.',
+      );
       setPhase('error');
     }
   };
@@ -61,14 +75,18 @@ export function useTraktImportFlow() {
   const toggleMovieIncluded = (key: string) => {
     setData((prev) => ({
       ...prev,
-      movies: prev.movies.map((m) => (m.key === key ? { ...m, included: !m.included } : m)),
+      movies: prev.movies.map((m) =>
+        m.key === key ? { ...m, included: !m.included } : m,
+      ),
     }));
   };
 
   const toggleWatchlistIncluded = (key: string) => {
     setData((prev) => ({
       ...prev,
-      watchlist: prev.watchlist.map((w) => (w.key === key ? { ...w, included: !w.included } : w)),
+      watchlist: prev.watchlist.map((w) =>
+        w.key === key ? { ...w, included: !w.included } : w,
+      ),
     }));
   };
 
@@ -103,6 +121,13 @@ export function useTraktImportFlow() {
     setPhase('importing');
     setApplyProgress({ done: 0, total: 0 });
     const result = await applyTraktImport(data, (p) => setApplyProgress(p));
+    trackImportCompleted('trakt', 'api', {
+      itemsFound: data.movies.length + data.shows.length + data.watchlist.length,
+      itemsImported:
+        result.moviesImported + result.seasonsImported + result.watchlistImported,
+      itemsSkipped: result.moviesSkipped + result.watchlistSkipped,
+      itemsErrored: result.moviesErrored + result.showsErrored + result.watchlistErrored,
+    });
     setSummary(result);
     setPhase('done');
   };

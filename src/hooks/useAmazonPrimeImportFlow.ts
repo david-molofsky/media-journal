@@ -6,8 +6,13 @@ import {
   type ReviewItem,
   type ApplyResult,
 } from '@/services/importExport/amazonPrimeImportService';
+import {
+  trackImportCompleted,
+  trackImportStarted,
+} from '@/services/analytics/importAnalytics';
 
-export type AmazonPrimeImportPhase = 'idle' | 'matching' | 'review' | 'importing' | 'done' | 'empty';
+export type AmazonPrimeImportPhase =
+  'idle' | 'matching' | 'review' | 'importing' | 'done' | 'empty';
 
 /**
  * Owns the "Import from Amazon Prime Video" flow's state and async
@@ -27,6 +32,7 @@ export function useAmazonPrimeImportFlow() {
   });
 
   const start = async (file: File) => {
+    trackImportStarted('amazon_prime', 'csv');
     setPhase('matching');
     setItems([]);
     setProgress({ done: 0, total: 0 });
@@ -39,7 +45,9 @@ export function useAmazonPrimeImportFlow() {
     }
 
     setProgress({ done: 0, total: rows.length });
-    const resolved = await matchAmazonPrimeRows(rows, (done, total) => setProgress({ done, total }));
+    const resolved = await matchAmazonPrimeRows(rows, (done, total) =>
+      setProgress({ done, total }),
+    );
     setItems(resolved);
     setPhase('review');
   };
@@ -56,19 +64,25 @@ export function useAmazonPrimeImportFlow() {
 
   const skipMovie = (key: string) => {
     setItems((prev) =>
-      prev.map((item) => (item.kind === 'movie' && item.key === key ? { ...item, status: 'skipped' } : item)),
+      prev.map((item) =>
+        item.kind === 'movie' && item.key === key ? { ...item, status: 'skipped' } : item,
+      ),
     );
   };
 
   const setMovieIncluded = (key: string, value: boolean) => {
     setItems((prev) =>
-      prev.map((item) => (item.kind === 'movie' && item.key === key ? { ...item, included: value } : item)),
+      prev.map((item) =>
+        item.kind === 'movie' && item.key === key ? { ...item, included: value } : item,
+      ),
     );
   };
 
   const pickShowCandidate = (key: string, tmdbId: string) => {
     setItems((prev) =>
-      prev.map((item) => (item.kind === 'show' && item.key === key ? { ...item, selectedId: tmdbId } : item)),
+      prev.map((item) =>
+        item.kind === 'show' && item.key === key ? { ...item, selectedId: tmdbId } : item,
+      ),
     );
   };
 
@@ -92,7 +106,10 @@ export function useAmazonPrimeImportFlow() {
           return { ...item, included: value };
         }
         if (item.status === 'none') return item;
-        return { ...item, includedSeasons: value ? new Set(item.seasonEvidence.keys()) : new Set() };
+        return {
+          ...item,
+          includedSeasons: value ? new Set(item.seasonEvidence.keys()) : new Set(),
+        };
       }),
     );
   };
@@ -100,6 +117,12 @@ export function useAmazonPrimeImportFlow() {
   const applyAll = async () => {
     setPhase('importing');
     const result = await applyAmazonPrimeImport(items);
+    trackImportCompleted('amazon_prime', 'csv', {
+      itemsFound: items.length,
+      itemsImported: result.moviesImported + result.seasonsImported,
+      itemsSkipped: result.unmatched,
+      itemsFlagged: result.flaggedForReview,
+    });
     setSummary(result);
     setPhase('done');
   };
@@ -108,7 +131,12 @@ export function useAmazonPrimeImportFlow() {
     setPhase('idle');
     setItems([]);
     setProgress({ done: 0, total: 0 });
-    setSummary({ moviesImported: 0, seasonsImported: 0, flaggedForReview: 0, unmatched: 0 });
+    setSummary({
+      moviesImported: 0,
+      seasonsImported: 0,
+      flaggedForReview: 0,
+      unmatched: 0,
+    });
   };
 
   return {
