@@ -65,16 +65,20 @@ interface EntryCardProps {
   };
 }
 
-// Source badge shown inline next to the date on every card, regardless
-// of status — previously Completed-only (`completedSource`), with
-// Wishlist/In Progress showing Source in a separate badge row below
-// alongside a now-removed status chip. Unified per chat, Sept 2026:
-// "align the design with the Completed cards" for all statuses.
+const STATUS_CONFIG = {
+  in_progress: { label: '▶ In Progress', bgcolor: '#FFF8E1', color: '#F57F17', border: '#FFE082' },
+  wishlist: { label: '★ Wishlist', bgcolor: '#F3E5F5', color: '#7B1FA2', border: '#CE93D8' },
+} as const;
+
+// Same pastel-bg/dark-text/border formula as STATUS_CONFIG above, so the
+// Source badge sits visually consistent next to the status badge it
+// appears alongside.
 const SOURCE_BADGE = { bgcolor: '#E3F2FD', color: '#1565C0', border: '#90CAF9' } as const;
 
 /**
  * Derives the subtitle line shown beneath the title: just a date, plus
- * Source rendered separately as its own badge (see `source` below).
+ * Source rendered separately as its own badge (see `completedSource` /
+ * `source` below).
  *
  * Bug fix: this used to always format `entry.completedDate` regardless
  * of status. Wishlist entries (and In Progress entries before a start
@@ -125,7 +129,7 @@ function getTitleSuffix(entry: MediaEntry): string | null {
       // whatever Issue Start/End happen to hold underneath — see chat,
       // Sept 2026 (EntryForm silently defaults Issue Start to 1 when
       // this is checked, purely to power the ComicVine fetch button).
-      parts.push('Graphic Novel');
+      parts.push('GN');
     } else {
       const issueStart = entry.metadata.issueStart;
       const issueEnd = entry.metadata.issueEnd;
@@ -183,21 +187,26 @@ export function EntryCard({
   const imageUrl = getEntryImageUrl(entry);
   const showImage = Boolean(imageUrl) && imageUrl !== failedImageUrl;
 
+  const statusCfg = entry.status && entry.status !== 'completed' ? STATUS_CONFIG[entry.status] : null;
   // Suppressed entirely in reorder mode — David's call: reorder mode is
   // Wishlist-only, where these always render as "Mark finished" /
   // "Start tracking" (Move to wishlist never applies to a wishlist
-  // entry), and dropping them lets more cards fit on screen while
+  // entry), and dropping that row lets more cards fit on screen while
   // actively reordering. The buttons still show normally everywhere
   // else EntryCard is used.
   const hasActions = Boolean(!reorder && (onMarkFinished ?? onStartTracking ?? onMoveToWishlist));
-  // Source badge, shown inline next to the date for every status —
-  // previously Completed-only, with Wishlist/In Progress showing it in
-  // a separate row alongside a status chip. Both removed per chat,
-  // Sept 2026: all statuses now share the same card layout, with
-  // action icons taking the rating's spot on the right for
-  // Wishlist/In Progress (which never have a rating).
+  // Shown next to the status badge only — Wishlist/In Progress cards
+  // surface Source here since it's most useful when deciding what to
+  // watch/read next or continuing something already started.
   const source =
-    typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
+    statusCfg && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
+      ? entry.metadata.source
+      : null;
+  // Completed cards show Source inline next to the date instead —
+  // there's no separate badge row for Completed, so it rides along
+  // the subtitle line rather than adding a new row to every card.
+  const completedSource =
+    entry.status === 'completed' && typeof entry.metadata.source === 'string' && entry.metadata.source.trim()
       ? entry.metadata.source
       : null;
   const titleSuffix = getTitleSuffix(entry);
@@ -290,26 +299,34 @@ export function EntryCard({
                 </Stack>
                 <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
                   <Typography variant="body2" color="text.secondary" noWrap>{buildSubtitle(entry)}</Typography>
-                  {source && (
+                  {completedSource && (
                     <Box sx={{ flexShrink: 0, display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
-                      {source}
+                      {completedSource}
                     </Box>
                   )}
                 </Stack>
               </Box>
-              {entry.rating !== undefined ? (
+              {entry.rating !== undefined && (
                 <Box sx={{ flexShrink: 0, bgcolor: colour, color: '#fff', fontWeight: 700, fontSize: 12, borderRadius: 20, px: 1.25, py: 0.4, lineHeight: 1.4 }}>
                   {entry.rating % 1 === 0 ? entry.rating.toFixed(1) : entry.rating}
                 </Box>
-              ) : (
-                // Action icons take the rating's spot for entries that
-                // don't have one yet (Wishlist/In Progress) — replaces
-                // the old separate status-chip row entirely, per chat,
-                // Sept 2026 ("align the design with the Completed
-                // cards, with the action buttons taking the place of
-                // the rating").
-                hasActions && (
-                  <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0 }}>
+              )}
+            </Stack>
+          </CardActionArea>
+
+          {statusCfg && (
+            <Box sx={{ px: 2, pb: 1.5 }}>
+              <Stack direction="row" flexWrap="wrap" alignItems="center" rowGap={1} columnGap={1}>
+                <Box sx={{ display: 'inline-block', bgcolor: statusCfg.bgcolor, color: statusCfg.color, border: `1px solid ${statusCfg.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                  {statusCfg.label}
+                </Box>
+                {source && (
+                  <Box sx={{ display: 'inline-block', bgcolor: SOURCE_BADGE.bgcolor, color: SOURCE_BADGE.color, border: `1px solid ${SOURCE_BADGE.border}`, borderRadius: 1.5, fontSize: 10, fontWeight: 700, px: 1, py: 0.25 }}>
+                    {source}
+                  </Box>
+                )}
+                {hasActions && (
+                  <Stack direction="row" spacing={0.75} sx={{ ml: 'auto', flexShrink: 0 }}>
                     {onMarkFinished && (
                       <Tooltip title="Mark finished">
                         <IconButton
@@ -344,10 +361,10 @@ export function EntryCard({
                       </Tooltip>
                     )}
                   </Stack>
-                )
-              )}
-            </Stack>
-          </CardActionArea>
+                )}
+              </Stack>
+            </Box>
+          )}
         </Box>
 
         {reorder && (
