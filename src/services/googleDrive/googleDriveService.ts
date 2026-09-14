@@ -14,7 +14,10 @@
 import { db } from '@/services/database/db';
 import { exportLibrary, importLibrary } from '@/services/importExport/importExportService';
 import dayjs from 'dayjs';
-import type {\n  ImportResult,\n  RestoreMode,\n} from '@/services/importExport/importExportService';
+import type {
+  ImportResult,
+  RestoreMode,
+} from '@/services/importExport/importExportService';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
