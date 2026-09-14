@@ -24,7 +24,6 @@ import RecommendOutlinedIcon from '@mui/icons-material/RecommendOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import IconButton from '@mui/material/IconButton';
 import {
-  deleteEntries,
   bulkAddTags,
   bulkAddGenres,
   bulkRemoveTags,
@@ -45,6 +44,7 @@ import { useSelectionFieldCounts } from '@/hooks/useSelectionFieldCounts';
 import { useBackfillFlow } from '@/hooks/useBackfillFlow';
 import { BackfillDialog } from './BackfillDialog';
 import { RemoveFieldSelect } from './RemoveFieldSelect';
+import { useDeleteUndo } from '@/contexts/DeleteUndoContext';
 
 type BulkListMode = 'add' | 'remove';
 
@@ -61,6 +61,7 @@ interface BulkActionBarProps {
  * filter chips at the top of the Library (see chat, Aug 2026).
  */
 export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
+  const { deleteWithUndo } = useDeleteUndo();
   const [tagOpen, setTagOpen] = useState(false);
   const [tagMode, setTagMode] = useState<BulkListMode>('add');
   const [tagValues, setTagValues] = useState<string[]>([]);
@@ -153,7 +154,7 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   };
 
   const handleDelete = async () => {
-    await deleteEntries(selectedIds);
+    await deleteWithUndo(selectedIds);
     setDeleteOpen(false);
     onClear();
   };
@@ -598,9 +599,9 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes{' '}
+            This removes{' '}
             {count === 1 ? 'this entry' : `these ${count} entries`} from your library.
-            This can't be undone.
+            You can undo the deletion for a short time.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

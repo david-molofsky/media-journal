@@ -19,6 +19,7 @@ import { GuidedTourProvider } from '@/tour/GuidedTourContext';
 import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
 import { AnalyticsConsentPrompt } from '@/components/common/AnalyticsConsentPrompt';
 import { AnalyticsRouteTracker } from '@/components/common/AnalyticsRouteTracker';
+import { DeleteUndoProvider } from '@/contexts/DeleteUndoContext';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -47,10 +48,12 @@ export default function App() {
           <ErrorBoundary>
             <HashRouter>
               <AnalyticsRouteTracker />
-              <GuidedTourProvider>
-                <AppRoutes />
-                <GuidedTourOverlay />
-              </GuidedTourProvider>
+              <DeleteUndoProvider>
+                <GuidedTourProvider>
+                  <AppRoutes />
+                  <GuidedTourOverlay />
+                </GuidedTourProvider>
+              </DeleteUndoProvider>
             </HashRouter>
           </ErrorBoundary>
         </LocalizationProvider>
