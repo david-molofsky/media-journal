@@ -41,10 +41,13 @@ export const SETTINGS_KEYS = {
    * user-facing toggle (Settings > Google Drive); `lastAutoBackupAt` is
    * an ISO timestamp written after each successful automatic run, used
    * both to display "last backup" and to decide whether today's backup
-   * has already happened (see useAutoBackup). Never set for manual
-   * exports — those are a separate, unrelated action. */
+   * has already happened (see useAutoBackup). `lastAutoBackupError`
+   * records the latest failed run so the failure is visible instead of
+   * being silently retried forever. These device-local status values
+   * are never included in portable backups. */
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
+  lastAutoBackupError: 'lastAutoBackupError',
   /** ComicVine (Comic Issues) auto-fill toggles — read by
    * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
    * (ComicVine)). Same convention as the TMDB toggles above: all
