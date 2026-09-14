@@ -82,6 +82,11 @@ export interface ImportPreview {
   podcastSubscriptionCount: number;
   settingCount: number;
   skippedEntryCount: number;
+  duplicateEntryCount: number;
+  currentEntryCount: number;
+  newEntryCount: number;
+  matchingEntryCount: number;
+  entriesRemovedOnReplace: number;
   legacy: boolean;
   canReplace: boolean;
 }
@@ -208,6 +213,7 @@ interface PreparedImport {
   podcastSubscriptions: PodcastSubscription[];
   settings: Record<string, unknown>;
   skipped: number;
+  duplicateEntries: number;
   legacy: boolean;
   canReplace: boolean;
 }
@@ -231,7 +237,9 @@ function prepareImport(raw: unknown): PreparedImport {
   }
 
   const entries: MediaEntry[] = [];
+  const seenEntryIds = new Set<string>();
   let skipped = 0;
+  let duplicateEntries = 0;
 
   for (const candidate of file.data.entries) {
     const entryResult = importedEntrySchema.safeParse(candidate);
@@ -249,6 +257,13 @@ function prepareImport(raw: unknown): PreparedImport {
       continue;
     }
 
+    if (seenEntryIds.has(entryResult.data.id)) {
+      duplicateEntries += 1;
+      skipped += 1;
+      continue;
+    }
+
+    seenEntryIds.add(entryResult.data.id);
     entries.push({
       ...entryResult.data,
       metadata: metadataResult.data as EntryMetadata,
@@ -277,6 +292,7 @@ function prepareImport(raw: unknown): PreparedImport {
     podcastSubscriptions,
     settings,
     skipped,
+    duplicateEntries,
     legacy,
     // A v1 backup is incomplete by definition. A backup containing
     // invalid entries must not be allowed to replace good local data.
@@ -284,9 +300,25 @@ function prepareImport(raw: unknown): PreparedImport {
   };
 }
 
-/** Validates a backup without changing the database. */
-export function inspectLibraryImport(raw: unknown): ImportPreview {
+/**
+ * Validates a backup and compares its entry IDs with the journal on
+ * this device without changing either one.
+ */
+export async function inspectLibraryImport(raw: unknown): Promise<ImportPreview> {
   const prepared = prepareImport(raw);
+  const currentEntries = await db.mediaEntries.toArray();
+  const currentEntryIds = new Set(currentEntries.map((entry) => entry.id));
+  const incomingEntryIds = new Set(prepared.entries.map((entry) => entry.id));
+
+  let matchingEntryCount = 0;
+  for (const id of incomingEntryIds) {
+    if (currentEntryIds.has(id)) matchingEntryCount += 1;
+  }
+
+  let entriesRemovedOnReplace = 0;
+  for (const id of currentEntryIds) {
+    if (!incomingEntryIds.has(id)) entriesRemovedOnReplace += 1;
+  }
 
   return {
     version: prepared.version,
@@ -296,6 +328,11 @@ export function inspectLibraryImport(raw: unknown): ImportPreview {
     podcastSubscriptionCount: prepared.podcastSubscriptions.length,
     settingCount: Object.keys(prepared.settings).length,
     skippedEntryCount: prepared.skipped,
+    duplicateEntryCount: prepared.duplicateEntries,
+    currentEntryCount: currentEntries.length,
+    newEntryCount: prepared.entries.length - matchingEntryCount,
+    matchingEntryCount,
+    entriesRemovedOnReplace,
     legacy: prepared.legacy,
     canReplace: prepared.canReplace,
   };

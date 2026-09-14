@@ -193,7 +193,7 @@ export function GoogleDriveSection() {
     setImportOpen(false);
     await run(async () => {
       const raw = await downloadDriveExport(file.id);
-      const preview = inspectLibraryImport(raw);
+      const preview = await inspectLibraryImport(raw);
       setPendingImport({ raw, preview, sourceName: file.name });
     });
   };
