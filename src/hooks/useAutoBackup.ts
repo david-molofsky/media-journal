@@ -27,10 +27,10 @@ const SCHEDULED_MINUTE = 59;
  * the closest opportunistic approximation (see Settings > Google
  * Drive for the same caveat surfaced to the user).
  *
- * Failures (not connected, expired/revoked token, network error) are
- * swallowed silently — `lastAutoBackupAt` is only written on success,
- * so a failed attempt is retried on the next check rather than being
- * marked done.
+ * `lastAutoBackupAt` is only written on success, so a failed attempt
+ * remains eligible for retry. The latest failure message is stored
+ * separately and surfaced in Settings and on the Dashboard; a later
+ * successful backup clears it.
  */
 export function useAutoBackup(): void {
   const runningRef = useRef(false);
@@ -53,9 +53,21 @@ export function useAutoBackup(): void {
         if (!connected) return;
 
         await exportToGoogleDrive();
-        await setSetting(SETTINGS_KEYS.lastAutoBackupAt, dayjs().toISOString());
-      } catch {
-        // Silent by design — see doc comment above. Next check retries.
+        await Promise.all([
+          setSetting(SETTINGS_KEYS.lastAutoBackupAt, dayjs().toISOString()),
+          setSetting(SETTINGS_KEYS.lastAutoBackupError, null),
+        ]);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Automatic backup could not connect to Google Drive.';
+        try {
+          await setSetting(SETTINGS_KEYS.lastAutoBackupError, message);
+        } catch {
+          // A database failure should not create an unhandled rejection
+          // from this background task. The next check will still retry.
+        }
       } finally {
         runningRef.current = false;
       }

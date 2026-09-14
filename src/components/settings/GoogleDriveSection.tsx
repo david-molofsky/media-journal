@@ -31,6 +31,7 @@ import {
   type DriveExportFile,
 } from '@/services/googleDrive/googleDriveService';
 import { db } from '@/services/database/db';
+import { setSetting } from '@/services/database/settingsService';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
 import { useDriveConnected } from '@/hooks/useDriveConnected';
 import { SETTINGS_KEYS } from '@/models';
@@ -83,6 +84,10 @@ export function GoogleDriveSection() {
     const record = await db.appSettings.get(SETTINGS_KEYS.lastAutoBackupAt);
     return (record?.value as string) ?? null;
   }, []);
+  const lastAutoBackupError = useLiveQuery(async () => {
+    const record = await db.appSettings.get(SETTINGS_KEYS.lastAutoBackupError);
+    return (record?.value as string) ?? null;
+  }, []);
 
   const handleAutoBackupToggle = (checked: boolean) => {
     if (checked) {
@@ -121,12 +126,15 @@ export function GoogleDriveSection() {
   const handleDisconnect = () =>
     run(async () => {
       await signOutOfDrive();
+      setAutoBackupEnabled(false);
+      await setSetting(SETTINGS_KEYS.lastAutoBackupError, null);
       setStatus(null);
     });
 
   const handleExport = () =>
     run(async () => {
       const fileName = await exportToGoogleDrive();
+      await setSetting(SETTINGS_KEYS.lastAutoBackupError, null);
       setStatus({
         type: 'success',
         message: `Saved as "${fileName}" in your Media Journal Drive folder.`,
@@ -277,11 +285,18 @@ export function GoogleDriveSection() {
               color="text.secondary"
               sx={{ display: 'block', mt: 1 }}
             >
-              Last automatic backup:{' '}
+              Last successful automatic backup:{' '}
               {lastAutoBackupAt
                 ? dayjs(lastAutoBackupAt).format('D MMM YYYY, HH:mm')
                 : 'never'}
             </Typography>
+
+            {autoBackupEnabled && lastAutoBackupError && (
+              <Alert severity="error" sx={{ mt: 1.5 }}>
+                Automatic backup failed: {lastAutoBackupError} Use “Export to Drive”
+                above to retry now; a successful backup will clear this warning.
+              </Alert>
+            )}
           </Box>
         </>
       )}

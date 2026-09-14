@@ -14,13 +14,17 @@ function eligibleThreshold(count: number): number {
   return FIRST_THRESHOLD + Math.floor((count - FIRST_THRESHOLD) / REPEAT_INTERVAL) * REPEAT_INTERVAL;
 }
 
+type BackupNudgeKind = 'connect' | 'failed';
+
 interface BackupNudgeState {
   visible: boolean;
   entryCount: number;
-  /** Marks the current threshold as dismissed — reappears once the
-   * next one (+25 entries) is crossed, or hides for good once Drive
-   * is connected. */
-  dismiss: () => void;
+  kind: BackupNudgeKind;
+  /** Connection nudges are dismissible until the next threshold.
+   * Failure warnings remain until a backup succeeds or automatic
+   * backup is disabled, so a data-protection problem cannot be
+   * permanently hidden by accident. */
+  dismiss?: () => void;
 }
 
 /**
@@ -32,16 +36,33 @@ interface BackupNudgeState {
  */
 export function useBackupNudge(): BackupNudgeState | undefined {
   const result = useLiveQuery(async () => {
-    const [entryCount, hasDrive, dismissedThreshold] = await Promise.all([
+    const [
+      entryCount,
+      hasDrive,
+      dismissedThreshold,
+      autoBackupEnabled,
+      lastAutoBackupError,
+    ] = await Promise.all([
       db.mediaEntries.count(),
       isDriveConnected(),
       getSetting(SETTINGS_KEYS.backupNudgeDismissedThreshold, 0),
+      getSetting(SETTINGS_KEYS.autoBackupEnabled, false),
+      getSetting<string | null>(SETTINGS_KEYS.lastAutoBackupError, null),
     ]);
 
     const threshold = eligibleThreshold(entryCount);
-    const visible = !hasDrive && threshold > 0 && threshold > dismissedThreshold;
+    const backupFailed =
+      hasDrive && autoBackupEnabled && Boolean(lastAutoBackupError);
+    const needsConnection =
+      !hasDrive && threshold > 0 && threshold > dismissedThreshold;
+    const kind: BackupNudgeKind = backupFailed ? 'failed' : 'connect';
 
-    return { visible, entryCount, threshold };
+    return {
+      visible: backupFailed || needsConnection,
+      entryCount,
+      threshold,
+      kind,
+    };
   }, []);
 
   if (result === undefined) return undefined;
@@ -49,8 +70,15 @@ export function useBackupNudge(): BackupNudgeState | undefined {
   return {
     visible: result.visible,
     entryCount: result.entryCount,
-    dismiss: () => {
-      void setSetting(SETTINGS_KEYS.backupNudgeDismissedThreshold, result.threshold);
-    },
+    kind: result.kind,
+    dismiss:
+      result.kind === 'connect'
+        ? () => {
+            void setSetting(
+              SETTINGS_KEYS.backupNudgeDismissedThreshold,
+              result.threshold,
+            );
+          }
+        : undefined,
   };
 }
