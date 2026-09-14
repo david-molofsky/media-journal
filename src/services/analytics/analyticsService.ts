@@ -88,8 +88,8 @@ export function initialiseAnalytics(): void {
 
   window.dataLayer = window.dataLayer || [];
 
-  window.gtag = (...args: unknown[]) => {
-    window.dataLayer.push(args);
+  window.gtag = function gtag() {
+    window.dataLayer.push(arguments);
   };
 
   const analyticsConsent = hasAnalyticsConsent() ? 'granted' : 'denied';
