@@ -24,6 +24,11 @@ import {
 } from '@/services/database/entryService';
 import { db } from '@/services/database/db';
 import { trackEntryCreated } from '@/services/analytics/analyticsService';
+import {
+  clearAddEntryDraft,
+  loadAddEntryDraft,
+  saveAddEntryDraft,
+} from '@/services/drafts/entryDraftService';
 import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { getIssueDetails, searchSeries } from '@/services/metadata/comicVineService';
@@ -65,6 +70,7 @@ export default function AddEntryPage() {
   const tvMode = useTvTrackingMode();
   const defaultStatus = useDefaultEntryStatus();
   const [selectedType, setSelectedType] = useState<MediaType | null>(null);
+  const [entryDraft, setEntryDraft] = useState(loadAddEntryDraft);
   const [tipShownCount, setTipShownCount] = useNumberSetting(
     SETTINGS_KEYS.addEntryTipShownCount,
     0,
@@ -122,15 +128,29 @@ export default function AddEntryPage() {
     return mediaTypes.find((mt) => mt.id === relogValues.mediaType) ?? null;
   }, [relogValues, relogDismissed, mediaTypes]);
 
-  // Manual picks (selectedType) take priority; otherwise fall back to
-  // whatever the shared link resolved to, then a re-log pre-fill.
-  const activeType = selectedType ?? sharedMediaType ?? relogMediaType;
+  const draftMediaType = useMemo(() => {
+    if (!entryDraft || !mediaTypes || isSharedLink || relogValues) return null;
+    return mediaTypes.find((mt) => mt.id === entryDraft.values.mediaType) ?? null;
+  }, [entryDraft, mediaTypes, isSharedLink, relogValues]);
+
+  // Manual picks take priority, followed by intentional shared/re-log
+  // pre-fills, then a recoverable local draft from an interrupted entry.
+  const activeType =
+    selectedType ?? sharedMediaType ?? relogMediaType ?? draftMediaType;
 
   // Only apply the re-log values once the resolved type actually
   // matches — guards against a stale pre-fill being applied after the
   // user manually picks a different type.
   const relogInitialValues =
     relogMediaType && activeType?.id === relogMediaType.id ? relogValues : undefined;
+  const draftInitialValues =
+    entryDraft &&
+    draftMediaType &&
+    activeType?.id === draftMediaType.id &&
+    !isSharedLink &&
+    !relogValues
+      ? entryDraft.values
+      : undefined;
 
   const sharedLoading =
     isSharedLink &&
@@ -351,6 +371,18 @@ export default function AddEntryPage() {
         <IconButton
           aria-label="Back to media type selection"
           onClick={() => {
+            if (
+              draftInitialValues &&
+              !window.confirm('Discard this unfinished entry draft?')
+            ) {
+              return;
+            }
+            if (draftInitialValues) {
+              setEntryDraft(null);
+              // Let EntryForm unmount and flush any pending keystroke,
+              // then remove that final snapshot as the explicit discard.
+              window.setTimeout(clearAddEntryDraft, 0);
+            }
             setSelectedType(null);
             if (isSharedLink) abandonSharedLink();
             if (relogValues) setRelogDismissed(true);
@@ -376,12 +408,36 @@ export default function AddEntryPage() {
           Pre-filled from your previous entry — review and save.
         </Alert>
       )}
+      {draftInitialValues && (
+        <Alert
+          severity="info"
+          sx={{ mb: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => {
+                setEntryDraft(null);
+                window.setTimeout(clearAddEntryDraft, 0);
+              }}
+            >
+              Discard
+            </Button>
+          }
+        >
+          Your unfinished entry was restored. Changes save automatically on this
+          device.
+        </Alert>
+      )}
       <EntryForm
-        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : relogInitialValues ? 'relog' : 'manual'}`}
+        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
         mediaType={effectiveMediaType}
-        initialValues={sharedValues ?? relogInitialValues ?? undefined}
+        initialValues={
+          sharedValues ?? relogInitialValues ?? draftInitialValues ?? undefined
+        }
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
+        onDraftChange={saveAddEntryDraft}
         onSubmit={async (values) => {
           const librarySizeBefore = await db.mediaEntries.count();
           const entry = await createEntry(values);
@@ -398,6 +454,7 @@ export default function AddEntryPage() {
             await jumpWishlistOrder(entry.id, DEFAULT_WISHLIST_POSITION);
           }
           if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
+          clearAddEntryDraft();
           navigate(ROUTES.library);
         }}
       />
