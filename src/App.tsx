@@ -18,6 +18,7 @@ import { PwaUpdateProvider } from '@/pwa/PwaUpdateContext';
 import { GuidedTourProvider } from '@/tour/GuidedTourContext';
 import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
 import { initialiseAnalytics } from '@/services/analytics/analyticsService';
+import { AnalyticsConsentPrompt } from '@/components/common/AnalyticsConsentPrompt';
 
 export default function App() {
   const colorMode = useColorMode();
