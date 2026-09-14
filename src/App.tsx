@@ -17,6 +17,7 @@ import { ensureDatabaseSeeded } from '@/services/database/seed';
 import { PwaUpdateProvider } from '@/pwa/PwaUpdateContext';
 import { GuidedTourProvider } from '@/tour/GuidedTourContext';
 import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
+import { initialiseAnalytics } from '@/services/analytics/analyticsService';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -31,8 +32,9 @@ export default function App() {
   const dateLocale = dayjsLocaleForRegion(watchProviderRegion);
 
   useEffect(() => {
-    void ensureDatabaseSeeded();
-  }, []);
+  initialiseAnalytics();
+  void ensureDatabaseSeeded();
+}, []);
 
   useAutoBackup();
 
