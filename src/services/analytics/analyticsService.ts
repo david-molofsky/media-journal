@@ -1,8 +1,17 @@
+import {
+  genresForAnalytics,
+  mediaTypeForAnalytics,
+  sourceForAnalytics,
+} from './analyticsAllowLists';
+
 const measurementId =
   import.meta.env.VITE_GA_MEASUREMENT_ID;
 
 const ANALYTICS_CONSENT_KEY =
   'mediaJournalAnalyticsConsent';
+
+const PLATFORM_SURFACE_KEY =
+  'mediaJournalPlatformSurface';
 
 type EventParameters = Record<
   string,
@@ -31,8 +40,9 @@ export interface EntryAnalyticsValues {
 
 function hasAnalyticsConsent(): boolean {
   return (
-    localStorage.getItem(ANALYTICS_CONSENT_KEY) ===
-    'granted'
+    localStorage.getItem(
+      ANALYTICS_CONSENT_KEY,
+    ) === 'granted'
   );
 }
 
@@ -46,7 +56,7 @@ function getPlatformSurface():
   );
 
   const storedSurface = localStorage.getItem(
-    'mediaJournalPlatformSurface',
+    PLATFORM_SURFACE_KEY,
   );
 
   if (
@@ -54,7 +64,7 @@ function getPlatformSurface():
     storedSurface === 'android_twa'
   ) {
     localStorage.setItem(
-      'mediaJournalPlatformSurface',
+      PLATFORM_SURFACE_KEY,
       'android_twa',
     );
 
@@ -102,8 +112,12 @@ export function initialiseAnalytics(): void {
     window.dataLayer.push(args);
   };
 
+  const analyticsConsent = hasAnalyticsConsent()
+    ? 'granted'
+    : 'denied';
+
   window.gtag('consent', 'default', {
-    analytics_storage: 'denied',
+    analytics_storage: analyticsConsent,
     ad_storage: 'denied',
     ad_user_data: 'denied',
     ad_personalization: 'denied',
@@ -148,8 +162,13 @@ export function trackEvent(
   });
 }
 
-export function trackPageView(path: string): void {
-  if (!measurementId || !hasAnalyticsConsent()) {
+export function trackPageView(
+  path: string,
+): void {
+  if (
+    !measurementId ||
+    !hasAnalyticsConsent()
+  ) {
     return;
   }
 
@@ -171,16 +190,47 @@ export function trackEntryCreated(
 ): void {
   const metadata = entry.metadata ?? {};
 
+  const mediaType = mediaTypeForAnalytics(
+    entry.mediaType,
+  );
+
+  const source = sourceForAnalytics(
+    metadata.source,
+  );
+
+  const genres = genresForAnalytics(
+    entry.genres,
+  );
+
   trackEvent('entry_created', {
-    media_type: entry.mediaType,
-    entry_status: entry.status ?? 'completed',
-    creation_source: options.creationSource,
+    media_type: mediaType,
+    entry_status:
+      entry.status ?? 'completed',
+    media_source: source,
+
+    creation_source:
+      options.creationSource,
 
     is_first_entry:
       options.librarySizeBefore === 0,
 
     library_size_before:
       options.librarySizeBefore,
+
+    genre_count:
+      entry.genres?.length ?? 0,
+
+    has_multiple_genres:
+      (entry.genres?.length ?? 0) > 1,
+
+    has_custom_genre:
+      genres.includes('other'),
+
+    is_custom_media_type:
+      mediaType === 'other',
+
+    is_custom_source:
+      source === 'other',
 
     is_repeat_consumption:
       Boolean(entry.repeatConsumption),
@@ -200,9 +250,6 @@ export function trackEntryCreated(
     tag_count:
       entry.tags?.length ?? 0,
 
-    genre_count:
-      entry.genres?.length ?? 0,
-
     watched_with_count:
       entry.watchedWith?.length ?? 0,
 
@@ -211,10 +258,6 @@ export function trackEntryCreated(
 
     populated_metadata_count:
       countPopulatedMetadata(metadata),
-
-    has_source:
-      typeof metadata.source === 'string' &&
-      metadata.source.trim().length > 0,
 
     has_cover_image:
       Boolean(
@@ -229,17 +272,47 @@ export function trackEntryCreated(
         metadata.comicVineVolumeId,
       ),
   });
+
+  /*
+   * Send one separate event per genre. This lets
+   * an entry with both Comedy and Romance count
+   * towards both genres without sending them as
+   * one combined high-cardinality string.
+   */
+  for (const genre of genres) {
+    trackEvent('entry_genre_recorded', {
+      genre,
+      media_type: mediaType,
+      media_source: source,
+      creation_source:
+        options.creationSource,
+    });
+  }
 }
 
 export function trackEntryUpdated(
   entry: EntryAnalyticsValues,
   changedFields: string[],
 ): void {
+  const metadata = entry.metadata ?? {};
+
   trackEvent('entry_updated', {
-    media_type: entry.mediaType,
-    entry_status: entry.status ?? 'completed',
-    changed_field_count: changedFields.length,
-    changed_fields: changedFields.join(','),
+    media_type: mediaTypeForAnalytics(
+      entry.mediaType,
+    ),
+
+    entry_status:
+      entry.status ?? 'completed',
+
+    media_source: sourceForAnalytics(
+      metadata.source,
+    ),
+
+    changed_field_count:
+      changedFields.length,
+
+    changed_fields:
+      changedFields.join(','),
   });
 }
 
@@ -249,7 +322,9 @@ export function trackEntryStatusChanged(
   newStatus: string,
 ): void {
   trackEvent('entry_status_changed', {
-    media_type: mediaType,
+    media_type:
+      mediaTypeForAnalytics(mediaType),
+
     previous_status: previousStatus,
     new_status: newStatus,
   });
@@ -260,7 +335,9 @@ export function trackEntryDeleted(
   status: string,
 ): void {
   trackEvent('entry_deleted', {
-    media_type: mediaType,
+    media_type:
+      mediaTypeForAnalytics(mediaType),
+
     entry_status: status,
   });
 }
