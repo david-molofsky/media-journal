@@ -61,7 +61,7 @@ interface BulkActionBarProps {
  * filter chips at the top of the Library (see chat, Aug 2026).
  */
 export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
-  const { deleteWithUndo } = useDeleteUndo();
+  const { deleteWithUndo, runWithUndo } = useDeleteUndo();
   const [tagOpen, setTagOpen] = useState(false);
   const [tagMode, setTagMode] = useState<BulkListMode>('add');
   const [tagValues, setTagValues] = useState<string[]>([]);
@@ -93,8 +93,14 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
 
   const handleTag = async () => {
     if (tagValues.length > 0) {
-      if (tagMode === 'add') await bulkAddTags(selectedIds, tagValues);
-      else await bulkRemoveTags(selectedIds, tagValues);
+      await runWithUndo(
+        selectedIds,
+        async () => {
+          if (tagMode === 'add') await bulkAddTags(selectedIds, tagValues);
+          else await bulkRemoveTags(selectedIds, tagValues);
+        },
+        `Updated tags on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+      );
     }
     setTagOpen(false);
     setTagMode('add');
@@ -104,8 +110,14 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
 
   const handleGenre = async () => {
     if (genreValues.length > 0) {
-      if (genreMode === 'add') await bulkAddGenres(selectedIds, genreValues);
-      else await bulkRemoveGenres(selectedIds, genreValues);
+      await runWithUndo(
+        selectedIds,
+        async () => {
+          if (genreMode === 'add') await bulkAddGenres(selectedIds, genreValues);
+          else await bulkRemoveGenres(selectedIds, genreValues);
+        },
+        `Updated genres on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+      );
     }
     setGenreOpen(false);
     setGenreMode('add');
@@ -115,9 +127,15 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
 
   const handleWatchedWith = async () => {
     if (watchedWithValues.length > 0) {
-      if (watchedWithMode === 'add')
-        await bulkAddWatchedWith(selectedIds, watchedWithValues);
-      else await bulkRemoveWatchedWith(selectedIds, watchedWithValues);
+      await runWithUndo(
+        selectedIds,
+        async () => {
+          if (watchedWithMode === 'add')
+            await bulkAddWatchedWith(selectedIds, watchedWithValues);
+          else await bulkRemoveWatchedWith(selectedIds, watchedWithValues);
+        },
+        `Updated companions on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+      );
     }
     setWatchedWithOpen(false);
     setWatchedWithMode('add');
@@ -127,9 +145,15 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
 
   const handleRecommendedBy = async () => {
     if (recommendedByValues.length > 0) {
-      if (recommendedByMode === 'add')
-        await bulkAddRecommendedBy(selectedIds, recommendedByValues);
-      else await bulkRemoveRecommendedBy(selectedIds, recommendedByValues);
+      await runWithUndo(
+        selectedIds,
+        async () => {
+          if (recommendedByMode === 'add')
+            await bulkAddRecommendedBy(selectedIds, recommendedByValues);
+          else await bulkRemoveRecommendedBy(selectedIds, recommendedByValues);
+        },
+        `Updated recommendations on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+      );
     }
     setRecommendedByOpen(false);
     setRecommendedByMode('add');
@@ -140,7 +164,11 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   const handleSource = async () => {
     const trimmed = sourceValue.trim();
     if (trimmed) {
-      await bulkSetSource(selectedIds, trimmed);
+      await runWithUndo(
+        selectedIds,
+        () => bulkSetSource(selectedIds, trimmed),
+        `Updated source on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+      );
     }
     setSourceOpen(false);
     setSourceValue('');
@@ -148,7 +176,11 @@ export function BulkActionBar({ selectedIds, onClear }: BulkActionBarProps) {
   };
 
   const handleRate = async () => {
-    await bulkSetRating(selectedIds, rateValue);
+    await runWithUndo(
+      selectedIds,
+      () => bulkSetRating(selectedIds, rateValue),
+      `Updated rating on ${count} ${count === 1 ? 'entry' : 'entries'}.`,
+    );
     setRateOpen(false);
     onClear();
   };

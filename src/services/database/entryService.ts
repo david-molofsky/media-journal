@@ -158,6 +158,11 @@ export async function deleteEntries(ids: string[]): Promise<void> {
   await db.mediaEntries.bulkDelete(ids);
 }
 
+export async function getEntriesSnapshot(ids: string[]): Promise<MediaEntry[]> {
+  const entries = await db.mediaEntries.bulkGet(ids);
+  return entries.filter((entry): entry is MediaEntry => entry !== undefined);
+}
+
 /**
  * Captures the exact records and deletes them in one transaction so
  * the UI can offer a reliable short-lived Undo action.
@@ -166,17 +171,15 @@ export async function deleteEntriesWithSnapshot(
   ids: string[],
 ): Promise<MediaEntry[]> {
   return db.transaction('rw', db.mediaEntries, async () => {
-    const entries = (await db.mediaEntries.bulkGet(ids)).filter(
-      (entry): entry is MediaEntry => entry !== undefined,
-    );
+    const entries = await getEntriesSnapshot(ids);
     await db.mediaEntries.bulkDelete(ids);
     return entries;
   });
 }
 
-/** Restores records captured by deleteEntriesWithSnapshot, preserving
- * their original ids, timestamps and wishlist ordering. */
-export async function restoreDeletedEntries(entries: MediaEntry[]): Promise<void> {
+/** Restores a captured snapshot, preserving original ids, timestamps,
+ * metadata and wishlist ordering. Used for delete and bulk-edit Undo. */
+export async function restoreEntriesSnapshot(entries: MediaEntry[]): Promise<void> {
   await db.mediaEntries.bulkPut(entries);
 }
 
