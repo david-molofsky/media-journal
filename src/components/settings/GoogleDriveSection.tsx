@@ -41,6 +41,7 @@ import {
   type ImportPreview,
   type RestoreMode,
 } from '@/services/importExport/importExportService';
+import { downloadPreRestoreBackup } from '@/services/importExport/restoreSafetyService';
 import { RestoreBackupDialog } from '@/components/settings/RestoreBackupDialog';
 
 interface PendingDriveImport {
@@ -173,6 +174,8 @@ export function GoogleDriveSection() {
 
     await run(async () => {
       const sourceName = pendingImport.sourceName;
+      const safetyCopyName =
+        mode === 'replace' ? await downloadPreRestoreBackup() : null;
       const result = await importLibrary(pendingImport.raw, mode);
       const skippedNote =
         result.skipped > 0 ? ` ${result.skipped} invalid entries were skipped.` : '';
@@ -184,7 +187,10 @@ export function GoogleDriveSection() {
           `${mode === 'replace' ? 'Replaced' : 'Merged'} journal with ` +
           `${result.imported} ${result.imported === 1 ? 'entry' : 'entries'} ` +
           `from "${sourceName}".` +
-          skippedNote,
+          skippedNote +
+          (safetyCopyName
+            ? ` Your previous journal was downloaded as "${safetyCopyName}".`
+            : ''),
       });
     });
   };

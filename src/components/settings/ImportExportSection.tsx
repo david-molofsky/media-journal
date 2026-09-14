@@ -14,6 +14,7 @@ import {
   type RestoreMode,
 } from '@/services/importExport/importExportService';
 import { downloadJson } from '@/utils/downloadJson';
+import { downloadPreRestoreBackup } from '@/services/importExport/restoreSafetyService';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { RestoreBackupDialog } from '@/components/settings/RestoreBackupDialog';
 
@@ -77,6 +78,8 @@ export function ImportExportSection() {
     setStatus(null);
 
     try {
+      const safetyCopyName =
+        mode === 'replace' ? await downloadPreRestoreBackup() : null;
       const result = await importLibrary(pendingImport.raw, mode);
       const skippedNote =
         result.skipped > 0 ? ` ${result.skipped} invalid entries were skipped.` : '';
@@ -89,7 +92,10 @@ export function ImportExportSection() {
           `${result.imported} ${result.imported === 1 ? 'entry' : 'entries'}, ` +
           `${result.mediaTypesImported} media types and ` +
           `${result.podcastSubscriptionsImported} podcast subscriptions.` +
-          skippedNote,
+          skippedNote +
+          (safetyCopyName
+            ? ` Your previous journal was downloaded as "${safetyCopyName}".`
+            : ''),
       });
     } catch (error) {
       setStatus({
