@@ -137,11 +137,13 @@ export function RestoreBackupDialog({
           <DialogContent>
             <Alert severity="error" sx={{ mb: 2 }}>
               Entries, media types, podcast subscriptions and portable preferences on
-              this device that are not in the backup will be permanently removed.
+              this device that are not in the backup will be removed.
             </Alert>
             <DialogContentText>
-              Connection credentials and device-only settings will remain unchanged.
-              This operation cannot be undone unless you have another backup.
+              Before replacing anything, Media Journal will download a safety copy of
+              your current journal. Keep that file until you have confirmed the restored
+              journal is correct. Connection credentials and device-only settings will
+              remain unchanged.
             </DialogContentText>
           </DialogContent>
           <DialogActions>
