@@ -158,6 +158,28 @@ export async function deleteEntries(ids: string[]): Promise<void> {
   await db.mediaEntries.bulkDelete(ids);
 }
 
+/**
+ * Captures the exact records and deletes them in one transaction so
+ * the UI can offer a reliable short-lived Undo action.
+ */
+export async function deleteEntriesWithSnapshot(
+  ids: string[],
+): Promise<MediaEntry[]> {
+  return db.transaction('rw', db.mediaEntries, async () => {
+    const entries = (await db.mediaEntries.bulkGet(ids)).filter(
+      (entry): entry is MediaEntry => entry !== undefined,
+    );
+    await db.mediaEntries.bulkDelete(ids);
+    return entries;
+  });
+}
+
+/** Restores records captured by deleteEntriesWithSnapshot, preserving
+ * their original ids, timestamps and wishlist ordering. */
+export async function restoreDeletedEntries(entries: MediaEntry[]): Promise<void> {
+  await db.mediaEntries.bulkPut(entries);
+}
+
 export async function duplicateEntry(id: string): Promise<MediaEntry> {
   const existing = await db.mediaEntries.get(id);
   if (!existing) throw new Error(`Entry not found: ${id}`);

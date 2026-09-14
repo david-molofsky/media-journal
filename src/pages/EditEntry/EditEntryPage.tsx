@@ -32,7 +32,7 @@ import { EntryForm } from '@/components/forms/EntryForm';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
-import { updateEntry, deleteEntry, listEntries } from '@/services/database/entryService';
+import { updateEntry, listEntries } from '@/services/database/entryService';
 import {
   clearEditEntryDraft,
   loadEditEntryDraft,
@@ -45,6 +45,7 @@ import { ROUTES, entryDetailPath } from '@/routes/paths';
 import type { MediaType, NewMediaEntryInput } from '@/models';
 import type { LibraryFilterRequest } from '@/pages/Library/LibraryPage';
 import type { RelogNavigationState } from '@/pages/AddEntry/AddEntryPage';
+import { useDeleteUndo } from '@/contexts/DeleteUndoContext';
 
 /** Tags starting with this prefix reflect import provenance, not
  * something the user wants carried onto a freshly re-logged entry —
@@ -126,6 +127,7 @@ export default function EditEntryPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
   const defaultStatus = useDefaultEntryStatus();
+  const { deleteWithUndo } = useDeleteUndo();
   const storedEditDraft = useMemo(() => (id ? loadEditEntryDraft(id) : null), [id]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -198,7 +200,7 @@ export default function EditEntryPage() {
   }
 
   const handleDelete = async () => {
-    await deleteEntry(entry.id);
+    await deleteWithUndo([entry.id]);
     clearEditEntryDraft(entry.id);
     navigate(ROUTES.library, { state: incomingFilters });
   };
@@ -477,8 +479,8 @@ export default function EditEntryPage() {
         <DialogTitle>Delete this entry?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently removes “{entry.title}” from your library. This can't be
-            undone.
+            This removes “{entry.title}” from your library. You can undo the deletion
+            briefly after returning to the Library.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
