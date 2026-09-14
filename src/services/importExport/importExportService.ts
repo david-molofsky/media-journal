@@ -9,6 +9,8 @@ import type {
   PodcastSubscription,
 } from '@/models';
 import { nowIso } from '@/utils/dateUtils';
+import { clearAllEntryDrafts } from '@/services/drafts/entryDraftService';
+import { notifyJournalReplaced } from '@/services/dataSafety/journalRestoreEvents';
 
 const EXPORT_VERSION = 2;
 
@@ -355,6 +357,11 @@ export async function importLibrary(
       }
     },
   );
+
+  if (mode === 'replace') {
+    clearAllEntryDrafts();
+    notifyJournalReplaced();
+  }
 
   return {
     imported: prepared.entries.length,
