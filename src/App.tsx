@@ -19,6 +19,7 @@ import { GuidedTourProvider } from '@/tour/GuidedTourContext';
 import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
 import { initialiseAnalytics } from '@/services/analytics/analyticsService';
 import { AnalyticsConsentPrompt } from '@/components/common/AnalyticsConsentPrompt';
+import { AnalyticsRouteTracker } from '@/components/common/AnalyticsRouteTracker';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -47,6 +48,7 @@ export default function App() {
           <AnalyticsConsentPrompt />
           <ErrorBoundary>
             <HashRouter>
+              <AnalyticsRouteTracker />
               <GuidedTourProvider>
                 <AppRoutes />
                 <GuidedTourOverlay />
