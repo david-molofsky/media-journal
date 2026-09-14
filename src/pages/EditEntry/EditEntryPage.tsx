@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -32,6 +33,11 @@ import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { updateEntry, deleteEntry, listEntries } from '@/services/database/entryService';
+import {
+  clearEditEntryDraft,
+  loadEditEntryDraft,
+  saveEditEntryDraft,
+} from '@/services/drafts/entryDraftService';
 import { convertMetadata } from '@/utils/entryConversion';
 import { relogButtonLabel } from '@/utils/relogLabel';
 import { todayIso } from '@/utils/dateUtils';
@@ -120,6 +126,7 @@ export default function EditEntryPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
   const defaultStatus = useDefaultEntryStatus();
+  const storedEditDraft = useMemo(() => (id ? loadEditEntryDraft(id) : null), [id]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   // Any type can convert to any other, via a role-based field mapping
@@ -192,6 +199,7 @@ export default function EditEntryPage() {
 
   const handleDelete = async () => {
     await deleteEntry(entry.id);
+    clearEditEntryDraft(entry.id);
     navigate(ROUTES.library, { state: incomingFilters });
   };
 
@@ -265,6 +273,7 @@ export default function EditEntryPage() {
       mediaType: convertTargetType.id,
       metadata: conversionPreview.metadata,
     });
+    clearEditEntryDraft(entry.id);
     setConvertTargetId(null);
   };
 
@@ -294,9 +303,23 @@ export default function EditEntryPage() {
         </IconButton>
       </Stack>
 
+      {storedEditDraft &&
+        storedEditDraft.values.mediaType === entry.mediaType &&
+        Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Your unfinished changes were restored. They save automatically on this
+            device.
+          </Alert>
+        )}
+
       <EntryForm
         mediaType={effectiveMediaType}
-        initialValues={{
+        initialValues={
+          storedEditDraft &&
+          storedEditDraft.values.mediaType === entry.mediaType &&
+          Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
+            ? storedEditDraft.values
+            : {
           title: entry.title,
           mediaType: entry.mediaType,
           status: entry.status ?? 'completed',
@@ -310,11 +333,14 @@ export default function EditEntryPage() {
           watchedWith: entry.watchedWith ?? [],
           recommendedBy: entry.recommendedBy ?? [],
           metadata: entry.metadata,
-        }}
+        }
+        }
         submitLabel="Save Changes"
+        onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
         stickySubmit
         onSubmit={async (values) => {
           await updateEntry(entry.id, values);
+          clearEditEntryDraft(entry.id);
           navigate(ROUTES.library, { state: incomingFilters });
         }}
         secondaryActions={

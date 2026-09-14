@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
@@ -83,6 +83,9 @@ interface EntryFormProps {
   defaultStatus?: EntryStatus;
   submitLabel: string;
   onSubmit: (values: EntryFormValues) => Promise<void>;
+  /** Called after form values change so the page can persist a local,
+   * recoverable draft. Writes are debounced by this component. */
+  onDraftChange?: (values: EntryFormValues) => void;
   /** Extra actions shown beneath the form — Delete/Duplicate on Edit
    * Entry (UI & UX Specification, section 7). */
   secondaryActions?: ReactNode;
@@ -128,11 +131,15 @@ export function EntryForm({
   defaultStatus,
   submitLabel,
   onSubmit,
+  onDraftChange,
   secondaryActions,
   stickySubmit = false,
 }: EntryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const draftTimerRef = useRef<number | null>(null);
+  const draftChangedRef = useRef(false);
+  const submittingRef = useRef(false);
   // Raw, in-progress text for `type: 'number'` metadata fields while the
   // user is actively editing them — see the Controller render below for why.
   const [numberFieldDrafts, setNumberFieldDrafts] = useState<Record<string, string>>({});
@@ -323,11 +330,56 @@ export function EntryForm({
     setValue,
     getValues,
     setError,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<EntryFormValues>({
     resolver: zodResolver(mediaEntrySchema) as unknown as Resolver<EntryFormValues>,
     defaultValues,
   });
+
+  // Persist a complete form snapshot shortly after each change. On
+  // navigation/unmount, flush any pending change synchronously so even
+  // a quick route change or PWA refresh does not lose the latest input.
+  useEffect(() => {
+    if (!onDraftChange) return;
+
+    const subscription = watch(() => {
+      draftChangedRef.current = true;
+      if (draftTimerRef.current !== null) {
+        window.clearTimeout(draftTimerRef.current);
+      }
+      draftTimerRef.current = window.setTimeout(() => {
+        onDraftChange(getValues());
+        draftChangedRef.current = false;
+        draftTimerRef.current = null;
+      }, 400);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+      if (draftTimerRef.current !== null) {
+        window.clearTimeout(draftTimerRef.current);
+        draftTimerRef.current = null;
+      }
+      if (draftChangedRef.current && !submittingRef.current) {
+        onDraftChange(getValues());
+      }
+    };
+  }, [getValues, onDraftChange, watch]);
+
+  // Browsers may show their standard confirmation when a dirty form is
+  // reloaded or closed. Local draft recovery remains the primary safety
+  // net on mobile browsers that choose not to show this prompt.
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const status = watch('status') as EntryStatus | undefined;
   const issueStart = watch('metadata.issueStart' as 'metadata');
@@ -422,6 +474,15 @@ export function EntryForm({
     }
 
     setSubmitting(true);
+    submittingRef.current = true;
+    if (draftTimerRef.current !== null) {
+      window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    // Flush the newest values before the save starts. If saving fails,
+    // the recoverable draft is already up to date.
+    onDraftChange?.(getValues());
+    draftChangedRef.current = false;
     try {
       await onSubmit({
         ...values,
@@ -437,6 +498,7 @@ export function EntryForm({
           : 'Something went wrong. Please try again.',
       );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   });
