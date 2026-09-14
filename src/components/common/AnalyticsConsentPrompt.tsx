@@ -8,12 +8,16 @@ import DialogTitle from '@mui/material/DialogTitle';
 import {
   denyAnalyticsConsent,
   grantAnalyticsConsent,
+  trackCurrentPageView,
 } from '@/services/analytics/analyticsService';
 
 const CONSENT_KEY = 'mediaJournalAnalyticsConsent';
 
 export function AnalyticsConsentPrompt() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => {
+    const consent = localStorage.getItem(CONSENT_KEY);
+    return consent !== 'granted' && consent !== 'denied';
+  });
 
   useEffect(() => {
     const consent = localStorage.getItem(CONSENT_KEY);
@@ -22,8 +26,6 @@ export function AnalyticsConsentPrompt() {
       grantAnalyticsConsent();
     } else if (consent === 'denied') {
       denyAnalyticsConsent();
-    } else {
-      setOpen(true);
     }
   }, []);
 
@@ -32,6 +34,7 @@ export function AnalyticsConsentPrompt() {
 
     if (consent === 'granted') {
       grantAnalyticsConsent();
+      trackCurrentPageView();
     } else {
       denyAnalyticsConsent();
     }
@@ -45,21 +48,16 @@ export function AnalyticsConsentPrompt() {
 
       <DialogContent>
         <DialogContentText>
-          Allow anonymous usage analytics to help improve features
-          and understand where people encounter problems. Media
-          titles, ratings and personal journal data are never sent.
+          Allow anonymous usage analytics to help improve features and understand where
+          people encounter problems. Media titles, ratings and personal journal data are
+          never sent.
         </DialogContentText>
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={() => choose('denied')}>
-          No thanks
-        </Button>
+        <Button onClick={() => choose('denied')}>No thanks</Button>
 
-        <Button
-          variant="contained"
-          onClick={() => choose('granted')}
-        >
+        <Button variant="contained" onClick={() => choose('granted')}>
           Allow analytics
         </Button>
       </DialogActions>
