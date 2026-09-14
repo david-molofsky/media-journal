@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
-import { getSetting, setSetting } from '@/services/database/settingsService';
+import { getSetting } from '@/services/database/settingsService';
 import { SETTINGS_KEYS } from '@/models';
 import { isDriveConnected, exportToGoogleDrive } from '@/services/googleDrive/googleDriveService';
+import {
+  recordAutomaticBackupFailure,
+  recordAutomaticBackupSuccess,
+} from '@/services/googleDrive/backupHealthService';
 
 const CHECK_INTERVAL_MS = 60_000;
 const SCHEDULED_HOUR = 23;
@@ -53,17 +57,10 @@ export function useAutoBackup(): void {
         if (!connected) return;
 
         await exportToGoogleDrive();
-        await Promise.all([
-          setSetting(SETTINGS_KEYS.lastAutoBackupAt, dayjs().toISOString()),
-          setSetting(SETTINGS_KEYS.lastAutoBackupError, null),
-        ]);
+        await recordAutomaticBackupSuccess();
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Automatic backup could not connect to Google Drive.';
         try {
-          await setSetting(SETTINGS_KEYS.lastAutoBackupError, message);
+          await recordAutomaticBackupFailure(error);
         } catch {
           // A database failure should not create an unhandled rejection
           // from this background task. The next check will still retry.

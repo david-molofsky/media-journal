@@ -3,6 +3,7 @@ import { db } from '@/services/database/db';
 import { getSetting, setSetting } from '@/services/database/settingsService';
 import { SETTINGS_KEYS } from '@/models';
 import { isDriveConnected } from '@/services/googleDrive/googleDriveService';
+import { isAutomaticBackupStale } from '@/services/googleDrive/backupHealthService';
 
 const FIRST_THRESHOLD = 10;
 const REPEAT_INTERVAL = 25;
@@ -14,16 +15,16 @@ function eligibleThreshold(count: number): number {
   return FIRST_THRESHOLD + Math.floor((count - FIRST_THRESHOLD) / REPEAT_INTERVAL) * REPEAT_INTERVAL;
 }
 
-type BackupNudgeKind = 'connect' | 'failed';
+type BackupNudgeKind = 'connect' | 'failed' | 'stale';
 
 interface BackupNudgeState {
   visible: boolean;
   entryCount: number;
   kind: BackupNudgeKind;
   /** Connection nudges are dismissible until the next threshold.
-   * Failure warnings remain until a backup succeeds or automatic
-   * backup is disabled, so a data-protection problem cannot be
-   * permanently hidden by accident. */
+   * Failure and stale warnings remain until backup health recovers or
+   * automatic backup is disabled, so a data-protection problem cannot
+   * be permanently hidden by accident. */
   dismiss?: () => void;
 }
 
@@ -42,23 +43,34 @@ export function useBackupNudge(): BackupNudgeState | undefined {
       dismissedThreshold,
       autoBackupEnabled,
       lastAutoBackupError,
+      lastAutoBackupAt,
     ] = await Promise.all([
       db.mediaEntries.count(),
       isDriveConnected(),
       getSetting(SETTINGS_KEYS.backupNudgeDismissedThreshold, 0),
       getSetting(SETTINGS_KEYS.autoBackupEnabled, false),
       getSetting<string | null>(SETTINGS_KEYS.lastAutoBackupError, null),
+      getSetting<string | null>(SETTINGS_KEYS.lastAutoBackupAt, null),
     ]);
 
     const threshold = eligibleThreshold(entryCount);
     const backupFailed =
       hasDrive && autoBackupEnabled && Boolean(lastAutoBackupError);
+    const backupStale =
+      hasDrive &&
+      autoBackupEnabled &&
+      !backupFailed &&
+      isAutomaticBackupStale(lastAutoBackupAt);
     const needsConnection =
       !hasDrive && threshold > 0 && threshold > dismissedThreshold;
-    const kind: BackupNudgeKind = backupFailed ? 'failed' : 'connect';
+    const kind: BackupNudgeKind = backupFailed
+      ? 'failed'
+      : backupStale
+        ? 'stale'
+        : 'connect';
 
     return {
-      visible: backupFailed || needsConnection,
+      visible: backupFailed || backupStale || needsConnection,
       entryCount,
       threshold,
       kind,

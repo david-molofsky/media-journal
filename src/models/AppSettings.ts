@@ -44,7 +44,8 @@ export const SETTINGS_KEYS = {
    * has already happened (see useAutoBackup). `lastAutoBackupError`
    * records the latest failed run so the failure is visible instead of
    * being silently retried forever. These device-local status values
-   * are never included in portable backups. */
+   * are never included in portable backups. A manual export made while
+   * automatic backup is enabled also counts as a successful verification. */
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
   lastAutoBackupError: 'lastAutoBackupError',
