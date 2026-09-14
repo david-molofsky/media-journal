@@ -44,6 +44,7 @@ export default function App() {
       <ThemeProvider theme={appTheme}>
         <CssBaseline />
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={dateLocale}>
+          <AnalyticsConsentPrompt />
           <ErrorBoundary>
             <HashRouter>
               <GuidedTourProvider>
