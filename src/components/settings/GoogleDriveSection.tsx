@@ -27,13 +27,26 @@ import {
   signOutOfDrive,
   exportToGoogleDrive,
   listDriveExports,
-  importFromDriveFile,
+  downloadDriveExport,
   type DriveExportFile,
 } from '@/services/googleDrive/googleDriveService';
 import { db } from '@/services/database/db';
 import { useBooleanSetting } from '@/hooks/useBooleanSetting';
 import { useDriveConnected } from '@/hooks/useDriveConnected';
 import { SETTINGS_KEYS } from '@/models';
+import {
+  importLibrary,
+  inspectLibraryImport,
+  type ImportPreview,
+  type RestoreMode,
+} from '@/services/importExport/importExportService';
+import { RestoreBackupDialog } from '@/components/settings/RestoreBackupDialog';
+
+interface PendingDriveImport {
+  raw: unknown;
+  preview: ImportPreview;
+  sourceName: string;
+}
 
 /**
  * Google Drive section in Settings. Handles:
@@ -56,6 +69,7 @@ export function GoogleDriveSection() {
   const [importOpen, setImportOpen] = useState(false);
   const [driveFiles, setDriveFiles] = useState<DriveExportFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingDriveImport | null>(null);
 
   // Automatic daily backup — see src/hooks/useAutoBackup.ts for the
   // watcher that actually triggers backups; this section only owns
@@ -140,11 +154,29 @@ export function GoogleDriveSection() {
   const handleImportFile = async (file: DriveExportFile) => {
     setImportOpen(false);
     await run(async () => {
-      const result = await importFromDriveFile(file.id);
-      const skipped = result.skipped > 0 ? `, skipped ${result.skipped}` : '';
+      const raw = await downloadDriveExport(file.id);
+      const preview = inspectLibraryImport(raw);
+      setPendingImport({ raw, preview, sourceName: file.name });
+    });
+  };
+
+  const handleRestore = async (mode: RestoreMode) => {
+    if (!pendingImport) return;
+
+    await run(async () => {
+      const sourceName = pendingImport.sourceName;
+      const result = await importLibrary(pendingImport.raw, mode);
+      const skippedNote =
+        result.skipped > 0 ? ` ${result.skipped} invalid entries were skipped.` : '';
+
+      setPendingImport(null);
       setStatus({
         type: 'success',
-        message: `Imported ${result.imported} ${result.imported === 1 ? 'entry' : 'entries'} from "${file.name}"${skipped}.`,
+        message:
+          `${mode === 'replace' ? 'Replaced' : 'Merged'} journal with ` +
+          `${result.imported} ${result.imported === 1 ? 'entry' : 'entries'} ` +
+          `from "${sourceName}".` +
+          skippedNote,
       });
     });
   };
@@ -320,6 +352,14 @@ export function GoogleDriveSection() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <RestoreBackupDialog
+        preview={pendingImport?.preview ?? null}
+        sourceName={pendingImport?.sourceName ?? ''}
+        busy={busy}
+        onCancel={() => setPendingImport(null)}
+        onRestore={(mode) => void handleRestore(mode)}
+      />
     </CollapsibleSection>
   );
 }

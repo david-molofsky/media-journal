@@ -14,7 +14,7 @@
 import { db } from '@/services/database/db';
 import { exportLibrary, importLibrary } from '@/services/importExport/importExportService';
 import dayjs from 'dayjs';
-import type { ImportResult } from '@/services/importExport/importExportService';
+import type {\n  ImportResult,\n  RestoreMode,\n} from '@/services/importExport/importExportService';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
@@ -273,15 +273,25 @@ export async function exportToGoogleDrive(): Promise<string> {
   return fileName;
 }
 
-/**
- * Downloads a Drive export file and passes it to the import service.
- */
-export async function importFromDriveFile(fileId: string): Promise<ImportResult> {
+/** Downloads and parses a Media Journal backup without restoring it. */
+export async function downloadDriveExport(fileId: string): Promise<unknown> {
   const token = await getToken();
   const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Could not download file: ${await res.text()}`);
-  const raw = await res.json() as unknown;
-  return importLibrary(raw);
+  return res.json() as Promise<unknown>;
+}
+
+/**
+ * Backwards-compatible direct restore helper. New UI callers should
+ * download and inspect the backup first so the person can choose Merge
+ * or Replace.
+ */
+export async function importFromDriveFile(
+  fileId: string,
+  mode: RestoreMode = 'merge',
+): Promise<ImportResult> {
+  const raw = await downloadDriveExport(fileId);
+  return importLibrary(raw, mode);
 }
