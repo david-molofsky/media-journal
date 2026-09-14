@@ -97,3 +97,23 @@ export function saveEditEntryDraft(
 export function clearEditEntryDraft(entryId: string): void {
   clearDraft(editDraftKey(entryId));
 }
+
+/** Clears every unfinished Add/Edit draft after a full journal
+ * replacement so pre-restore values cannot later override restored data. */
+export function clearAllEntryDrafts(): void {
+  if (!storageAvailable()) return;
+
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key === ADD_DRAFT_KEY || key?.startsWith(EDIT_DRAFT_PREFIX)) {
+        keys.push(key);
+      }
+    }
+    keys.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Replacement has already succeeded at this point. Storage cleanup
+    // is best-effort and must not turn a valid restore into an error.
+  }
+}

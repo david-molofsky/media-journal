@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -14,6 +15,7 @@ import {
   restoreDeletedEntries,
 } from '@/services/database/entryService';
 import type { MediaEntry } from '@/models';
+import { JOURNAL_REPLACED_EVENT } from '@/services/dataSafety/journalRestoreEvents';
 
 interface DeleteUndoContextValue {
   deleteWithUndo: (entryIds: string[]) => Promise<number>;
@@ -25,6 +27,17 @@ export function DeleteUndoProvider({ children }: { children: ReactNode }) {
   const [pendingEntries, setPendingEntries] = useState<MediaEntry[]>([]);
   const [undoing, setUndoing] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    const clearTransientUndo = () => {
+      setPendingEntries([]);
+      setFeedback(null);
+    };
+
+    window.addEventListener(JOURNAL_REPLACED_EVENT, clearTransientUndo);
+    return () =>
+      window.removeEventListener(JOURNAL_REPLACED_EVENT, clearTransientUndo);
+  }, []);
 
   const deleteWithUndo = useCallback(async (entryIds: string[]) => {
     const deleted = await deleteEntriesWithSnapshot(entryIds);
