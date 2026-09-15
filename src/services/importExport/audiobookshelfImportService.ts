@@ -1,5 +1,8 @@
 import { db } from '@/services/database/db';
-import { createEntry } from '@/services/database/entryService';
+import {
+  createEntry,
+  runEntryWriteTransaction,
+} from '@/services/database/entryService';
 import { lookupByIsbn, searchBooks } from '@/services/metadata/openLibraryService';
 import {
   getMediaProgress,
@@ -169,31 +172,33 @@ export async function applyAudiobookshelfImport(
   let imported = 0;
   let skipped = 0;
 
-  for (const item of items) {
-    if (!item.included) {
-      skipped += 1;
-      continue;
+  await runEntryWriteTransaction(async () => {
+    for (const item of items) {
+      if (!item.included) {
+        skipped += 1;
+        continue;
+      }
+
+      const mediaType = item.typeChoice?.selected ?? item.mediaType;
+      const candidate = item.candidates.find((c) => c.id === item.selectedCandidateId);
+      const metadata: EntryMetadata = { source: SOURCE };
+      if (item.subtitle) metadata['author'] = item.subtitle;
+
+      await createEntry({
+        title: candidate?.title ?? toTitleCase(item.title),
+        mediaType,
+        status: 'completed',
+        completedDate: item.date,
+        repeatConsumption: false,
+        tags: [importedFromTag(SOURCE)],
+        genres: [],
+        watchedWith: [],
+        recommendedBy: [],
+        metadata,
+      });
+      imported += 1;
     }
-
-    const mediaType = item.typeChoice?.selected ?? item.mediaType;
-    const candidate = item.candidates.find((c) => c.id === item.selectedCandidateId);
-    const metadata: EntryMetadata = { source: SOURCE };
-    if (item.subtitle) metadata['author'] = item.subtitle;
-
-    await createEntry({
-      title: candidate?.title ?? toTitleCase(item.title),
-      mediaType,
-      status: 'completed',
-      completedDate: item.date,
-      repeatConsumption: false,
-      tags: [importedFromTag(SOURCE)],
-      genres: [],
-      watchedWith: [],
-      recommendedBy: [],
-      metadata,
-    });
-    imported += 1;
-  }
+  });
 
   return { imported, skipped };
 }
