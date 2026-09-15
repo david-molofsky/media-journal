@@ -11,6 +11,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Snackbar from '@mui/material/Snackbar';
 import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -23,9 +24,11 @@ import { useInProgressEntries } from '@/hooks/useInProgressEntries';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import {
   createInProgressEntry,
-  deleteInProgressEntry,
+  deleteInProgressEntryWithSnapshot,
   finishInProgressEntry,
+  restoreInProgressEntry,
 } from '@/services/database/inProgressService';
+import type { InProgressEntry } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { todayIso } from '@/utils/dateUtils';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
@@ -50,6 +53,7 @@ export default function InProgressPage() {
   const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [recentlyRemoved, setRecentlyRemoved] = useState<InProgressEntry | null>(null);
 
   if (!entries || !mediaTypes) return <LoadingIndicator />;
 
@@ -76,6 +80,19 @@ export default function InProgressPage() {
     setFinishId(null);
     setFinishRating(undefined);
     navigate(editEntryPath(created.id));
+  };
+
+  const handleRemove = async () => {
+    if (!deleteId) return;
+    const removed = await deleteInProgressEntryWithSnapshot(deleteId);
+    setDeleteId(null);
+    if (removed) setRecentlyRemoved(removed);
+  };
+
+  const handleUndoRemove = async () => {
+    if (!recentlyRemoved) return;
+    await restoreInProgressEntry(recentlyRemoved);
+    setRecentlyRemoved(null);
   };
 
   return (
@@ -255,11 +272,25 @@ export default function InProgressPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button color="error" onClick={async () => { if (deleteId) await deleteInProgressEntry(deleteId); setDeleteId(null); }}>
+          <Button color="error" onClick={() => void handleRemove()}>
             Remove
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={Boolean(recentlyRemoved)}
+        autoHideDuration={8000}
+        onClose={(_, reason) => {
+          if (reason !== 'clickaway') setRecentlyRemoved(null);
+        }}
+        message={recentlyRemoved ? `Removed ${recentlyRemoved.title} from In Progress` : ''}
+        action={
+          <Button color="secondary" size="small" onClick={() => void handleUndoRemove()}>
+            Undo
+          </Button>
+        }
+      />
     </Box>
   );
 }
