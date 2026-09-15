@@ -13,12 +13,14 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import Snackbar from '@mui/material/Snackbar';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
 import {
   listPodcastSubscriptions,
   removePodcastSubscription,
+  restorePodcastSubscription,
 } from '@/services/database/podcastSubscriptionService';
 import { checkAllSubscriptionsForNewEpisodes } from '@/services/podcasts/podcastEpisodeSync';
 import { AddPodcastSubscriptionDialog } from './AddPodcastSubscriptionDialog';
@@ -46,6 +48,7 @@ export function PodcastSubscriptionsSection() {
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [pendingUnsubscribe, setPendingUnsubscribe] = useState<PodcastSubscription | null>(null);
+  const [recentlyRemoved, setRecentlyRemoved] = useState<PodcastSubscription | null>(null);
 
   const [checking, setChecking] = useState(false);
   const [checkSummary, setCheckSummary] = useState<string | null>(null);
@@ -76,8 +79,16 @@ export function PodcastSubscriptionsSection() {
 
   async function confirmUnsubscribe() {
     if (!pendingUnsubscribe) return;
-    await removePodcastSubscription(pendingUnsubscribe.id);
+    const removed = pendingUnsubscribe;
+    await removePodcastSubscription(removed.id);
     setPendingUnsubscribe(null);
+    setRecentlyRemoved(removed);
+  }
+
+  async function undoUnsubscribe() {
+    if (!recentlyRemoved) return;
+    await restorePodcastSubscription(recentlyRemoved);
+    setRecentlyRemoved(null);
   }
 
   return (
@@ -198,7 +209,20 @@ export function PodcastSubscriptionsSection() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={Boolean(recentlyRemoved)}
+        autoHideDuration={8000}
+        onClose={(_, reason) => {
+          if (reason !== 'clickaway') setRecentlyRemoved(null);
+        }}
+        message={recentlyRemoved ? `Unsubscribed from ${recentlyRemoved.showTitle}` : ''}
+        action={
+          <Button color="secondary" size="small" onClick={() => void undoUnsubscribe()}>
+            Undo
+          </Button>
+        }
+      />
     </Stack>
   );
 }
-
