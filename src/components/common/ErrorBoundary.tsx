@@ -3,6 +3,14 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import { exportLibrary } from '@/services/importExport/importExportService';
+import { downloadJson } from '@/utils/downloadJson';
+import { todayIso } from '@/utils/dateUtils';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -11,6 +19,9 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   error: Error | null;
   resetting: boolean;
+  resetConfirmOpen: boolean;
+  backingUp: boolean;
+  backupError: string | null;
 }
 
 /**
@@ -28,7 +39,13 @@ interface ErrorBoundaryState {
  *     yet so nothing is lost.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { error: null, resetting: false };
+  state: ErrorBoundaryState = {
+    error: null,
+    resetting: false,
+    resetConfirmOpen: false,
+    backingUp: false,
+    backupError: null,
+  };
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return { error };
@@ -41,6 +58,23 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   /** Simple reload — correct for most React rendering errors. */
   private handleReload = (): void => {
     window.location.reload();
+  };
+
+  private handleEmergencyBackup = async (): Promise<void> => {
+    this.setState({ backingUp: true, backupError: null });
+    try {
+      const backup = await exportLibrary();
+      downloadJson(backup, `media-journal-emergency-backup-${todayIso()}.json`);
+    } catch (error) {
+      this.setState({
+        backupError:
+          error instanceof Error
+            ? error.message
+            : 'The database could not be read to create a backup.',
+      });
+    } finally {
+      this.setState({ backingUp: false });
+    }
   };
 
   /**
@@ -58,7 +92,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   override render(): ReactNode {
-    const { error, resetting } = this.state;
+    const { error, resetting, resetConfirmOpen, backingUp, backupError } = this.state;
 
     if (!error) {
       return this.props.children;
@@ -130,7 +164,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <Button
               variant={isDbError ? 'outlined' : 'text'}
               color="error"
-              onClick={this.handleReset}
+              onClick={() => this.setState({ resetConfirmOpen: true, backupError: null })}
               disabled={resetting}
               fullWidth
               size={isDbError ? 'medium' : 'small'}
@@ -148,6 +182,50 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </Typography>
           </Box>
         </Stack>
+
+        <Dialog
+          open={resetConfirmOpen}
+          onClose={() => !resetting && this.setState({ resetConfirmOpen: false })}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>Delete all on-device journal data?</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary">
+              This permanently deletes every entry and setting stored by Media Journal on
+              this device. Try reloading first. If the database can still be read, download
+              an emergency backup before continuing.
+            </Typography>
+            {backupError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                Backup failed: {backupError} You can cancel and try reloading, or continue
+                only if you accept losing the on-device data.
+              </Alert>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ flexWrap: 'wrap' }}>
+            <Button
+              onClick={() => this.setState({ resetConfirmOpen: false })}
+              disabled={resetting || backingUp}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void this.handleEmergencyBackup()}
+              disabled={resetting || backingUp}
+            >
+              {backingUp ? 'Creating backup…' : 'Download backup'}
+            </Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={this.handleReset}
+              disabled={resetting || backingUp}
+            >
+              {resetting ? 'Deleting…' : 'Delete everything'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
