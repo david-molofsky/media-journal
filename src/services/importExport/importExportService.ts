@@ -107,12 +107,20 @@ export interface ImportResult {
  */
 export async function exportLibrary(): Promise<ExportPayload> {
   const [entries, mediaTypes, podcastSubscriptions, settingRecords] =
-    await Promise.all([
-      db.mediaEntries.toArray(),
-      db.mediaTypes.toArray(),
-      db.podcastSubscriptions.toArray(),
-      db.appSettings.toArray(),
-    ]);
+    await db.transaction(
+      'r',
+      db.mediaEntries,
+      db.mediaTypes,
+      db.podcastSubscriptions,
+      db.appSettings,
+      () =>
+        Promise.all([
+          db.mediaEntries.toArray(),
+          db.mediaTypes.toArray(),
+          db.podcastSubscriptions.toArray(),
+          db.appSettings.toArray(),
+        ]),
+    );
 
   const settings = Object.fromEntries(
     settingRecords
