@@ -2,10 +2,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import ImportExportOutlinedIcon from '@mui/icons-material/ImportExportOutlined';
@@ -33,6 +29,7 @@ import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 import Button from '@mui/material/Button';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import { useGuidedTour } from '@/tour/GuidedTourContext';
+import { DeviceSyncSection } from '@/components/settings/DeviceSyncSection';
 
 export default function SettingsPage() {
   const { start: startGuidedTour } = useGuidedTour();
@@ -117,17 +114,7 @@ export default function SettingsPage() {
         </CollapsibleSection>
 
         <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>
-          <List disablePadding>
-            <ListItem disablePadding sx={{ opacity: 0.5, py: 1 }}>
-              <ListItemIcon sx={{ minWidth: 36 }}>
-                <CloudOutlinedIcon />
-              </ListItemIcon>
-              <ListItemText
-                primary="Multi-device sync"
-                secondary="Coming in a future update — your library stays on this device for now."
-              />
-            </ListItem>
-          </List>
+          <DeviceSyncSection />
         </CollapsibleSection>
       </Stack>
     </Box>
