@@ -78,6 +78,11 @@ export function isCustomMediaType(id: string): boolean {
   return !CATALOG_MEDIA_TYPE_IDS.has(id);
 }
 
+/** Counts entries that would lose their configured type if it were deleted. */
+export async function countEntriesForMediaType(id: string): Promise<number> {
+  return db.mediaEntries.where('mediaType').equals(id).count();
+}
+
 /**
  * Permanently removes a custom media type. Throws if called on one of
  * the five built-in types — callers should gate the action behind
@@ -92,5 +97,14 @@ export async function deleteMediaType(id: string): Promise<void> {
   if (DEFAULT_MEDIA_TYPE_IDS.has(id)) {
     throw new Error(`Cannot delete built-in media type "${id}".`);
   }
-  await db.mediaTypes.delete(id);
+
+  await db.transaction('rw', db.mediaEntries, db.mediaTypes, async () => {
+    const entryCount = await db.mediaEntries.where('mediaType').equals(id).count();
+    if (entryCount > 0) {
+      throw new Error(
+        `Cannot delete this media type while ${entryCount} ${entryCount === 1 ? 'entry uses' : 'entries use'} it.`,
+      );
+    }
+    await db.mediaTypes.delete(id);
+  });
 }
