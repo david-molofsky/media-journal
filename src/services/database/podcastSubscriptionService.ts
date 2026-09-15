@@ -24,6 +24,13 @@ export async function removePodcastSubscription(id: string): Promise<void> {
   await db.podcastSubscriptions.delete(id);
 }
 
+/** Restores the exact record captured before an unsubscribe action. */
+export async function restorePodcastSubscription(
+  subscription: PodcastSubscription,
+): Promise<void> {
+  await db.podcastSubscriptions.put(subscription);
+}
+
 export async function touchPodcastSubscriptionLastChecked(id: string): Promise<void> {
   await db.podcastSubscriptions.update(id, { lastCheckedAt: nowIso() });
 }
