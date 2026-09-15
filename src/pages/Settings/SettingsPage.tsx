@@ -94,8 +94,8 @@ export default function SettingsPage() {
 
         <CollapsibleSection title="About" icon={InfoOutlinedIcon}>
           <Typography variant="body2" color="text.secondary">
-            Media Journal v1.0 — a permanent, offline-first archive of everything you
-            read, watch and listen to. Built with React, MUI and Dexie.
+            Media Journal v{__APP_VERSION__} — a permanent, offline-first archive of
+            everything you read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
           <PwaUpdateSection />
         </CollapsibleSection>

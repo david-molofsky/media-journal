@@ -1,4 +1,8 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
+
+/** Injected from package.json by Vite. */
+declare const __APP_VERSION__: string;
 /// <reference types="vite-plugin-pwa/react" />
 
 // Minimal type shim for the Google Identity Services library loaded via
