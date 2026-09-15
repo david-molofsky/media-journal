@@ -226,6 +226,27 @@ async function uploadFile(
   return file.id;
 }
 
+/** Confirms Drive stored the exact JSON bytes that were uploaded. */
+async function verifyUploadedFile(
+  token: string,
+  fileId: string,
+  expectedContent: string,
+): Promise<void> {
+  const res = await fetch(`${DRIVE_API}/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Backup verification failed: ${await res.text()}`);
+  }
+
+  const storedContent = await res.text();
+  if (storedContent !== expectedContent) {
+    throw new Error(
+      'Backup verification failed because the file stored in Google Drive did not match the journal export.',
+    );
+  }
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export interface DriveExportFile {
@@ -272,7 +293,8 @@ export async function exportToGoogleDrive(): Promise<string> {
   const existing = await listDriveExports();
   const todayFile = existing.find((f) => f.name === fileName);
 
-  await uploadFile(token, folderId, fileName, content, todayFile?.id);
+  const fileId = await uploadFile(token, folderId, fileName, content, todayFile?.id);
+  await verifyUploadedFile(token, fileId, content);
   return fileName;
 }
 
