@@ -38,6 +38,21 @@ export async function deleteInProgressEntry(id: string): Promise<void> {
   await db.inProgressEntries.delete(id);
 }
 
+/** Captures the exact record before removal so the UI can offer Undo. */
+export async function deleteInProgressEntryWithSnapshot(
+  id: string,
+): Promise<InProgressEntry | undefined> {
+  return db.transaction('rw', db.inProgressEntries, async () => {
+    const entry = await db.inProgressEntries.get(id);
+    if (entry) await db.inProgressEntries.delete(id);
+    return entry;
+  });
+}
+
+export async function restoreInProgressEntry(entry: InProgressEntry): Promise<void> {
+  await db.inProgressEntries.put(entry);
+}
+
 /**
  * Converts an in-progress entry into a completed library entry.
  * Creates the `MediaEntry` (with today as the default completed date),
