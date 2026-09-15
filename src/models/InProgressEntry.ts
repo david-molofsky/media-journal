@@ -1,11 +1,9 @@
 import type { EntryMetadata } from './MediaEntry';
 
 /**
- * An in-progress item — something the user has started but not yet
- * finished. Lives in its own `inProgressEntries` table so the
- * `mediaEntries` statistics queries stay unaffected by incomplete data.
- * On "Mark as finished", a full `MediaEntry` is created from this data
- * and the in-progress record is deleted.
+ * Legacy input shape retained for the dedicated In Progress screen.
+ * Since database version 6 these values are stored as `MediaEntry`
+ * records with `status: 'in_progress'`, not in a separate table.
  */
 export interface InProgressEntry {
   id: string;
