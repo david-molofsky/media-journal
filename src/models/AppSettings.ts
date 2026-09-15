@@ -49,6 +49,13 @@ export const SETTINGS_KEYS = {
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
   lastAutoBackupError: 'lastAutoBackupError',
+  /** Device-sync state. These values deliberately remain device-local
+   * and are therefore excluded from portable exports. `syncDeviceId`
+   * permanently identifies this browser install; the timestamps are
+   * status only and never decide which journal data wins. */
+  syncDeviceId: 'syncDeviceId',
+  syncProvider: 'syncProvider',
+  lastDeviceSyncAt: 'lastDeviceSyncAt',
   /** ComicVine (Comic Issues) auto-fill toggles — read by
    * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
    * (ComicVine)). Same convention as the TMDB toggles above: all
