@@ -7,6 +7,7 @@ import {
   type GoodreadsRowState,
 } from '@/services/importExport/goodreadsImportService';
 import type { EntryStatus } from '@/models';
+import { runEntryWriteTransaction } from '@/services/database/entryService';
 import {
   trackImportCompleted,
   trackImportStarted,
@@ -108,12 +109,14 @@ export function useGoodreadsImportFlow() {
     setProgress({ done: 0, total: rows.length });
     let imported = 0;
     let skipped = 0;
-    for (const row of rows) {
-      const result = await applyRow(row);
-      if (result === 'imported') imported += 1;
-      else skipped += 1;
-      setProgress((p) => ({ ...p, done: p.done + 1 }));
-    }
+    await runEntryWriteTransaction(async () => {
+      for (const row of rows) {
+        const result = await applyRow(row);
+        if (result === 'imported') imported += 1;
+        else skipped += 1;
+        setProgress((p) => ({ ...p, done: p.done + 1 }));
+      }
+    });
     setSummary({ imported, skipped });
     trackImportCompleted('goodreads', 'csv', {
       itemsFound: rows.length,

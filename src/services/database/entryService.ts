@@ -30,6 +30,13 @@ export async function createEntry(input: NewMediaEntryInput): Promise<MediaEntry
   return entry;
 }
 
+/** Runs a prepared batch of entry writes atomically. Keep network and file reads outside. */
+export async function runEntryWriteTransaction<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  return db.transaction('rw', db.mediaEntries, operation);
+}
+
 export async function getEntry(id: string): Promise<MediaEntry | undefined> {
   return db.mediaEntries.get(id);
 }
