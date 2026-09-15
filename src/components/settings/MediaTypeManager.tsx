@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
@@ -14,6 +15,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
 import Tooltip from '@mui/material/Tooltip';
+import Alert from '@mui/material/Alert';
 import AddIcon from '@mui/icons-material/Add';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -23,6 +25,7 @@ import {
   setMediaTypeEnabled,
   deleteMediaType,
   isDefaultMediaType,
+  countEntriesForMediaType,
 } from '@/services/database/mediaTypeService';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
@@ -34,6 +37,11 @@ export function MediaTypeManager() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingType, setEditingType] = useState<MediaType | null>(null);
   const [pendingDelete, setPendingDelete] = useState<MediaType | null>(null);
+  const affectedEntryCount = useLiveQuery(
+    () => (pendingDelete ? countEntriesForMediaType(pendingDelete.id) : Promise.resolve(0)),
+    [pendingDelete?.id],
+    0,
+  );
 
   const handleDelete = async () => {
     if (pendingDelete) {
@@ -137,15 +145,21 @@ export function MediaTypeManager() {
       <Dialog open={Boolean(pendingDelete)} onClose={() => setPendingDelete(null)}>
         <DialogTitle>Delete "{pendingDelete?.displayName}"?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            This permanently removes the media type. Existing library entries that use it will
-            remain but their type label won't resolve until you recreate the type with the same
-            id. This can't be undone.
-          </DialogContentText>
+          {affectedEntryCount > 0 ? (
+            <Alert severity="warning">
+              {affectedEntryCount} {affectedEntryCount === 1 ? 'entry uses' : 'entries use'} this
+              media type. Change {affectedEntryCount === 1 ? 'it' : 'them'} to another type before
+              deleting, or disable this type instead.
+            </Alert>
+          ) : (
+            <DialogContentText>
+              This permanently removes the media type. This can't be undone.
+            </DialogContentText>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingDelete(null)}>Cancel</Button>
-          <Button color="error" onClick={handleDelete}>
+          <Button color="error" onClick={handleDelete} disabled={affectedEntryCount > 0}>
             Delete
           </Button>
         </DialogActions>
