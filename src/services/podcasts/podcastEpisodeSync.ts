@@ -86,17 +86,25 @@ export async function subscribeToPodcast(
 }> {
   const feed = prefetchedFeed ?? (await fetchAndParseFeed(feedUrl));
 
-  const subscription = await addPodcastSubscription({
-    feedUrl,
-    showTitle: feed.showTitle,
-    showArtworkUrl: feed.showArtworkUrl,
-  });
-
   const toImport = selectBackCatalogue(feed.episodes, backCatalogue);
-  for (const episode of toImport) {
-    await createEpisodeEntry(subscription, episode);
-  }
-  await touchPodcastSubscriptionLastChecked(subscription.id);
+  const subscription = await db.transaction(
+    'rw',
+    db.mediaEntries,
+    db.podcastSubscriptions,
+    async () => {
+      const created = await addPodcastSubscription({
+        feedUrl,
+        showTitle: feed.showTitle,
+        showArtworkUrl: feed.showArtworkUrl,
+      });
+
+      for (const episode of toImport) {
+        await createEpisodeEntry(created, episode);
+      }
+      await touchPodcastSubscriptionLastChecked(created.id);
+      return created;
+    },
+  );
 
   return {
     subscription,
@@ -150,10 +158,17 @@ export async function checkAllSubscriptionsForNewEpisodes(): Promise<
       const existingGuids = await loadExistingEpisodeGuids(subscription.id);
       const newEpisodes = feed.episodes.filter((ep) => !existingGuids.has(ep.guid));
 
-      for (const episode of newEpisodes) {
-        await createEpisodeEntry(subscription, episode);
-      }
-      await touchPodcastSubscriptionLastChecked(subscription.id);
+      await db.transaction(
+        'rw',
+        db.mediaEntries,
+        db.podcastSubscriptions,
+        async () => {
+          for (const episode of newEpisodes) {
+            await createEpisodeEntry(subscription, episode);
+          }
+          await touchPodcastSubscriptionLastChecked(subscription.id);
+        },
+      );
 
       results.push({
         subscriptionId: subscription.id,
