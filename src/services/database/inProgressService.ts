@@ -75,7 +75,14 @@ export async function finishInProgressEntry(
     metadata: inProgress.metadata,
   };
 
-  const created = await createEntry(input);
-  await db.inProgressEntries.delete(id);
-  return created;
+  return db.transaction(
+    'rw',
+    db.mediaEntries,
+    db.inProgressEntries,
+    async () => {
+      const created = await createEntry(input);
+      await db.inProgressEntries.delete(id);
+      return created;
+    },
+  );
 }
