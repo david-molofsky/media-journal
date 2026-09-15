@@ -99,12 +99,12 @@
 
 <main>
   <h1>Privacy policy</h1>
-  <p class="meta">Effective date: 13 July 2026</p>
+  <p class="meta">Effective date: 15 September 2026</p>
 
   <p>Media Journal ("the app") is a personal media-tracking application. This policy explains what data the app accesses, how it's used, and how it's stored.</p>
 
   <h2>Overview</h2>
-  <p>Media Journal is offline-first: all of your library data (entries, ratings, notes, tags) is stored locally on your device using your browser's built-in storage. Media Journal does not operate a server or database of its own, and does not collect, transmit, or have access to your data except as described below.</p>
+  <p>Media Journal is offline-first: your journal entries, wishlist, ratings, notes, tags, custom media types, podcast subscriptions and preferences are stored locally on your device using your browser's built-in storage. Media Journal does not require an account and does not operate a central library database. Data leaves your device only when you choose to use an external lookup, import, connection, export or backup feature, as described below.</p>
 
   <h2>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
@@ -116,9 +116,9 @@
   <ul>
     <li><strong>What we access:</strong> Media Journal requests the <code>drive.file</code> scope, a restricted, per-file permission. The app can only see and manage files it itself creates in your Drive — specifically, a folder named "Media Journal" containing your backup files. It has no access to any other files, folders, or content in your Google Drive.</li>
     <li><strong>What we don't access:</strong> Media Journal cannot read, modify, or delete any other files in your Drive, and has no access to your Gmail, Google Calendar, Google Contacts, or any other Google service.</li>
-    <li><strong>What's stored in the backup:</strong> Backup files contain the same data visible in your Media Journal library — entries, ratings, notes, tags, and related metadata. No data is added that isn't already in your local library.</li>
+    <li><strong>What's stored in the backup:</strong> Version 2 backup files contain journal entries, media-type definitions, podcast subscriptions and safe preferences. Authentication tokens, server credentials and device-specific settings are excluded.</li>
     <li><strong>Where your Google credentials go:</strong> Authentication is handled entirely by Google's own sign-in flow (Google Identity Services). Media Journal never sees or stores your Google password. The app stores only a short-lived access token, kept locally on your device, used solely to make Drive API requests on your behalf.</li>
-    <li><strong>Third parties:</strong> Media Journal does not share, sell, or transmit your Google Drive data — or any of your library data — to any third party. No analytics or advertising services have access to this data.</li>
+    <li><strong>Third parties:</strong> Media Journal does not sell your Google Drive data or use it for advertising. Library contents stored in a Drive backup are not sent to analytics services.</li>
   </ul>
 
   <h2>
@@ -140,12 +140,31 @@
     </svg>
     Other data the app accesses
   </h2>
-  <p>Media Journal may also connect to the following third-party services to fetch media metadata (titles, cover art, descriptions). These requests do not include any personal or account information about you:</p>
+  <p>When you request metadata, cover art, barcode information or podcast discovery, Media Journal may send a title, creator, ISBN, UPC, service identifier, podcast search term or feed URL to the relevant provider:</p>
   <ul>
     <li>The Movie Database (TMDB)</li>
     <li>ComicVine</li>
+    <li>Google Books</li>
+    <li>Google image search</li>
+    <li>Open Library and Open Library Covers</li>
+    <li>UPCitemdb and UPCMDB</li>
+    <li>Apple Podcasts search and the publisher hosting a selected RSS feed</li>
   </ul>
-  <p>These lookups are used only to help populate entries in your library and are not linked to your identity.</p>
+  <p>Some of these requests pass through Media Journal's API proxy so browser-based requests can reach the provider. The proxy receives the request data and normal network information such as the device's IP address. Lookup results are used to populate entries or subscriptions in your library.</p>
+
+  <h2>Connected import services</h2>
+  <p>You can optionally connect Media Journal to services that hold your media history. The app requests only the information needed to show an import preview and create the entries you select.</p>
+  <ul>
+    <li><strong>MyAnimeList:</strong> uses MyAnimeList's sign-in and API to retrieve selected anime and manga list information.</li>
+    <li><strong>Trakt:</strong> uses Trakt's sign-in and API to retrieve watch history, ratings and watchlist information.</li>
+    <li><strong>Audiobookshelf:</strong> connects to the server address you provide to retrieve audiobook library and progress information.</li>
+    <li><strong>Jellyfin:</strong> connects to the server address you provide to retrieve played media information.</li>
+    <li><strong>Plex:</strong> connects to the server address you provide to retrieve watched movie and television information.</li>
+  </ul>
+  <p>Connection tokens, server addresses, user identifiers and related settings are stored locally on your device. Passwords entered to connect to Audiobookshelf or Jellyfin are used for the connection request and are not included in Media Journal backups. Tokens and server credentials are excluded from exported backups. Requests to a self-hosted service are also subject to that server operator's logging and privacy practices.</p>
+
+  <h2>Manual imports and exports</h2>
+  <p>Files you select for import are processed on your device. Media Journal shows a review or restore preview before applying supported imports. Files you export are saved to the location you choose and remain under your control.</p>
 
   <h2>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
@@ -153,15 +172,13 @@
     </svg>
     Data retention
   </h2>
-  <p>All library data remains on your device unless you explicitly export it or connect Google Drive backup. Uninstalling the app or clearing your browser's site data will permanently remove locally stored data. Google Drive backup files persist in your own Drive account until you delete them, independent of the app.</p>
+  <p>Local library data remains on your device until you delete it, uninstall the app or clear the browser's site data. Connected-service credentials remain locally until you disconnect the service or clear site data. Google Drive backup files remain in your Drive until you delete them.</p>
 
   <h2>Changes to this policy</h2>
-  <p>If how Media Journal accesses or uses Google user data changes, this policy will be updated and, where required, you will be prompted to review and consent to the change before continued use of the affected feature.</p>
+  <p>This policy will be updated when Media Journal's data access or use changes. Where required, you will be asked to review or consent to a change before continuing to use the affected feature.</p>
 
   <h2>Contact</h2>
   <p>Questions about this policy can be directed to: <a href="mailto:editor@ap2hyc.com">editor@ap2hyc.com</a></p>
-
-  <p class="note">This policy is a starting draft prepared to support Google OAuth verification and general transparency. It has not been reviewed by a lawyer — consider having it checked before publishing, particularly the contact/effective-date fields and any claims about third-party services, which should be confirmed against their current terms.</p>
 
   <a class="backlink" href="/media-journal/">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#81C784" stroke-width="2">
