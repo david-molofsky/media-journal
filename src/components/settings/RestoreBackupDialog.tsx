@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -32,13 +32,11 @@ export function RestoreBackupDialog({
   onCancel,
   onRestore,
 }: RestoreBackupDialogProps) {
-  const [confirmingReplace, setConfirmingReplace] = useState(false);
-
-  useEffect(() => {
-    setConfirmingReplace(false);
-  }, [preview]);
+  const [replacePreview, setReplacePreview] = useState<ImportPreview | null>(null);
 
   if (!preview) return null;
+
+  const confirmingReplace = replacePreview === preview;
 
   const handleClose = () => {
     if (!busy) onCancel();
@@ -104,8 +102,8 @@ export function RestoreBackupDialog({
               {preview.entriesRemovedOnReplace > 0 && (
                 <Alert severity="warning">
                   Replace will remove {preview.entriesRemovedOnReplace}{' '}
-                  {preview.entriesRemovedOnReplace === 1 ? 'entry' : 'entries'} that
-                  exist on this device but not in the backup.
+                  {preview.entriesRemovedOnReplace === 1 ? 'entry' : 'entries'} that exist
+                  on this device but not in the backup.
                 </Alert>
               )}
 
@@ -134,15 +132,11 @@ export function RestoreBackupDialog({
             <Button onClick={handleClose} disabled={busy}>
               Cancel
             </Button>
-            <Button
-              onClick={() => onRestore('merge')}
-              disabled={busy}
-              variant="outlined"
-            >
+            <Button onClick={() => onRestore('merge')} disabled={busy} variant="outlined">
               Merge
             </Button>
             <Button
-              onClick={() => setConfirmingReplace(true)}
+              onClick={() => setReplacePreview(preview)}
               disabled={busy || !preview.canReplace}
               color="error"
               variant="contained"
@@ -162,14 +156,14 @@ export function RestoreBackupDialog({
               on this device that are not in the backup will be removed.
             </Alert>
             <DialogContentText>
-              Before replacing anything, Media Journal will download a safety copy of
-              your current journal. Keep that file until you have confirmed the restored
+              Before replacing anything, Media Journal will download a safety copy of your
+              current journal. Keep that file until you have confirmed the restored
               journal is correct. Connection credentials and device-only settings will
               remain unchanged.
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setConfirmingReplace(false)} disabled={busy}>
+            <Button onClick={() => setReplacePreview(null)} disabled={busy}>
               Back
             </Button>
             <Button
