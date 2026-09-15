@@ -3,7 +3,6 @@ import type {
   MediaEntry,
   MediaType,
   AppSettingRecord,
-  InProgressEntry,
   EntryMetadata,
   PodcastSubscription,
 } from '@/models';
@@ -31,7 +30,6 @@ export class MediaJournalDatabase extends Dexie {
   mediaEntries!: EntityTable<MediaEntry, 'id'>;
   mediaTypes!: EntityTable<MediaType, 'id'>;
   appSettings!: EntityTable<AppSettingRecord, 'key'>;
-  inProgressEntries!: EntityTable<InProgressEntry, 'id'>;
   podcastSubscriptions!: EntityTable<PodcastSubscription, 'id'>;
 
   constructor() {
