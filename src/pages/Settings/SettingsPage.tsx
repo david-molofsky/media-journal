@@ -39,6 +39,10 @@ export default function SettingsPage() {
       </Typography>
 
       <Stack spacing={4} divider={<Divider />}>
+        <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>
+          <DeviceSyncSection />
+        </CollapsibleSection>
+
         <Box data-tour-target="settings-backup">
           <GoogleDriveSection />
         </Box>
@@ -111,10 +115,6 @@ export default function SettingsPage() {
               Replay Guided Tour
             </Button>
           </Stack>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>
-          <DeviceSyncSection />
         </CollapsibleSection>
       </Stack>
     </Box>
