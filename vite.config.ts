@@ -12,7 +12,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Install updates in the background, but let PwaUpdateContext
+      // decide when it is safe to activate them. In particular, an
+      // update must never reload a dirty Add/Edit form.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Media Journal',
