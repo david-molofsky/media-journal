@@ -32,11 +32,11 @@ export function RestoreBackupDialog({
   onCancel,
   onRestore,
 }: RestoreBackupDialogProps) {
-  const [confirmingSource, setConfirmingSource] = useState<string | null>(null);
+  const [replacePreview, setReplacePreview] = useState<ImportPreview | null>(null);
 
   if (!preview) return null;
 
-  const confirmingReplace = confirmingSource === sourceName;
+  const confirmingReplace = replacePreview === preview;
 
   const handleClose = () => {
     if (!busy) {
@@ -139,7 +139,7 @@ export function RestoreBackupDialog({
               Merge
             </Button>
             <Button
-              onClick={() => setConfirmingSource(sourceName)}
+              onClick={() => setReplacePreview(preview)}
               disabled={busy || !preview.canReplace}
               color="error"
               variant="contained"
@@ -166,7 +166,7 @@ export function RestoreBackupDialog({
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setConfirmingSource(null)} disabled={busy}>
+            <Button onClick={() => setReplacePreview(null)} disabled={busy}>
               Back
             </Button>
             <Button

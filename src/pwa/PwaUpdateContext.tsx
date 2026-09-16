@@ -1,67 +1,111 @@
-import { createContext, useContext, useRef, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { shouldApplyPwaUpdate } from './updateSafety';
 
 interface PwaUpdateContextValue {
-  /**
-   * Forces the browser to re-check the network for a new service
-   * worker (bypassing the HTTP cache, per the standard SW update
-   * algorithm) \u2014 this is what "Check for updates" in Settings calls.
-   *
-   * Doesn't itself report whether an update was found:
-   * `registerType: 'autoUpdate'` (vite.config.ts) means any update
-   * found installs and activates immediately, which triggers a full
-   * page reload on its own via the `activated` handler inside
-   * vite-plugin-pwa's registerSW. So the caller just waits a few
-   * seconds \u2014 a reload happening means yes, no reload means no.
-   */
+  /** Ask the current service worker registration to check the network. */
   checkForUpdates: () => Promise<void>;
-  /** False in browsers/contexts without service worker support (or
-   * during local dev, where no SW is registered) \u2014 callers should
-   * hide the update-check UI entirely rather than show a button that
-   * can never do anything. */
+  /** Register or clear one mounted unsaved-work blocker. */
+  setUpdateBlocker: (id: symbol, blocked: boolean) => void;
+  /** False when service workers are unavailable or disabled in local development. */
   supported: boolean;
 }
 
 const PwaUpdateContext = createContext<PwaUpdateContextValue | null>(null);
 
 /**
- * Registers the app's service worker exactly once (via useRegisterSW)
- * and makes a manual "check now" action available anywhere in the
- * tree through usePwaUpdate. Must wrap the app root \u2014 useRegisterSW
- * itself isn't safe to call from more than one place, since each call
- * registers a fresh Workbox instance and listener set.
- *
- * Ported directly from Media Journal's pwa/PwaUpdateContext.tsx \u2014
- * same vite-plugin-pwa setup (registerType: 'autoUpdate'), so the
- * pattern applies unchanged.
+ * Registers the service worker once for the app. Updates may download
+ * immediately, but activation waits until every dirty-form blocker has
+ * cleared so a newly installed version cannot reload unfinished work.
  */
 export function PwaUpdateProvider({ children }: { children: ReactNode }) {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const updateApplyingRef = useRef(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateBlockers, setUpdateBlockers] = useState<ReadonlySet<symbol>>(
+    () => new Set(),
+  );
 
-  useRegisterSW({
+  const { updateServiceWorker } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       registrationRef.current = registration ?? null;
     },
+    onNeedRefresh() {
+      setUpdateAvailable(true);
+    },
   });
 
-  const checkForUpdates = async () => {
+  const setUpdateBlocker = useCallback((id: symbol, blocked: boolean) => {
+    setUpdateBlockers((current) => {
+      if (current.has(id) === blocked) return current;
+
+      const next = new Set(current);
+      if (blocked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (
+      !shouldApplyPwaUpdate(
+        updateAvailable,
+        updateBlockers.size,
+        updateApplyingRef.current,
+      )
+    ) {
+      return;
+    }
+
+    updateApplyingRef.current = true;
+    void updateServiceWorker(true).catch(() => {
+      // Keep the update pending so a later check or blocker transition
+      // can retry activation.
+      updateApplyingRef.current = false;
+    });
+  }, [updateAvailable, updateBlockers, updateServiceWorker]);
+
+  const checkForUpdates = useCallback(async () => {
     await registrationRef.current?.update();
-  };
+  }, []);
 
   const supported = typeof navigator !== 'undefined' && 'serviceWorker' in navigator;
 
-  return (
-    <PwaUpdateContext.Provider value={{ checkForUpdates, supported }}>
-      {children}
-    </PwaUpdateContext.Provider>
+  const value = useMemo(
+    () => ({ checkForUpdates, setUpdateBlocker, supported }),
+    [checkForUpdates, setUpdateBlocker, supported],
   );
+
+  return <PwaUpdateContext.Provider value={value}>{children}</PwaUpdateContext.Provider>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components -- context + its hook are intentionally paired in one file; splitting only saves a dev-mode fast-refresh edge case.
+// eslint-disable-next-line react-refresh/only-export-components -- context + hooks intentionally share one module.
 export function usePwaUpdate(): PwaUpdateContextValue {
   const ctx = useContext(PwaUpdateContext);
   if (!ctx) {
     throw new Error('usePwaUpdate must be used within a PwaUpdateProvider');
   }
   return ctx;
+}
+
+/** Prevent an installed update from activating while `blocked` is true. */
+// eslint-disable-next-line react-refresh/only-export-components -- context + hooks intentionally share one module.
+export function usePwaUpdateBlocker(blocked: boolean): void {
+  const { setUpdateBlocker } = usePwaUpdate();
+  const blockerId = useRef(Symbol('pwa-update-blocker'));
+
+  useEffect(() => {
+    const id = blockerId.current;
+    setUpdateBlocker(id, blocked);
+    return () => setUpdateBlocker(id, false);
+  }, [blocked, setUpdateBlocker]);
 }

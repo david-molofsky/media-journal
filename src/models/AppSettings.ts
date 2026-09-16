@@ -49,6 +49,17 @@ export const SETTINGS_KEYS = {
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
   lastAutoBackupError: 'lastAutoBackupError',
+  /** Device-sync state. These values deliberately remain device-local
+   * and are therefore excluded from portable exports. `syncDeviceId`
+   * permanently identifies this browser install; the timestamps are
+   * status only and never decide which journal data wins. */
+  syncDeviceId: 'syncDeviceId',
+  syncUserId: 'syncUserId',
+  syncProvider: 'syncProvider',
+  lastDeviceSyncAt: 'lastDeviceSyncAt',
+  lastCloudRevision: 'lastCloudRevision',
+  lastSyncedJournalHash: 'lastSyncedJournalHash',
+  lastDeviceSyncError: 'lastDeviceSyncError',
   /** ComicVine (Comic Issues) auto-fill toggles — read by
    * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
    * (ComicVine)). Same convention as the TMDB toggles above: all
@@ -207,6 +218,11 @@ export const SETTINGS_KEYS = {
    * only via Settings > Replay Guided Tour. Device-local, same as
    * `hasSeenWelcome`. */
   hasCompletedGuidedTour: 'hasCompletedGuidedTour',
+  /** Device-local operational history for import sources. Used by the
+   * Integrations centre to show the last run, imported count and last
+   * failure. Excluded from portable backups because it describes this
+   * device's activity rather than the journal itself. */
+  importActivity: 'importActivity',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

@@ -14,6 +14,7 @@ const EditEntryPage = lazy(() => import('@/pages/EditEntry/EditEntryPage'));
 const StatisticsPage = lazy(() => import('@/pages/Statistics/StatisticsPage'));
 const SubscriptionsPage = lazy(() => import('@/pages/Subscriptions/SubscriptionsPage'));
 const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage'));
+const IntegrationsPage = lazy(() => import('@/pages/Integrations/IntegrationsPage'));
 const MalCallbackPage = lazy(() => import('@/pages/Settings/MalCallbackPage'));
 const TraktCallbackPage = lazy(() => import('@/pages/Settings/TraktCallbackPage'));
 
@@ -35,6 +36,7 @@ export function AppRoutes() {
           <Route path={ROUTES.statistics} element={<StatisticsPage />} />
           <Route path={ROUTES.subscriptions} element={<SubscriptionsPage />} />
           <Route path={ROUTES.settings} element={<SettingsPage />} />
+          <Route path={ROUTES.integrations} element={<IntegrationsPage />} />
           <Route path={ROUTES.malCallback} element={<MalCallbackPage />} />
           <Route path={ROUTES.traktCallback} element={<TraktCallbackPage />} />
           <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />

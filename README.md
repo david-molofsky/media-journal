@@ -1,32 +1,83 @@
-# React + TypeScript + Vite
+# Media Journal
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Media Journal is a personal, offline-first archive for everything you read, watch and listen to. It combines a journal, wishlist, goals, statistics, recommendations, podcast subscriptions and import tools in one installable web app.
 
-Currently, two official plugins are available:
+## What it tracks
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Media Journal supports books, audiobooks, comics, films, television seasons, podcasts and user-defined media types. Entries can include completion dates, ratings, notes, genres, tags, creators, sources and format-specific metadata.
 
-## React Compiler
+## Key features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- A unified journal and wishlist with search, filters and yearly views
+- Offline storage using IndexedDB
+- Custom media types and metadata fields
+- Goals, statistics, series tracking and recommendations
+- Podcast subscriptions and episode imports
+- Imports from supported CSV formats and connected services
+- Optional connections to MyAnimeList, Trakt, Audiobookshelf, Jellyfin and Plex
+- Versioned local backups and optional Google Drive backup
+- Installable PWA support, including the Android Trusted Web Activity release
 
-## Expanding the Oxlint configuration
+## Data and privacy
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+Journal data is stored locally in the browser using IndexedDB. Media Journal does not require an account. Data leaves the device only when the user deliberately uses an external lookup, import, connection, export or backup feature.
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+Version 2 backups include entries, media-type definitions, podcast subscriptions and safe preferences. Authentication tokens, server credentials and device-specific settings are excluded. Older Version 1 backups remain importable with the restrictions shown by the restore preview.
+
+See the published [privacy policy](public/privacy.html) for details about external services and data handling.
+
+## Development
+
+Requirements:
+
+- Node.js 22
+- npm
+
+Install dependencies and start the local development server:
+
+```bash
+npm ci
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The production site uses the `/media-journal/` base path. Local Vite development supplies the appropriate development URL automatically.
+
+## Quality checks
+
+Run the same core checks used for pull requests:
+
+```bash
+npm run lint
+npm run format:check
+npm run typecheck
+npm run build
+```
+
+The GitHub Actions workflows in `.github/workflows` run pull-request checks and deploy the production build to GitHub Pages.
+
+## Project structure
+
+- `src/components` — reusable interface components
+- `src/pages` — route-level screens
+- `src/services/database` — IndexedDB schema, migrations and persistence
+- `src/services/importExport` — backup and import workflows
+- `src/services/metadata` — external metadata and connected-service clients
+- `src/services/podcasts` — podcast discovery and feed processing
+- `src/models` — application data types
+- `src/utils` — shared utilities
+- `public` — static assets, OAuth callback and privacy policy
+
+Application TypeScript belongs under `src`; root-level TypeScript files are reserved for build configuration.
+
+## Versioning
+
+`package.json` is the authoritative application version. Vite injects that value into the app at build time, so the version shown in Settings and service client identification stay aligned.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit and pull-request conventions.
+
+## Production
+
+- Web app: [david-molofsky.github.io/media-journal](https://david-molofsky.github.io/media-journal/)
+- Repository: [github.com/david-molofsky/media-journal](https://github.com/david-molofsky/media-journal)

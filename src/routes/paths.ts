@@ -14,6 +14,7 @@ export const ROUTES = {
   statistics: '/statistics',
   subscriptions: '/subscriptions',
   settings: '/settings',
+  integrations: '/integrations',
   malCallback: '/settings/mal-callback',
   traktCallback: '/settings/trakt-callback',
 } as const;
