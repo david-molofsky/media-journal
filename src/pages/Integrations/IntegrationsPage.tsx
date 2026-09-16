@@ -128,6 +128,13 @@ export default function IntegrationsPage() {
 
       <Stack spacing={3} divider={<Divider />}>
         <Box>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+            File imports
+          </Typography>
+          <ImportSourcesSection />
+        </Box>
+
+        <Box>
           <Stack
             direction="row"
             justifyContent="space-between"
@@ -146,13 +153,6 @@ export default function IntegrationsPage() {
             <JellyfinImportSection />
             <PlexImportSection />
           </Stack>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-            File imports
-          </Typography>
-          <ImportSourcesSection />
         </Box>
 
         <Box>
