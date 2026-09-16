@@ -10,6 +10,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
@@ -34,6 +35,11 @@ import { getBookDetailsByKey } from '@/services/metadata/openLibraryService';
 import { getIssueDetails, searchSeries } from '@/services/metadata/comicVineService';
 import { ROUTES } from '@/routes/paths';
 import { SETTINGS_KEYS } from '@/models';
+import {
+  clearPlatformShareFromAddressBar,
+  platformShareValues,
+  readPlatformShare,
+} from '@/pwa/platformShare';
 import type { MediaType, NewMediaEntryInput } from '@/models';
 
 /** Mirrors MediaTypePicker's TIP_MAX_SHOWS — a save counts as one of
@@ -78,6 +84,7 @@ export default function AddEntryPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [platformShare, setPlatformShare] = useState(readPlatformShare);
 
   // Re-log pre-fill (from Edit Entry's "Log a Rewatch/Reread/Replay").
   // Dismissed the same way a shared link is abandoned — the arrow-back
@@ -129,14 +136,14 @@ export default function AddEntryPage() {
   }, [relogValues, relogDismissed, mediaTypes]);
 
   const draftMediaType = useMemo(() => {
-    if (!entryDraft || !mediaTypes || isSharedLink || relogValues) return null;
+    if (!entryDraft || !mediaTypes || isSharedLink || relogValues || platformShare)
+      return null;
     return mediaTypes.find((mt) => mt.id === entryDraft.values.mediaType) ?? null;
-  }, [entryDraft, mediaTypes, isSharedLink, relogValues]);
+  }, [entryDraft, mediaTypes, isSharedLink, platformShare, relogValues]);
 
   // Manual picks take priority, followed by intentional shared/re-log
   // pre-fills, then a recoverable local draft from an interrupted entry.
-  const activeType =
-    selectedType ?? sharedMediaType ?? relogMediaType ?? draftMediaType;
+  const activeType = selectedType ?? sharedMediaType ?? relogMediaType ?? draftMediaType;
 
   // Only apply the re-log values once the resolved type actually
   // matches — guards against a stale pre-fill being applied after the
@@ -151,6 +158,13 @@ export default function AddEntryPage() {
     !relogValues
       ? entryDraft.values
       : undefined;
+  const platformShareInitialValues = useMemo(
+    () =>
+      platformShare && activeType
+        ? platformShareValues(platformShare, activeType)
+        : undefined,
+    [activeType, platformShare],
+  );
 
   const sharedLoading =
     isSharedLink &&
@@ -403,6 +417,15 @@ export default function AddEntryPage() {
           Filled in from a shared link — review and save.
         </Alert>
       )}
+      {platformShareInitialValues && (
+        <Alert
+          icon={<ShareOutlinedIcon fontSize="inherit" />}
+          severity="info"
+          sx={{ mb: 2 }}
+        >
+          Shared to Media Journal — review this Wishlist entry and save.
+        </Alert>
+      )}
       {relogInitialValues && (
         <Alert icon={<ReplayIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
           Pre-filled from your previous entry — review and save.
@@ -425,15 +448,18 @@ export default function AddEntryPage() {
             </Button>
           }
         >
-          Your unfinished entry was restored. Changes save automatically on this
-          device.
+          Your unfinished entry was restored. Changes save automatically on this device.
         </Alert>
       )}
       <EntryForm
-        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
+        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : platformShareInitialValues ? 'platform-share' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
         mediaType={effectiveMediaType}
         initialValues={
-          sharedValues ?? relogInitialValues ?? draftInitialValues ?? undefined
+          sharedValues ??
+          platformShareInitialValues ??
+          relogInitialValues ??
+          draftInitialValues ??
+          undefined
         }
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
@@ -455,6 +481,10 @@ export default function AddEntryPage() {
           }
           if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
           clearAddEntryDraft();
+          if (platformShare) {
+            clearPlatformShareFromAddressBar();
+            setPlatformShare(null);
+          }
           navigate(ROUTES.library);
         }}
       />
