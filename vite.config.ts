@@ -27,6 +27,32 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/media-journal/',
         scope: '/media-journal/',
+        shortcuts: [
+          {
+            name: 'Add entry',
+            short_name: 'Add entry',
+            description: 'Add something to Media Journal',
+            url: '/media-journal/#/entry/new',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Open wishlist',
+            short_name: 'Wishlist',
+            description: 'Open your Media Journal wishlist',
+            url: '/media-journal/#/library',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
+        share_target: {
+          action: '/media-journal/?share-target=1#/entry/new',
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
