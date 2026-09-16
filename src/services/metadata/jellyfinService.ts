@@ -14,7 +14,7 @@
  * needed if the server doesn't allow that.
  */
 
-const CLIENT_HEADER = 'MediaBrowser Client="Media Journal", Device="Web", DeviceId="media-journal-web", Version="1.0"';
+const CLIENT_HEADER = `MediaBrowser Client="Media Journal", Device="Web", DeviceId="media-journal-web", Version="${__APP_VERSION__}"`;
 
 function normalizeServerUrl(serverUrl: string): string {
   return serverUrl.trim().replace(/\/+$/, '');
@@ -73,7 +73,10 @@ interface JellyfinUser {
  * tokens); if the key can't use that (see the API-key caveat above),
  * falls back to the first administrator returned by /Users.
  */
-export async function resolveJellyfinUserId(serverUrl: string, token: string): Promise<string> {
+export async function resolveJellyfinUserId(
+  serverUrl: string,
+  token: string,
+): Promise<string> {
   try {
     const me = await jellyfinFetch<JellyfinUser>(serverUrl, token, '/Users/Me');
     if (me.Id) return me.Id;
@@ -86,7 +89,11 @@ export async function resolveJellyfinUserId(serverUrl: string, token: string): P
   return admin.Id;
 }
 
-export async function verifyJellyfinToken(serverUrl: string, token: string, userId: string): Promise<void> {
+export async function verifyJellyfinToken(
+  serverUrl: string,
+  token: string,
+  userId: string,
+): Promise<void> {
   await jellyfinFetch(serverUrl, token, `/Users/${userId}`);
 }
 

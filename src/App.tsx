@@ -20,6 +20,7 @@ import { GuidedTourOverlay } from '@/tour/GuidedTourOverlay';
 import { AnalyticsConsentPrompt } from '@/components/common/AnalyticsConsentPrompt';
 import { AnalyticsRouteTracker } from '@/components/common/AnalyticsRouteTracker';
 import { DeleteUndoProvider } from '@/contexts/DeleteUndoContext';
+import { useDeviceSync } from '@/hooks/useDeviceSync';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -38,6 +39,7 @@ export default function App() {
   }, []);
 
   useAutoBackup();
+  useDeviceSync();
 
   return (
     <PwaUpdateProvider>

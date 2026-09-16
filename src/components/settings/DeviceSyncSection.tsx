@@ -27,13 +27,20 @@ import {
 } from '@/services/sync/cloudJournalService';
 import {
   createStartingJournalSnapshot,
+  combineThisDeviceWithCloud,
   downloadStartingJournalSafetyCopy,
   getOrCreateSyncDeviceId,
   makeThisDeviceStartingJournal,
+  reviewCloudJournal,
   summariseJournal,
+  syncDeviceNow,
+  adoptCloudJournalOnDevice,
+  type CloudJournalReview,
   type LocalJournalSummary,
 } from '@/services/sync/deviceSyncService';
 import type { ExportPayload } from '@/services/importExport/importExportService';
+import { SETTINGS_KEYS } from '@/models';
+import { getSetting } from '@/services/database/settingsService';
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Device sync could not be set up.';
@@ -49,17 +56,23 @@ export function DeviceSyncSection() {
   const [summary, setSummary] = useState<LocalJournalSummary | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [review, setReview] = useState<CloudJournalReview | null>(null);
+  const [enrolled, setEnrolled] = useState(false);
 
   const loadSignedInState = useCallback(async (signedInUser: SyncUser) => {
-    const [cloudManifest, localSnapshot, currentDeviceId] = await Promise.all([
-      getCloudJournalManifest(signedInUser.uid),
-      createStartingJournalSnapshot(),
-      getOrCreateSyncDeviceId(),
-    ]);
+    const [cloudManifest, localSnapshot, currentDeviceId, syncProvider, syncUserId] =
+      await Promise.all([
+        getCloudJournalManifest(signedInUser.uid),
+        createStartingJournalSnapshot(),
+        getOrCreateSyncDeviceId(),
+        getSetting<string | null>(SETTINGS_KEYS.syncProvider, null),
+        getSetting<string | null>(SETTINGS_KEYS.syncUserId, null),
+      ]);
     setManifest(cloudManifest);
     setSnapshot(localSnapshot);
     setSummary(summariseJournal(localSnapshot));
     setDeviceId(currentDeviceId);
+    setEnrolled(syncProvider === 'firebase' && syncUserId === signedInUser.uid);
   }, []);
 
   useEffect(() => {
@@ -77,6 +90,8 @@ export function DeviceSyncSection() {
         setSnapshot(null);
         setSummary(null);
         setDeviceId(null);
+        setReview(null);
+        setEnrolled(false);
       }
     });
   }, [loadSignedInState]);
@@ -106,7 +121,40 @@ export function DeviceSyncSection() {
       downloadStartingJournalSafetyCopy(snapshot);
       const uploadedManifest = await makeThisDeviceStartingJournal(user.uid, snapshot);
       setManifest(uploadedManifest);
+      setEnrolled(true);
       setConfirming(false);
+    });
+
+  const handleReviewCloud = () =>
+    run(async () => {
+      if (!user) return;
+      setReview(await reviewCloudJournal(user.uid));
+    });
+
+  const handleUseCloud = () =>
+    run(async () => {
+      if (!user || !review) return;
+      await adoptCloudJournalOnDevice(user.uid, review);
+      setEnrolled(true);
+      setSnapshot(await createStartingJournalSnapshot());
+      setReview(null);
+    });
+
+  const handleCombine = () =>
+    run(async () => {
+      if (!user || !review) return;
+      const updatedManifest = await combineThisDeviceWithCloud(user.uid, review);
+      setManifest(updatedManifest);
+      setEnrolled(true);
+      setSnapshot(await createStartingJournalSnapshot());
+      setReview(null);
+    });
+
+  const handleSyncNow = () =>
+    run(async () => {
+      if (!user) return;
+      await syncDeviceNow(user.uid);
+      await loadSignedInState(user);
     });
 
   if (!isFirebaseSyncConfigured) {
@@ -144,16 +192,25 @@ export function DeviceSyncSection() {
             Continue with Google
           </Button>
         </>
-      ) : manifest?.status === 'ready' && manifest.sourceDeviceId === deviceId ? (
+      ) : manifest?.status === 'ready' &&
+        (manifest.sourceDeviceId === deviceId || enrolled) ? (
         <>
           <Alert severity="success" icon={<CloudDoneOutlinedIcon />}>
-            This device supplied the starting journal. The protected cloud copy contains{' '}
+            This device is synced. The protected cloud journal contains{' '}
             {manifest.counts.entries}{' '}
             {manifest.counts.entries === 1 ? 'entry' : 'entries'}.
           </Alert>
           <Typography variant="body2" color="text.secondary">
             Signed in as {user.email ?? user.displayName ?? 'Google user'}.
           </Typography>
+          <Button
+            variant="outlined"
+            onClick={() => void handleSyncNow()}
+            disabled={busy}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Sync now
+          </Button>
           <Button
             size="small"
             onClick={() => void run(signOutOfDeviceSync)}
@@ -164,9 +221,70 @@ export function DeviceSyncSection() {
           </Button>
         </>
       ) : manifest?.status === 'ready' ? (
+        <>
+          <Alert severity="info">
+            A cloud journal already exists for this account. This device’s local data has
+            not been changed.
+          </Alert>
+          {!review ? (
+            <Button
+              variant="contained"
+              onClick={() => void handleReviewCloud()}
+              disabled={busy}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              Review cloud journal
+            </Button>
+          ) : (
+            <Stack spacing={1.5}>
+              <Typography variant="body2">
+                Cloud: {review.preview.entryCount} entries. This device:{' '}
+                {review.preview.currentEntryCount} entries. The cloud has{' '}
+                {review.preview.newEntryCount} entries not on this device.
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => void handleUseCloud()}
+                disabled={busy}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Use cloud journal on this device
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => void handleCombine()}
+                disabled={busy}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                Combine this device with cloud
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Both options download a safety copy first. Combine keeps unique records
+                from both journals and uses the most recently updated matching entry.
+              </Typography>
+            </Stack>
+          )}
+        </>
+      ) : manifest?.status === 'syncing' &&
+        manifest.sourceDeviceId === deviceId &&
+        enrolled ? (
+        <>
+          <Alert severity="warning">
+            The previous synchronization was interrupted. Your local journal is safe.
+          </Alert>
+          <Button
+            variant="contained"
+            onClick={() => void handleSyncNow()}
+            disabled={busy}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Resume sync
+          </Button>
+        </>
+      ) : manifest?.status === 'syncing' ? (
         <Alert severity="info">
-          A cloud journal already exists for this account. This device’s local data has
-          not been changed. A review-and-merge step is required before it joins sync.
+          Another enrolled device is updating the cloud journal. Try again when it has
+          finished.
         </Alert>
       ) : manifest?.status === 'uploading' && manifest.sourceDeviceId === deviceId ? (
         <>

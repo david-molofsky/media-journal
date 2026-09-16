@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 import { Outlet } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { BottomNav } from './BottomNav';
+import { PlatformStatusBanner } from './PlatformStatusBanner';
 
 const BOTTOM_NAV_HEIGHT = 64;
 
@@ -28,6 +29,7 @@ export function AppLayout() {
           pb: `${BOTTOM_NAV_HEIGHT + 24}px`,
         }}
       >
+        <PlatformStatusBanner />
         <Outlet />
         <Box
           component="footer"
@@ -40,8 +42,8 @@ export function AppLayout() {
           }}
         >
           <Typography variant="caption" color="text.secondary">
-            Media Journal — a permanent, offline-first archive of everything you read, watch and
-            listen to.
+            Media Journal — a permanent, offline-first archive of everything you read,
+            watch and listen to.
           </Typography>
         </Box>
       </Box>

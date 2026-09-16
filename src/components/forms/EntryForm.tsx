@@ -53,6 +53,7 @@ import { hasMetadataSearch } from '@/utils/metadataSearchSupport';
 import { FIELD_PAIRS } from '@/utils/fieldPairs';
 import { hasIsbnScan, isIsbnScanAvailable } from '@/utils/isbnScanSupport';
 import { hasUpcScan, isUpcScanAvailable } from '@/utils/upcScanSupport';
+import { usePwaUpdateBlocker } from '@/pwa/PwaUpdateContext';
 import type {
   EntryMetadata,
   EntryStatus,
@@ -335,6 +336,11 @@ export function EntryForm({
     resolver: zodResolver(mediaEntrySchema) as unknown as Resolver<EntryFormValues>,
     defaultValues,
   });
+
+  // An installed update may finish downloading while this form is
+  // open. Keep it pending until the form is saved, reset or abandoned;
+  // local draft persistence remains the fallback for OS-level closure.
+  usePwaUpdateBlocker(isDirty);
 
   // Persist a complete form snapshot shortly after each change. On
   // navigation/unmount, flush any pending change synchronously so even

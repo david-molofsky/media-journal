@@ -1,4 +1,9 @@
 import { trackEvent } from './analyticsService';
+import {
+  recordImportCompleted,
+  recordImportFailed,
+  recordImportStarted,
+} from '@/services/importExport/importActivityService';
 
 export type ImportSource =
   | 'amazon_prime'
@@ -31,6 +36,7 @@ export function trackImportStarted(
   importSource: ImportSource,
   importMethod: ImportMethod,
 ): void {
+  void recordImportStarted(importSource, importMethod);
   trackEvent('import_started', {
     import_source: importSource,
     import_method: importMethod,
@@ -42,6 +48,7 @@ export function trackImportCompleted(
   importMethod: ImportMethod,
   result: ImportResultAnalytics,
 ): void {
+  void recordImportCompleted(importSource, importMethod, result);
   trackEvent('import_completed', {
     import_source: importSource,
     import_method: importMethod,
@@ -58,6 +65,7 @@ export function trackImportFailed(
   importMethod: ImportMethod,
   stage: 'fetch' | 'parse' | 'match' | 'apply',
 ): void {
+  void recordImportFailed(importSource, importMethod, stage);
   trackEvent('import_failed', {
     import_source: importSource,
     import_method: importMethod,

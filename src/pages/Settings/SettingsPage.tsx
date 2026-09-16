@@ -4,7 +4,7 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
-import ImportExportOutlinedIcon from '@mui/icons-material/ImportExportOutlined';
+import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PodcastsOutlinedIcon from '@mui/icons-material/PodcastsOutlined';
 import { DarkModeToggle } from '@/components/settings/DarkModeToggle';
@@ -13,23 +13,21 @@ import { TmdbAutofillSection } from '@/components/settings/TmdbAutofillSection';
 import { ComicVineAutofillSection } from '@/components/settings/ComicVineAutofillSection';
 import { OpenLibraryAutofillSection } from '@/components/settings/OpenLibraryAutofillSection';
 import { ImportExportSection } from '@/components/settings/ImportExportSection';
-import { ImportSourcesSection } from '@/components/settings/ImportSourcesSection';
 import { GoogleDriveSection } from '@/components/settings/GoogleDriveSection';
 import { MediaTypeManager } from '@/components/settings/MediaTypeManager';
 import { RegionSection } from '@/components/settings/RegionSection';
-import { MalImportSection } from '@/components/settings/MalImportSection';
-import { TraktImportSection } from '@/components/settings/TraktImportSection';
-import { AudiobookshelfImportSection } from '@/components/settings/AudiobookshelfImportSection';
-import { JellyfinImportSection } from '@/components/settings/JellyfinImportSection';
-import { PlexImportSection } from '@/components/settings/PlexImportSection';
 import { SubscriptionsSection } from '@/components/settings/SubscriptionsSection';
 import { PodcastSubscriptionsSection } from '@/components/settings/PodcastSubscriptionsSection';
 import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 import Button from '@mui/material/Button';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useGuidedTour } from '@/tour/GuidedTourContext';
 import { DeviceSyncSection } from '@/components/settings/DeviceSyncSection';
+import { DataHealthSection } from '@/components/settings/DataHealthSection';
+import { Link as RouterLink } from 'react-router-dom';
+import { ROUTES } from '@/routes/paths';
 
 export default function SettingsPage() {
   const { start: startGuidedTour } = useGuidedTour();
@@ -56,18 +54,20 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        {/* Import Data — CSV-based sources plus the two connected-account
-            sources (MAL, Trakt), grouped together per the original
-            scoping decision (see chat) rather than split apart. */}
-        <CollapsibleSection title="Import data" icon={ImportExportOutlinedIcon}>
-          <Stack spacing={3}>
-            <ImportSourcesSection />
-            <MalImportSection />
-            <TraktImportSection />
-            <AudiobookshelfImportSection />
-            <JellyfinImportSection />
-            <PlexImportSection />
+        <CollapsibleSection title="Integrations" icon={HubOutlinedIcon} defaultExpanded>
+          <Stack spacing={1.5} alignItems="flex-start">
+            <Typography variant="body2" color="text.secondary">
+              Connect accounts, import files and review the outcome of previous imports in
+              one place.
+            </Typography>
+            <Button component={RouterLink} to={ROUTES.integrations} variant="outlined">
+              Open Integrations
+            </Button>
           </Stack>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Data health" icon={FactCheckOutlinedIcon}>
+          <DataHealthSection />
         </CollapsibleSection>
 
         <Box data-tour-target="settings-media-types">
@@ -91,8 +91,8 @@ export default function SettingsPage() {
 
         <CollapsibleSection title="About" icon={InfoOutlinedIcon}>
           <Typography variant="body2" color="text.secondary">
-            Media Journal v1.0 — a permanent, offline-first archive of everything you
-            read, watch and listen to. Built with React, MUI and Dexie.
+            Media Journal v{__APP_VERSION__} — a permanent, offline-first archive of
+            everything you read, watch and listen to. Built with React, MUI and Dexie.
           </Typography>
           <PwaUpdateSection />
         </CollapsibleSection>

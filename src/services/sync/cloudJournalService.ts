@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   runTransaction,
   serverTimestamp,
   writeBatch,
@@ -9,15 +10,19 @@ import {
 } from 'firebase/firestore';
 import type { ExportPayload } from '@/services/importExport/importExportService';
 import { getFirebaseServices } from './firebaseClient';
+import { calculateJournalHash } from './journalSync';
 
 const BATCH_WRITE_LIMIT = 400;
 
 export interface CloudJournalManifest {
   schemaVersion: 1;
-  status: 'uploading' | 'ready';
+  status: 'uploading' | 'syncing' | 'ready';
   sourceDeviceId: string;
   snapshotExportedAt: string;
   completedAt?: string;
+  revision: number;
+  journalHash: string;
+  baseRevision?: number;
   counts: {
     entries: number;
     mediaTypes: number;
@@ -28,7 +33,8 @@ export interface CloudJournalManifest {
 
 interface PendingWrite {
   ref: DocumentReference;
-  value: Record<string, unknown>;
+  value?: Record<string, unknown>;
+  delete?: boolean;
 }
 
 function firestoreSafe(value: unknown): unknown {
@@ -53,7 +59,8 @@ async function commitInChunks(writes: PendingWrite[]): Promise<void> {
   for (let index = 0; index < writes.length; index += BATCH_WRITE_LIMIT) {
     const batch = writeBatch(firestore);
     for (const write of writes.slice(index, index + BATCH_WRITE_LIMIT)) {
-      batch.set(write.ref, write.value);
+      if (write.delete) batch.delete(write.ref);
+      else batch.set(write.ref, write.value ?? {});
     }
     await batch.commit();
   }
@@ -70,6 +77,7 @@ export async function uploadStartingJournal(
   snapshot: ExportPayload,
 ): Promise<CloudJournalManifest> {
   const { firestore } = getFirebaseServices();
+  const journalHash = await calculateJournalHash(snapshot);
   const counts = {
     entries: snapshot.entries.length,
     mediaTypes: snapshot.mediaTypes.length,
@@ -81,6 +89,8 @@ export async function uploadStartingJournal(
     status: 'uploading',
     sourceDeviceId: deviceId,
     snapshotExportedAt: snapshot.exportedAt,
+    revision: 1,
+    journalHash,
     counts,
   };
 
@@ -101,6 +111,11 @@ export async function uploadStartingJournal(
     if (current?.status === 'uploading' && current.sourceDeviceId !== deviceId) {
       throw new Error(
         'Another device has already started creating this cloud journal. Finish setup on that device first.',
+      );
+    }
+    if (current?.status === 'syncing') {
+      throw new Error(
+        'This cloud journal is already being synchronized by an enrolled device.',
       );
     }
 
@@ -143,4 +158,159 @@ export async function uploadStartingJournal(
   });
   await finishBatch.commit();
   return readyManifest;
+}
+
+async function readCollection<T>(userId: string, name: string): Promise<T[]> {
+  const { firestore } = getFirebaseServices();
+  const snapshot = await getDocs(collection(firestore, 'users', userId, name));
+  return snapshot.docs.map((item) => item.data() as T);
+}
+
+export async function downloadCloudJournal(
+  userId: string,
+): Promise<{ manifest: CloudJournalManifest; snapshot: ExportPayload }> {
+  const manifest = await getCloudJournalManifest(userId);
+  if (!manifest || manifest.status !== 'ready') {
+    throw new Error('The cloud journal is not ready to download.');
+  }
+
+  const [entries, mediaTypes, podcastSubscriptions] = await Promise.all([
+    readCollection<ExportPayload['entries'][number]>(userId, 'entries'),
+    readCollection<ExportPayload['mediaTypes'][number]>(userId, 'mediaTypes'),
+    readCollection<ExportPayload['podcastSubscriptions'][number]>(
+      userId,
+      'podcastSubscriptions',
+    ),
+  ]);
+
+  const { firestore } = getFirebaseServices();
+  const settingsSnapshot = await getDocs(
+    collection(firestore, 'users', userId, 'settings'),
+  );
+  const settings = Object.fromEntries(
+    settingsSnapshot.docs.map((item) => [item.id, item.data().value]),
+  );
+  return {
+    manifest,
+    snapshot: {
+      version: 2,
+      exportedAt: manifest.completedAt ?? manifest.snapshotExportedAt,
+      entries,
+      mediaTypes,
+      podcastSubscriptions,
+      settings,
+    },
+  };
+}
+
+async function snapshotWrites(
+  userId: string,
+  snapshot: ExportPayload,
+): Promise<PendingWrite[]> {
+  const { firestore } = getFirebaseServices();
+  const groups = [
+    {
+      name: 'entries',
+      values: snapshot.entries.map((value) => ({ id: value.id, value })),
+    },
+    {
+      name: 'mediaTypes',
+      values: snapshot.mediaTypes.map((value) => ({ id: value.id, value })),
+    },
+    {
+      name: 'podcastSubscriptions',
+      values: snapshot.podcastSubscriptions.map((value) => ({ id: value.id, value })),
+    },
+    {
+      name: 'settings',
+      values: Object.entries(snapshot.settings).map(([id, value]) => ({
+        id,
+        value: { value },
+      })),
+    },
+  ];
+  const writes: PendingWrite[] = [];
+
+  for (const group of groups) {
+    const targetIds = new Set(group.values.map(({ id }) => id));
+    const current = await getDocs(collection(firestore, 'users', userId, group.name));
+    for (const item of current.docs) {
+      if (!targetIds.has(item.id)) writes.push({ ref: item.ref, delete: true });
+    }
+    for (const item of group.values) {
+      writes.push({
+        ref: doc(collection(firestore, 'users', userId, group.name), item.id),
+        value: firestoreSafe(item.value) as Record<string, unknown>,
+      });
+    }
+  }
+  return writes;
+}
+
+/** Replaces an enrolled cloud journal only when its expected revision still matches. */
+export async function replaceCloudJournal(
+  userId: string,
+  deviceId: string,
+  snapshot: ExportPayload,
+  expectedRevision: number,
+): Promise<CloudJournalManifest> {
+  const { firestore } = getFirebaseServices();
+  const journalHash = await calculateJournalHash(snapshot);
+  const ref = manifestReference(userId);
+
+  await runTransaction(firestore, async (transaction) => {
+    const currentSnapshot = await transaction.get(ref);
+    if (!currentSnapshot.exists()) throw new Error('The cloud journal is missing.');
+    const current = currentSnapshot.data() as CloudJournalManifest;
+    const resuming =
+      current.status === 'syncing' &&
+      current.sourceDeviceId === deviceId &&
+      current.baseRevision === expectedRevision;
+    if (
+      !resuming &&
+      (current.status !== 'ready' || current.revision !== expectedRevision)
+    ) {
+      throw new Error(
+        'The cloud journal changed on another device. Sync again to merge it.',
+      );
+    }
+    transaction.set(ref, {
+      ...current,
+      status: 'syncing',
+      sourceDeviceId: deviceId,
+      baseRevision: expectedRevision,
+      snapshotExportedAt: snapshot.exportedAt,
+    });
+  });
+
+  await commitInChunks(await snapshotWrites(userId, snapshot));
+
+  const manifest: CloudJournalManifest = {
+    schemaVersion: 1,
+    status: 'ready',
+    sourceDeviceId: deviceId,
+    snapshotExportedAt: snapshot.exportedAt,
+    completedAt: new Date().toISOString(),
+    revision: expectedRevision + 1,
+    journalHash,
+    counts: {
+      entries: snapshot.entries.length,
+      mediaTypes: snapshot.mediaTypes.length,
+      podcastSubscriptions: snapshot.podcastSubscriptions.length,
+      settings: Object.keys(snapshot.settings).length,
+    },
+  };
+  await runTransaction(firestore, async (transaction) => {
+    const currentSnapshot = await transaction.get(ref);
+    const current = currentSnapshot.data() as CloudJournalManifest | undefined;
+    if (
+      current?.status !== 'syncing' ||
+      current.sourceDeviceId !== deviceId ||
+      current.baseRevision !== expectedRevision
+    ) {
+      throw new Error('The cloud journal changed before synchronization completed.');
+    }
+    transaction.set(ref, { ...manifest, serverCompletedAt: serverTimestamp() });
+  });
+  return manifest;
 }

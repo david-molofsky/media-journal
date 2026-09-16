@@ -6,10 +6,16 @@ import path from 'node:path';
 // https://vite.dev/config/
 export default defineConfig({
   base: '/media-journal/',
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '1.0.0'),
+  },
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Install updates in the background, but let PwaUpdateContext
+      // decide when it is safe to activate them. In particular, an
+      // update must never reload a dirty Add/Edit form.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Media Journal',
@@ -21,6 +27,32 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/media-journal/',
         scope: '/media-journal/',
+        shortcuts: [
+          {
+            name: 'Add entry',
+            short_name: 'Add entry',
+            description: 'Add something to Media Journal',
+            url: '/media-journal/#/entry/new',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Open wishlist',
+            short_name: 'Wishlist',
+            description: 'Open your Media Journal wishlist',
+            url: '/media-journal/#/library',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
+        share_target: {
+          action: '/media-journal/?share-target=1#/entry/new',
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

@@ -37,5 +37,6 @@ VITE_FIREBASE_APP_ID
 - An interrupted upload can only be resumed by the device that started it.
 - Google Drive uses separate OAuth permissions and remains available for backups.
 
-Do not enable the production Firebase values until cloud-to-device review/merge
-and continuous two-way sync are implemented and tested.
+The GitHub Pages workflow supplies the Firebase web configuration at build time.
+Cloud-to-device review, non-destructive conflict merging and continuous two-way
+reconciliation are implemented before the feature is enabled in production.
