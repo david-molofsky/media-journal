@@ -207,6 +207,11 @@ export const SETTINGS_KEYS = {
    * only via Settings > Replay Guided Tour. Device-local, same as
    * `hasSeenWelcome`. */
   hasCompletedGuidedTour: 'hasCompletedGuidedTour',
+  /** Device-local operational history for import sources. Used by the
+   * Integrations centre to show the last run, imported count and last
+   * failure. Excluded from portable backups because it describes this
+   * device's activity rather than the journal itself. */
+  importActivity: 'importActivity',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];
