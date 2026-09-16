@@ -32,7 +32,9 @@ import { CollapsibleSection } from '@/components/settings/CollapsibleSection';
 import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 import Button from '@mui/material/Button';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import { useGuidedTour } from '@/tour/GuidedTourContext';
+import { DataHealthSection } from '@/components/settings/DataHealthSection';
 
 export default function SettingsPage() {
   const { start: startGuidedTour } = useGuidedTour();
@@ -58,6 +60,10 @@ export default function SettingsPage() {
         <RegionSection />
 
         <ImportExportSection />
+
+        <CollapsibleSection title="Data health" icon={FactCheckOutlinedIcon}>
+          <DataHealthSection />
+        </CollapsibleSection>
 
         {/* Import Data — CSV-based sources plus the two connected-account
             sources (MAL, Trakt), grouped together per the original
