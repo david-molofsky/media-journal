@@ -39,7 +39,10 @@ export function RestoreBackupDialog({
   const confirmingReplace = replacePreview === preview;
 
   const handleClose = () => {
-    if (!busy) onCancel();
+    if (!busy) {
+      setConfirmingSource(null);
+      onCancel();
+    }
   };
 
   return (
@@ -167,7 +170,10 @@ export function RestoreBackupDialog({
               Back
             </Button>
             <Button
-              onClick={() => onRestore('replace')}
+              onClick={() => {
+                setConfirmingSource(null);
+                onRestore('replace');
+              }}
               disabled={busy}
               color="error"
               variant="contained"

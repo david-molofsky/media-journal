@@ -28,7 +28,7 @@ import {
   finishInProgressEntry,
   restoreInProgressEntry,
 } from '@/services/database/inProgressService';
-import type { InProgressEntry } from '@/models';
+import type { MediaEntry } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { todayIso } from '@/utils/dateUtils';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
@@ -53,7 +53,7 @@ export default function InProgressPage() {
   const [finishRating, setFinishRating] = useState<number | undefined>(undefined);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [recentlyRemoved, setRecentlyRemoved] = useState<InProgressEntry | null>(null);
+  const [recentlyRemoved, setRecentlyRemoved] = useState<MediaEntry | null>(null);
 
   if (!entries || !mediaTypes) return <LoadingIndicator />;
 
@@ -76,7 +76,11 @@ export default function InProgressPage() {
 
   const handleFinish = async () => {
     if (!finishId) return;
-    const created = await finishInProgressEntry(finishId, finishDate || todayIso(), finishRating);
+    const created = await finishInProgressEntry(
+      finishId,
+      finishDate || todayIso(),
+      finishRating,
+    );
     setFinishId(null);
     setFinishRating(undefined);
     navigate(editEntryPath(created.id));
@@ -104,7 +108,11 @@ export default function InProgressPage() {
         <Typography variant="h6" component="h1" fontWeight={600} sx={{ flex: 1 }}>
           In Progress
         </Typography>
-        <Button startIcon={<AddIcon />} variant="contained" onClick={() => setAddOpen(true)}>
+        <Button
+          startIcon={<AddIcon />}
+          variant="contained"
+          onClick={() => setAddOpen(true)}
+        >
           Add
         </Button>
       </Stack>
@@ -159,7 +167,11 @@ export default function InProgressPage() {
                   <Button
                     size="small"
                     startIcon={<CheckCircleOutlineIcon />}
-                    onClick={() => { setFinishId(entry.id); setFinishDate(todayIso()); setFinishRating(undefined); }}
+                    onClick={() => {
+                      setFinishId(entry.id);
+                      setFinishDate(todayIso());
+                      setFinishRating(undefined);
+                    }}
                   >
                     Mark as finished
                   </Button>
@@ -190,7 +202,9 @@ export default function InProgressPage() {
               fullWidth
               value={addTitle}
               onChange={(e) => setAddTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void handleAdd(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleAdd();
+              }}
             />
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {mediaTypes.map((type) => (
@@ -203,7 +217,10 @@ export default function InProgressPage() {
                     borderColor: type.colour,
                     color: addMediaType === type.id ? '#fff' : type.colour,
                     bgcolor: addMediaType === type.id ? type.colour : undefined,
-                    '&:hover': { bgcolor: addMediaType === type.id ? type.colour : `${type.colour}1A` },
+                    '&:hover': {
+                      bgcolor:
+                        addMediaType === type.id ? type.colour : `${type.colour}1A`,
+                    },
                   }}
                 >
                   {type.displayName}
@@ -235,7 +252,10 @@ export default function InProgressPage() {
       {/* Finish dialog */}
       <Dialog
         open={Boolean(finishId)}
-        onClose={() => { setFinishId(null); setFinishRating(undefined); }}
+        onClose={() => {
+          setFinishId(null);
+          setFinishRating(undefined);
+        }}
         fullWidth
         maxWidth="xs"
       >
@@ -257,8 +277,17 @@ export default function InProgressPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setFinishId(null); setFinishRating(undefined); }}>Cancel</Button>
-          <Button variant="contained" onClick={handleFinish}>Finish & rate</Button>
+          <Button
+            onClick={() => {
+              setFinishId(null);
+              setFinishRating(undefined);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleFinish}>
+            Finish & rate
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -267,7 +296,8 @@ export default function InProgressPage() {
         <DialogTitle>Remove from in progress?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            This removes the tracking entry without creating a library record. Use "Mark as finished" instead to save it.
+            This removes the tracking entry without creating a library record. Use "Mark
+            as finished" instead to save it.
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -284,7 +314,9 @@ export default function InProgressPage() {
         onClose={(_, reason) => {
           if (reason !== 'clickaway') setRecentlyRemoved(null);
         }}
-        message={recentlyRemoved ? `Removed ${recentlyRemoved.title} from In Progress` : ''}
+        message={
+          recentlyRemoved ? `Removed ${recentlyRemoved.title} from In Progress` : ''
+        }
         action={
           <Button color="secondary" size="small" onClick={() => void handleUndoRemove()}>
             Undo
