@@ -43,6 +43,22 @@ describe('data quality analysis', () => {
     );
   });
 
+  it('hides an accepted group but flags it again when the group changes', () => {
+    const entries = [
+      storedEntry({ id: 'one', title: 'Dune' }),
+      storedEntry({ id: 'two', title: 'Dune' }),
+    ];
+    const acceptanceKey = JSON.stringify(['one', 'two']);
+
+    expect(analyseDataHealth(entries, [acceptanceKey]).duplicates).toHaveLength(0);
+    expect(
+      analyseDataHealth(
+        [...entries, storedEntry({ id: 'three', title: 'Dune' })],
+        [acceptanceKey],
+      ).duplicates,
+    ).toHaveLength(1);
+  });
+
   it('flags completed records without a date and records without a media type', () => {
     const report = analyseDataHealth([
       storedEntry({ id: 'one', completedDate: undefined }),

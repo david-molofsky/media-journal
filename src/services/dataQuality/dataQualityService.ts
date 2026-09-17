@@ -4,6 +4,7 @@ export type NormalizableField = 'source' | 'genre' | 'tag';
 
 export interface DuplicateGroup {
   key: string;
+  acceptanceKey: string;
   entries: MediaEntry[];
   repeatImportConflict: boolean;
 }
@@ -63,7 +64,14 @@ function importSources(entry: MediaEntry): string[] {
     .filter((tag) => tag.startsWith(IMPORTED_FROM_PREFIX));
 }
 
-function analyseDuplicates(entries: MediaEntry[]): DuplicateGroup[] {
+export function duplicateAcceptanceKey(entryIds: string[]): string {
+  return JSON.stringify([...entryIds].sort());
+}
+
+function analyseDuplicates(
+  entries: MediaEntry[],
+  acceptedDuplicateGroups: ReadonlySet<string>,
+): DuplicateGroup[] {
   const groups = new Map<string, MediaEntry[]>();
   for (const entry of entries) {
     const key = titleKey(entry);
@@ -82,12 +90,15 @@ function analyseDuplicates(entries: MediaEntry[]): DuplicateGroup[] {
             .map(([name, value]) => `${name}:${String(value)}`),
         ),
       );
+      const acceptanceKey = duplicateAcceptanceKey(matches.map(({ id }) => id));
       return {
         key,
+        acceptanceKey,
         entries: [...matches].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
         repeatImportConflict: sources.size > 1 || externalIds.size > 1,
       };
     })
+    .filter(({ acceptanceKey }) => !acceptedDuplicateGroups.has(acceptanceKey))
     .sort((a, b) => a.entries[0]!.title.localeCompare(b.entries[0]!.title));
 }
 
@@ -155,8 +166,11 @@ function analyseValues(
     );
 }
 
-export function analyseDataHealth(entries: MediaEntry[]): DataHealthReport {
-  const duplicates = analyseDuplicates(entries);
+export function analyseDataHealth(
+  entries: MediaEntry[],
+  acceptedDuplicateGroups: readonly string[] = [],
+): DataHealthReport {
+  const duplicates = analyseDuplicates(entries, new Set(acceptedDuplicateGroups));
   const variations = (['source', 'genre', 'tag'] as const).flatMap((field) =>
     analyseValues(entries, field),
   );
