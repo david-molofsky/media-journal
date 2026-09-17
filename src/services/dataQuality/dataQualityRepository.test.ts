@@ -1,7 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/services/database/db';
 import { storedEntry } from '@/test/factories';
-import { mergeDuplicateEntries, normalizeEntryValues } from './dataQualityRepository';
+import {
+  acceptDuplicateEntries,
+  mergeDuplicateEntries,
+  normalizeEntryValues,
+} from './dataQualityRepository';
+import { SETTINGS_KEYS } from '@/models';
 
 describe('data quality normalization', () => {
   beforeEach(async () => {
@@ -70,5 +75,14 @@ describe('data quality normalization', () => {
     });
     expect(await db.mediaEntries.get('remove')).toBeUndefined();
     expect(await db.mediaEntries.get('unrelated')).toBeDefined();
+  });
+
+  it('persists accepted duplicate groups without duplicating acknowledgements', async () => {
+    await acceptDuplicateEntries(['two', 'one']);
+    await acceptDuplicateEntries(['one', 'two']);
+
+    expect(
+      (await db.appSettings.get(SETTINGS_KEYS.acceptedDuplicateGroups))?.value,
+    ).toEqual(['["one","two"]']);
   });
 });

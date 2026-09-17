@@ -1,7 +1,8 @@
 import { db } from '@/services/database/db';
+import { getSetting, setSetting } from '@/services/database/settingsService';
 import { nowIso } from '@/utils/dateUtils';
-import type { MediaEntry } from '@/models';
-import type { NormalizableField } from './dataQualityService';
+import { SETTINGS_KEYS, type MediaEntry } from '@/models';
+import { duplicateAcceptanceKey, type NormalizableField } from './dataQualityService';
 
 function replaceListValues(
   values: string[],
@@ -48,6 +49,18 @@ export async function normalizeEntryValues(
     if (changed.length > 0) await db.mediaEntries.bulkPut(changed);
     return changed.length;
   });
+}
+
+/** Hides an intentional duplicate group until its exact set of entries changes. */
+export async function acceptDuplicateEntries(ids: string[]): Promise<void> {
+  const acceptanceKey = duplicateAcceptanceKey(ids);
+  const stored = await getSetting<unknown>(SETTINGS_KEYS.acceptedDuplicateGroups, []);
+  const accepted = Array.isArray(stored)
+    ? stored.filter((value): value is string => typeof value === 'string')
+    : [];
+  if (!accepted.includes(acceptanceKey)) {
+    await setSetting(SETTINGS_KEYS.acceptedDuplicateGroups, [...accepted, acceptanceKey]);
+  }
 }
 
 function firstDefined<T>(

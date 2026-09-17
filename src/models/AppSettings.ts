@@ -223,6 +223,10 @@ export const SETTINGS_KEYS = {
    * failure. Excluded from portable backups because it describes this
    * device's activity rather than the journal itself. */
   importActivity: 'importActivity',
+  /** Duplicate groups the person has reviewed and confirmed are intentional.
+   * Each value identifies the exact set of entry IDs in the group, so adding or
+   * removing a copy makes Data Health surface the changed group again. */
+  acceptedDuplicateGroups: 'acceptedDuplicateGroups',
 } as const;
 
 export type SettingsKey = (typeof SETTINGS_KEYS)[keyof typeof SETTINGS_KEYS];

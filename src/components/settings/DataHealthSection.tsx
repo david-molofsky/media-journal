@@ -22,17 +22,30 @@ import {
   type ValueVariation,
 } from '@/services/dataQuality/dataQualityService';
 import {
+  acceptDuplicateEntries,
   mergeDuplicateEntries,
   normalizeEntryValues,
 } from '@/services/dataQuality/dataQualityRepository';
 import { editEntryPath, entryDetailPath } from '@/routes/paths';
+import { SETTINGS_KEYS } from '@/models';
 
 const fieldLabel = { source: 'Source', genre: 'Genre', tag: 'Tag' } as const;
 
 export function DataHealthSection() {
   const entries = useLiveQuery(() => db.mediaEntries.toArray(), []);
-  const report = useMemo(() => analyseDataHealth(entries ?? []), [entries]);
+  const acceptedDuplicateGroups = useLiveQuery(async () => {
+    const stored = (await db.appSettings.get(SETTINGS_KEYS.acceptedDuplicateGroups))
+      ?.value;
+    return Array.isArray(stored)
+      ? stored.filter((value): value is string => typeof value === 'string')
+      : [];
+  }, []);
+  const report = useMemo(
+    () => analyseDataHealth(entries ?? [], acceptedDuplicateGroups ?? []),
+    [acceptedDuplicateGroups, entries],
+  );
   const [normalizing, setNormalizing] = useState<string | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
   const [mergeGroup, setMergeGroup] = useState<DuplicateGroup | null>(null);
   const [merging, setMerging] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,6 +65,19 @@ export function DataHealthSection() {
       );
     } finally {
       setNormalizing(null);
+    }
+  };
+
+  const acceptDuplicates = async (group: DuplicateGroup) => {
+    setAccepting(group.acceptanceKey);
+    setMessage(null);
+    try {
+      await acceptDuplicateEntries(group.entries.map(({ id }) => id));
+      setMessage(
+        `Accepted ${group.entries.length} separate entries for “${group.entries[0]?.title}”.`,
+      );
+    } finally {
+      setAccepting(null);
     }
   };
 
@@ -117,7 +143,22 @@ export function DataHealthSection() {
                       Review entry {index + 1}
                     </Link>
                   ))}
-                  <Button size="small" onClick={() => setMergeGroup(group)}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={accepting !== null}
+                    onClick={() => void acceptDuplicates(group)}
+                  >
+                    {accepting === group.acceptanceKey
+                      ? 'Accepting…'
+                      : 'Accept duplicates'}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={accepting !== null}
+                    onClick={() => setMergeGroup(group)}
+                  >
                     Merge copies
                   </Button>
                 </Stack>

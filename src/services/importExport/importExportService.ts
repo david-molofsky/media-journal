@@ -59,6 +59,7 @@ const EXPORTABLE_SETTINGS_KEYS: readonly SettingsKey[] = [
   SETTINGS_KEYS.subscriptionBillingCycle,
   SETTINGS_KEYS.subscriptionAnnualPrices,
   SETTINGS_KEYS.yearlyGoals,
+  SETTINGS_KEYS.acceptedDuplicateGroups,
 ];
 
 const EXPORTABLE_SETTINGS_KEY_SET = new Set<string>(EXPORTABLE_SETTINGS_KEYS);
