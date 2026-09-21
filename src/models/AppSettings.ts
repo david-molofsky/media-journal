@@ -49,6 +49,9 @@ export const SETTINGS_KEYS = {
   autoBackupEnabled: 'autoBackupEnabled',
   lastAutoBackupAt: 'lastAutoBackupAt',
   lastAutoBackupError: 'lastAutoBackupError',
+  /** Timestamp of any successfully verified Google Drive backup,
+   * whether manual or automatic. Device-local and display-only. */
+  lastGoogleDriveBackupAt: 'lastGoogleDriveBackupAt',
   /** Device-sync state. These values deliberately remain device-local
    * and are therefore excluded from portable exports. `syncDeviceId`
    * permanently identifies this browser install; the timestamps are

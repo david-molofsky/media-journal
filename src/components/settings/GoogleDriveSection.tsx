@@ -94,6 +94,23 @@ export function GoogleDriveSection() {
     const record = await db.appSettings.get(SETTINGS_KEYS.lastAutoBackupError);
     return (record?.value as string) ?? null;
   }, []);
+  const lastGoogleDriveBackupAt = useLiveQuery(async () => {
+    const [latestBackup, previousAutomaticBackup] = await Promise.all([
+      db.appSettings.get(SETTINGS_KEYS.lastGoogleDriveBackupAt),
+      db.appSettings.get(SETTINGS_KEYS.lastAutoBackupAt),
+    ]);
+    // Existing installations already have the automatic-backup
+    // timestamp, so use it until the first backup on this version.
+    return (
+      (latestBackup?.value as string | undefined) ??
+      (previousAutomaticBackup?.value as string | undefined) ??
+      null
+    );
+  }, []);
+  const backupSubtitle =
+    lastGoogleDriveBackupAt === undefined
+      ? undefined
+      : `Last backup: ${lastGoogleDriveBackupAt ? dayjs(lastGoogleDriveBackupAt).format('D MMM YYYY, HH:mm') : 'Never'}`;
 
   const handleAutoBackupToggle = (checked: boolean) => {
     if (checked) {
@@ -225,7 +242,7 @@ export function GoogleDriveSection() {
   };
 
   return (
-    <CollapsibleSection title="Google Drive" icon={GoogleIcon}>
+    <CollapsibleSection title="Google Drive" icon={GoogleIcon} subtitle={backupSubtitle}>
       {!connected ? (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

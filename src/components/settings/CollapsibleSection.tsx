@@ -11,6 +11,9 @@ import type { SvgIconComponent } from '@mui/icons-material';
 interface CollapsibleSectionProps {
   title: string;
   icon?: SvgIconComponent;
+  /** Optional status text shown beneath the title even while the
+   * section is collapsed, for glanceable details such as last sync. */
+  subtitle?: string;
   /** Small "X/Y on" style badge next to the title — visible whether
    * collapsed or expanded, so the state is readable at a glance
    * without opening the section. */
@@ -32,6 +35,7 @@ interface CollapsibleSectionProps {
 export function CollapsibleSection({
   title,
   icon: Icon,
+  subtitle,
   badge,
   defaultExpanded = false,
   children,
@@ -45,12 +49,23 @@ export function CollapsibleSection({
         aria-expanded={expanded}
         sx={{ width: '100%', justifyContent: 'space-between', py: 0.5, borderRadius: 1 }}
       >
-        <Stack direction="row" alignItems="center" spacing={1}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
           {Icon && <Icon fontSize="small" sx={{ color: 'text.secondary' }} />}
-          <Typography variant="subtitle2" color="text.secondary">
-            {title}
-          </Typography>
-          {badge && <Chip label={badge} size="small" sx={{ height: 20, fontSize: 11 }} />}
+          <Box sx={{ minWidth: 0, textAlign: 'left' }}>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {title}
+              </Typography>
+              {badge && (
+                <Chip label={badge} size="small" sx={{ height: 20, fontSize: 11 }} />
+              )}
+            </Stack>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
         </Stack>
         <ExpandMoreIcon
           fontSize="small"

@@ -12,7 +12,9 @@
  */
 
 import { db } from '@/services/database/db';
+import { setSetting } from '@/services/database/settingsService';
 import { exportLibrary, importLibrary } from '@/services/importExport/importExportService';
+import { SETTINGS_KEYS } from '@/models';
 import dayjs from 'dayjs';
 import type {
   ImportResult,
@@ -295,6 +297,7 @@ export async function exportToGoogleDrive(): Promise<string> {
 
   const fileId = await uploadFile(token, folderId, fileName, content, todayFile?.id);
   await verifyUploadedFile(token, fileId, content);
+  await setSetting(SETTINGS_KEYS.lastGoogleDriveBackupAt, new Date().toISOString());
   return fileName;
 }
 

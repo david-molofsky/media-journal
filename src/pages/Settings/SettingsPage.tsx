@@ -28,9 +28,21 @@ import { DeviceSyncSection } from '@/components/settings/DeviceSyncSection';
 import { DataHealthSection } from '@/components/settings/DataHealthSection';
 import { Link as RouterLink } from 'react-router-dom';
 import { ROUTES } from '@/routes/paths';
+import { useLiveQuery } from 'dexie-react-hooks';
+import dayjs from 'dayjs';
+import { db } from '@/services/database/db';
+import { SETTINGS_KEYS } from '@/models';
 
 export default function SettingsPage() {
   const { start: startGuidedTour } = useGuidedTour();
+  const lastDeviceSyncAt = useLiveQuery(async () => {
+    const record = await db.appSettings.get(SETTINGS_KEYS.lastDeviceSyncAt);
+    return (record?.value as string) ?? null;
+  }, []);
+  const syncSubtitle =
+    lastDeviceSyncAt === undefined
+      ? undefined
+      : `Last sync: ${lastDeviceSyncAt ? dayjs(lastDeviceSyncAt).format('D MMM YYYY, HH:mm') : 'Never'}`;
 
   return (
     <Box>
@@ -39,7 +51,7 @@ export default function SettingsPage() {
       </Typography>
 
       <Stack spacing={4} divider={<Divider />}>
-        <CollapsibleSection title="Sync" icon={CloudOutlinedIcon}>
+        <CollapsibleSection title="Sync" icon={CloudOutlinedIcon} subtitle={syncSubtitle}>
           <DeviceSyncSection />
         </CollapsibleSection>
 
