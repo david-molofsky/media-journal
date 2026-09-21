@@ -8,6 +8,7 @@ import TextField from '@mui/material/TextField';
 import Collapse from '@mui/material/Collapse';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CheckIcon from '@mui/icons-material/Check';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useGoals } from '@/hooks/useGoals';
 import { setGoal } from '@/services/database/goalsService';
 import type { MediaType } from '@/models';
@@ -49,7 +50,12 @@ export function GoalsSection({ year, mediaTypes, totalsByMediaType }: GoalsSecti
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1.5 }}
+      >
         <Typography variant="subtitle2" color="text.secondary">
           {year} Goals
         </Typography>
@@ -74,7 +80,9 @@ export function GoalsSection({ year, mediaTypes, totalsByMediaType }: GoalsSecti
                 type="number"
                 placeholder="No goal"
                 value={drafts[type.id] ?? ''}
-                onChange={(e) => setDrafts((prev) => ({ ...prev, [type.id]: e.target.value }))}
+                onChange={(e) =>
+                  setDrafts((prev) => ({ ...prev, [type.id]: e.target.value }))
+                }
                 sx={{ width: 110 }}
                 slotProps={{ input: { inputProps: { min: 1 } } }}
               />
@@ -92,13 +100,27 @@ export function GoalsSection({ year, mediaTypes, totalsByMediaType }: GoalsSecti
                 const target = goals![type.id]!;
                 const current = totalsByMediaType[type.id] ?? 0;
                 const pct = Math.min(100, Math.round((current / target) * 100));
+                const isComplete = current >= target;
                 return (
                   <Box key={type.id}>
-                    <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      sx={{ mb: 0.5 }}
+                    >
                       <Typography variant="body2">{type.displayName}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {current} / {target}
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        {isComplete && (
+                          <CheckCircleIcon
+                            color="success"
+                            sx={{ fontSize: 18 }}
+                            titleAccess="Goal complete"
+                          />
+                        )}
+                        <Typography variant="body2" color="text.secondary">
+                          {current} / {target}
+                        </Typography>
+                      </Stack>
                     </Stack>
                     <LinearProgress
                       variant="determinate"
