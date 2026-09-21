@@ -32,6 +32,7 @@ export interface LibrarySessionState {
   genresExclude: string[];
   sources: string[];
   sourcesExclude: string[];
+  rating?: string;
   watchedWith: string[];
   watchedWithExclude: string[];
   recommendedBy: string[];
