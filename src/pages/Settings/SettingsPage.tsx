@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <CollapsibleSection title="Integrations" icon={HubOutlinedIcon} defaultExpanded>
+        <CollapsibleSection title="Integrations" icon={HubOutlinedIcon}>
           <Stack spacing={1.5} alignItems="flex-start">
             <Typography variant="body2" color="text.secondary">
               Connect accounts, import files and review the outcome of previous imports in
