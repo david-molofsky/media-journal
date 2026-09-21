@@ -111,16 +111,11 @@ export default function DashboardPage() {
             >
               {mediaTypes.map((mediaType) => {
                 const count = data.totalsByMediaType[mediaType.id] ?? 0;
-                const percentOfYear =
-                  data.totalEntries === 0
-                    ? 0
-                    : Math.round((count / data.totalEntries) * 100);
                 return (
                   <SummaryCard
                     key={mediaType.id}
                     mediaType={mediaType}
                     count={count}
-                    percentOfYear={percentOfYear}
                     onClick={() =>
                       goToLibrary(
                         year === null
