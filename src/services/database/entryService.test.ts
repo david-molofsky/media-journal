@@ -4,6 +4,8 @@ import {
   createEntry,
   deleteEntriesWithSnapshot,
   getEntry,
+  listEntries,
+  MISSING_CATEGORY_FILTER_VALUE,
   restoreEntriesSnapshot,
   updateEntry,
 } from './entryService';
@@ -45,5 +47,42 @@ describe('entry service journeys', () => {
       createEntry(completedEntryInput({ completedDate: undefined })),
     ).rejects.toThrow('Completed date is required');
     expect(await db.mediaEntries.count()).toBe(0);
+  });
+
+  it('filters entries with missing tags, source or rating', async () => {
+    await createEntry(
+      completedEntryInput({
+        title: 'Missing fields',
+        rating: undefined,
+        metadata: {},
+        tags: [],
+      }),
+    );
+    await createEntry(
+      completedEntryInput({
+        title: 'Filled fields',
+        rating: 8,
+        metadata: { source: 'Cinema' },
+        tags: ['Favourite'],
+      }),
+    );
+
+    const missingTags = await listEntries({
+      tags: [MISSING_CATEGORY_FILTER_VALUE],
+    });
+    const missingSources = await listEntries({
+      sources: [MISSING_CATEGORY_FILTER_VALUE],
+    });
+    const missingRatings = await listEntries({ ratingMissing: true });
+    const ratedEight = await listEntries({ rating: 8 });
+    const taggedEntries = await listEntries({
+      tagsExclude: [MISSING_CATEGORY_FILTER_VALUE],
+    });
+
+    expect(missingTags.map((entry) => entry.title)).toEqual(['Missing fields']);
+    expect(missingSources.map((entry) => entry.title)).toEqual(['Missing fields']);
+    expect(missingRatings.map((entry) => entry.title)).toEqual(['Missing fields']);
+    expect(ratedEight.map((entry) => entry.title)).toEqual(['Filled fields']);
+    expect(taggedEntries.map((entry) => entry.title)).toEqual(['Filled fields']);
   });
 });
