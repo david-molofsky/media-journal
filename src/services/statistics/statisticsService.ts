@@ -108,7 +108,7 @@ export function isWithinYearScope(
  * "last 12 months" rule as `isWithinYearScope`'s `'last12'` case, just
  * anchored at an arbitrary point in the past instead of always today.
  * Used by the Subscriptions calculator's good-value history
- * (`getGoodValueHistory` in subscriptionValueService.ts) to score each
+ * (`getStrongEngagementHistory` in subscriptionValueService.ts) to score each
  * past month the exact same way Statistics scores "Last 12 months"
  * today — see chat, Sept 2026 (Subscriptions page redesign). */
 export function isWithinRollingWindowEnding(

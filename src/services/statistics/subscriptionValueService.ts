@@ -242,23 +242,22 @@ export async function getFavouriteSubscription(
     .source;
 }
 
-/** A source's "good value" score, at or above which the Subscriptions
- * calculator considers it worth what's being paid — same bar as the
- * `Good` label used everywhere else (`score >= 60`), so a source's
- * good-value history and its live chip can never disagree. */
-const GOOD_VALUE_SCORE_THRESHOLD = 60;
+/** A source's strong-engagement score. This deliberately describes
+ * usage and ratings only: historical subscription prices aren't
+ * stored, so this must not be presented as historical monetary value. */
+const STRONG_ENGAGEMENT_SCORE_THRESHOLD = 60;
 
-/** How many months of history `getGoodValueHistory` will scan back,
+/** How many months of history `getStrongEngagementHistory` will scan back,
  * regardless of how long a source has actually been logged for — five
  * years of monthly rolling-window recomputation already answers "when
  * did this last qualify" for any practical purpose, and an unbounded
  * scan would get slower with every year a library keeps growing. */
-const MAX_GOOD_VALUE_MONTHS_TO_SCAN = 60;
+const MAX_STRONG_ENGAGEMENT_MONTHS_TO_SCAN = 60;
 
-export interface GoodValueStatus {
-  /** `'current'` — good value right now; `month` is the first month
+export interface StrongEngagementStatus {
+  /** `'current'` — strong engagement right now; `month` is the first month
    * ('YYYY-MM') of the unbroken streak leading up to today (may equal
-   * the current month). `'past'` — was good value before but isn't
+   * the current month). `'past'` — engagement was strong before but isn't
    * now; `month` is the last month it was. `'never'` — hasn't cleared
    * the bar for any trailing-12-month window in the scanned history. */
   state: 'current' | 'past' | 'never';
@@ -268,9 +267,8 @@ export interface GoodValueStatus {
 /**
  * For every source flagged as a subscription, finds the most recent
  * month whose *trailing 12-month* score (ending that month, same
- * formula as `getSubscriptionValue`) cleared `GOOD_VALUE_SCORE_THRESHOLD`
- * — "the last month this service qualified as good value" (see chat,
- * Sept 2026, Subscriptions page redesign). Deliberately scores each
+ * formula as `getSubscriptionValue`) cleared
+ * `STRONG_ENGAGEMENT_SCORE_THRESHOLD`. Deliberately scores each
  * past month against a rolling year rather than that single month's
  * own (usually sparse) activity — confirmed in chat as the less noisy
  * definition — reusing the exact `isWithinRollingWindowEnding` rule
@@ -284,9 +282,9 @@ export interface GoodValueStatus {
  * historical fact, not something that should change depending on what
  * window you happen to be viewing.
  */
-export async function getGoodValueHistory(
+export async function getStrongEngagementHistory(
   mediaTypeIds: string[],
-): Promise<Map<string, GoodValueStatus>> {
+): Promise<Map<string, StrongEngagementStatus>> {
   const [rawEntries, tvMode, subsConfig] = await Promise.all([
     db.mediaEntries.where('mediaType').anyOf(mediaTypeIds).toArray(),
     getTvTrackingMode(),
@@ -308,12 +306,12 @@ export async function getGoodValueHistory(
     if (!earliest || completedAt.isBefore(earliest)) earliest = completedAt;
   }
 
-  const result = new Map<string, GoodValueStatus>();
+  const result = new Map<string, StrongEngagementStatus>();
   if (sources.size === 0 || !earliest) return result;
 
   const now = dayjs();
   const monthsBack = Math.min(
-    MAX_GOOD_VALUE_MONTHS_TO_SCAN,
+    MAX_STRONG_ENGAGEMENT_MONTHS_TO_SCAN,
     Math.max(0, now.diff(earliest, 'month')),
   );
 
@@ -356,7 +354,7 @@ export async function getGoodValueHistory(
       const ratingScore = avgRating !== null ? (avgRating / 10) * 100 : 0;
       const score = Math.round(USAGE_WEIGHT * usageScore + RATING_WEIGHT * ratingScore);
       const isGood =
-        count >= MIN_WATCHES_FOR_RANKING && score >= GOOD_VALUE_SCORE_THRESHOLD;
+        count >= MIN_WATCHES_FOR_RANKING && score >= STRONG_ENGAGEMENT_SCORE_THRESHOLD;
       monthlyGood.get(source)!.push(isGood);
     }
   }

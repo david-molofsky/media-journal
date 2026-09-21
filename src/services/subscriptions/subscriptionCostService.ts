@@ -10,9 +10,9 @@ import {
 } from '@/services/statistics/statisticsService';
 import {
   getSubscriptionValue,
-  getGoodValueHistory,
+  getStrongEngagementHistory,
   type SubscriptionValueTopTitle,
-  type GoodValueStatus,
+  type StrongEngagementStatus,
 } from '@/services/statistics/subscriptionValueService';
 import {
   getSubscriptionSourceConfig,
@@ -29,6 +29,34 @@ import {
  * see `subscriptionBillingCycle`/`subscriptionAnnualPrices` in
  * AppSettings.ts. Missing/absent means `'monthly'`. */
 export type SubscriptionBillingCycle = 'monthly' | 'annual';
+export type SubscriptionValueLabel = 'Good' | 'Fair' | 'Poor';
+
+export interface RelativeSubscriptionValue {
+  label: SubscriptionValueLabel;
+  percent: number | null;
+}
+
+/** Compares one subscription's cost per point with the portfolio
+ * median. A result at least 20% cheaper is Good; at least 20% more
+ * expensive is Poor; everything between is Fair. */
+export function compareSubscriptionValue(
+  costPerValuePoint: number,
+  medianCostPerValuePoint: number,
+): RelativeSubscriptionValue {
+  if (medianCostPerValuePoint === 0) {
+    return {
+      label: costPerValuePoint === 0 ? 'Fair' : 'Poor',
+      percent: null,
+    };
+  }
+
+  const ratio = costPerValuePoint / medianCostPerValuePoint;
+  return {
+    label: ratio <= 0.8 ? 'Good' : ratio >= 1.2 ? 'Poor' : 'Fair',
+    percent:
+      ((medianCostPerValuePoint - costPerValuePoint) / medianCostPerValuePoint) * 100,
+  };
+}
 
 /** Only Film and TV entries carry a `runtime` (minutes) field today —
  * see defaultMediaTypes.ts. Every other media type simply doesn't
@@ -78,10 +106,10 @@ export interface SubscriptionCostRow {
    * on <source>". */
   topTitles: SubscriptionValueTopTitle[];
   /** Most recent month this source's *trailing-12-month* score
-   * cleared "Good value" — always computed across all-time history,
+   * showed strong engagement — always computed across all-time history,
    * independent of the page's time-scope selector (see
-   * `getGoodValueHistory`'s doc comment for why). */
-  goodValueHistory: GoodValueStatus;
+   * `getStrongEngagementHistory`'s doc comment for why). */
+  engagementHistory: StrongEngagementStatus;
   /** Weighted hours from Film/TV entries only within the rolling
    * 12-month window — `null` (not `0`) when this source has no
    * Film/TV usage at all in the window, so the UI can distinguish
@@ -93,13 +121,17 @@ export interface SubscriptionCostRow {
    * number means better value (less paid per "value point"). `null`
    * when there's no price, or the row is `belowThreshold` / has a
    * `score` of 0, since dividing by either would be meaningless.
-   * Deliberately separate from `score`/the Good-Fair-Poor label above,
-   * which stay usage-and-rating-only (a service can be excellently
-   * used and rated regardless of what it costs) — this is the one
-   * place price and usage actually combine. See chat, Sept 2026:
-   * "compare the monetary values based on the subscription score".
+   * This combines the engagement score with price and supplies the
+   * basis for the relative Good/Fair/Poor value classification below.
    */
   costPerValuePoint: number | null;
+  /** Price-aware classification relative to the median cost per value
+   * point of the user's eligible subscriptions. `null` when fewer than
+   * two subscriptions can be compared. */
+  valueLabel: SubscriptionValueLabel | null;
+  /** Percentage better (positive) or worse (negative) than the median
+   * eligible subscription. `null` when comparison isn't possible. */
+  relativeValuePercent: number | null;
   /** Tier options for this source in the current pricing region, or
    * `undefined` if none exist (self-hosted source, or a hardcoded
    * service not offered in this region). */
@@ -125,9 +157,9 @@ export interface SubscriptionCostSummary {
    * which would understate spend silently. */
   monthlySpend: number;
   annualSpend: number;
-  /** `null` if there's no row with both a price and enough usage to
-   * clear `belowThreshold` — nothing to judge value against yet. */
-  overallValueLabel: 'Good' | 'Fair' | 'Poor' | null;
+  /** Combined monthly price divided by combined engagement score for
+   * all priced rows with enough usage. Lower is better. */
+  portfolioCostPerValuePoint: number | null;
   bestValueSource: string | null;
   worstValueSource: string | null;
   pricingRegion: SupportedPricingRegion | null;
@@ -178,8 +210,8 @@ async function getHoursBySource(
  * top-titles (via `getSubscriptionValue`) — queued count, hours, price
  * and spend all stay current-state regardless of `year`, per chat
  * (Sept 2026): a backlog and a price are "now" questions, not "back
- * then" ones. Good-value history is likewise independent of `year` —
- * see `getGoodValueHistory`.
+ * then" ones. Strong-engagement history is likewise independent of `year` —
+ * see `getStrongEngagementHistory`.
  *
  * A flagged source with zero usage in the selected scope still gets a
  * row — the point is tracking what's being paid for, not just what's
@@ -215,10 +247,10 @@ export async function getSubscriptionCostSummary(
   const region = pricingRegionFor(watchProviderRegion);
   const allMediaTypeIds = mediaTypes.map((mt) => mt.id);
 
-  const [{ rows: valueRows }, hoursBySource, goodValueHistory] = await Promise.all([
+  const [{ rows: valueRows }, hoursBySource, engagementHistory] = await Promise.all([
     getSubscriptionValue(allMediaTypeIds, year),
     getHoursBySource(subsConfig, tvMode),
-    getGoodValueHistory(allMediaTypeIds),
+    getStrongEngagementHistory(allMediaTypeIds),
   ]);
 
   const valueBySource = new Map(valueRows.map((row) => [row.source, row]));
@@ -274,9 +306,14 @@ export async function getSubscriptionCostSummary(
       score,
       belowThreshold,
       topTitles: valueRow?.topTitles ?? [],
-      goodValueHistory: goodValueHistory.get(source) ?? { state: 'never', month: null },
+      engagementHistory: engagementHistory.get(source) ?? {
+        state: 'never',
+        month: null,
+      },
       hoursThisYear: hoursBySource.get(source) ?? null,
       costPerValuePoint,
+      valueLabel: null,
+      relativeValuePercent: null,
       tiers,
       selectedTierId,
       billingCycle,
@@ -300,18 +337,8 @@ export async function getSubscriptionCostSummary(
   const eligibleForValue = rows.filter(
     (r) => !r.belowThreshold && r.effectivePrice !== null,
   );
-  let overallValueLabel: SubscriptionCostSummary['overallValueLabel'] = null;
   let bestValueSource: string | null = null;
   let worstValueSource: string | null = null;
-  if (eligibleForValue.length > 0) {
-    // The overall Good/Fair/Poor label stays usage-and-rating-only,
-    // same as each row's own label — see costPerValuePoint's doc
-    // comment for why. Best/Worst below is the one place price
-    // actually factors in.
-    const avgScore =
-      eligibleForValue.reduce((sum, r) => sum + r.score, 0) / eligibleForValue.length;
-    overallValueLabel = avgScore >= 60 ? 'Good' : avgScore >= 40 ? 'Fair' : 'Poor';
-  }
 
   // Best/Worst value is price-aware: lowest/highest £ paid per "value
   // point" (score), not just highest/lowest raw score — see chat,
@@ -321,6 +348,16 @@ export async function getSubscriptionCostSummary(
     (r): r is SubscriptionCostRow & { costPerValuePoint: number } =>
       r.costPerValuePoint !== null,
   );
+  const totalEligibleScore = eligibleForMoneyValue.reduce(
+    (sum, row) => sum + row.score,
+    0,
+  );
+  const portfolioCostPerValuePoint =
+    totalEligibleScore > 0
+      ? eligibleForMoneyValue.reduce((sum, row) => sum + (row.effectivePrice ?? 0), 0) /
+        totalEligibleScore
+      : null;
+
   if (eligibleForMoneyValue.length > 0) {
     const best = eligibleForMoneyValue.reduce((a, b) =>
       b.costPerValuePoint < a.costPerValuePoint ? b : a,
@@ -332,11 +369,34 @@ export async function getSubscriptionCostSummary(
     worstValueSource = eligibleForMoneyValue.length > 1 ? worst.source : null;
   }
 
+  // Value is relative to the user's typical eligible subscription.
+  // A median baseline resists one unusually cheap or expensive service
+  // distorting every other label. One subscription cannot be compared.
+  if (eligibleForMoneyValue.length >= 2) {
+    const sortedCosts = eligibleForMoneyValue
+      .map((row) => row.costPerValuePoint)
+      .sort((a, b) => a - b);
+    const middle = Math.floor(sortedCosts.length / 2);
+    const medianCostPerValuePoint: number =
+      sortedCosts.length % 2 === 0
+        ? (sortedCosts[middle - 1]! + sortedCosts[middle]!) / 2
+        : sortedCosts[middle]!;
+
+    for (const row of eligibleForMoneyValue) {
+      const comparison = compareSubscriptionValue(
+        row.costPerValuePoint,
+        medianCostPerValuePoint,
+      );
+      row.valueLabel = comparison.label;
+      row.relativeValuePercent = comparison.percent;
+    }
+  }
+
   return {
     rows,
     monthlySpend,
     annualSpend,
-    overallValueLabel,
+    portfolioCostPerValuePoint,
     bestValueSource,
     worstValueSource,
     pricingRegion: region,

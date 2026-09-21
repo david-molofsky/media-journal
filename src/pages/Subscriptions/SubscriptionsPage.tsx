@@ -47,7 +47,7 @@ import type {
   SubscriptionCostRow,
   SubscriptionCostSummary,
 } from '@/services/subscriptions/subscriptionCostService';
-import type { GoodValueStatus } from '@/services/statistics/subscriptionValueService';
+import type { StrongEngagementStatus } from '@/services/statistics/subscriptionValueService';
 import type { StatsYearScope } from '@/services/statistics/statisticsService';
 
 const VALUE_LABEL: Record<
@@ -59,23 +59,20 @@ const VALUE_LABEL: Record<
   Poor: { text: 'Poor value', colour: 'error' },
 };
 
-function scoreLabel(row: SubscriptionCostRow): {
+function valueLabel(row: SubscriptionCostRow): {
   text: string;
   colour: 'success' | 'warning' | 'error' | 'default';
 } {
   if (row.belowThreshold) return { text: 'Not enough data yet', colour: 'default' };
-  if (row.score >= 60) return VALUE_LABEL.Good;
-  if (row.score >= 40) return VALUE_LABEL.Fair;
-  return VALUE_LABEL.Poor;
+  if (!row.valueLabel) {
+    return { text: 'Another subscription needed to compare', colour: 'default' };
+  }
+  return VALUE_LABEL[row.valueLabel];
 }
 
-function scoreBarColour(
-  row: SubscriptionCostRow,
-): 'success.main' | 'warning.main' | 'error.main' | 'text.disabled' {
+function scoreBarColour(row: SubscriptionCostRow): 'primary.main' | 'text.disabled' {
   if (row.belowThreshold) return 'text.disabled';
-  if (row.score >= 60) return 'success.main';
-  if (row.score >= 40) return 'warning.main';
-  return 'error.main';
+  return 'primary.main';
 }
 
 /** Formats the " — £X.XX/pt" suffix for the Best/Worst value summary
@@ -100,19 +97,31 @@ function formatMonth(monthKey: string): string {
   return dayjs(`${monthKey}-01`).format('MMMM YYYY');
 }
 
-/** Renders the "last month this qualified as good value" line — see
- * `getGoodValueHistory`'s doc comment for what each state means. */
-function goodValueLine(status: GoodValueStatus): { text: string; muted: boolean } {
+/** Renders the strong-engagement history line — see
+ * `getStrongEngagementHistory`'s doc comment for what each state means. */
+function engagementHistoryLine(status: StrongEngagementStatus): {
+  text: string;
+  muted: boolean;
+} {
   if (status.state === 'current') {
     return {
-      text: `Good value every month since ${formatMonth(status.month!)}`,
+      text: `Strong engagement every month since ${formatMonth(status.month!)}`,
       muted: false,
     };
   }
   if (status.state === 'past') {
-    return { text: `Last good value: ${formatMonth(status.month!)}`, muted: false };
+    return {
+      text: `Strong engagement last reached in ${formatMonth(status.month!)}`,
+      muted: false,
+    };
   }
-  return { text: 'Not yet good value in the tracked history', muted: true };
+  return { text: 'Not yet strongly engaged in the tracked history', muted: true };
+}
+
+function relativeValueLine(percent: number): string {
+  const rounded = Math.round(Math.abs(percent));
+  if (rounded === 0) return 'Typical value for your subscriptions';
+  return `${rounded}% ${percent > 0 ? 'better' : 'worse'} value than your typical subscription`;
 }
 
 /** Real logo (same `<BrandIcon>` treatment as the welcome screen's
@@ -302,10 +311,10 @@ interface SubscriptionCardProps {
 function SubscriptionCard({ row, currencySymbol }: SubscriptionCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const label = scoreLabel(row);
+  const label = valueLabel(row);
   const hasTiers = row.tiers && row.tiers.length > 0;
   const hasPrice = row.effectivePrice !== null;
-  const gv = goodValueLine(row.goodValueHistory);
+  const engagementHistory = engagementHistoryLine(row.engagementHistory);
 
   return (
     <Box
@@ -386,7 +395,7 @@ function SubscriptionCard({ row, currencySymbol }: SubscriptionCardProps) {
           sx={{ mb: 0.5 }}
         >
           <Typography variant="caption" color="text.secondary">
-            Score{' '}
+            Engagement score{' '}
             <Box component="span" sx={{ color: scoreBarColour(row), fontWeight: 700 }}>
               {row.score}
             </Box>
@@ -447,15 +456,31 @@ function SubscriptionCard({ row, currencySymbol }: SubscriptionCardProps) {
         )}
       </Stack>
 
+      {row.relativeValuePercent !== null && (
+        <Typography
+          variant="caption"
+          color={
+            row.relativeValuePercent > 0
+              ? 'success.main'
+              : row.relativeValuePercent < 0
+                ? 'error.main'
+                : 'text.secondary'
+          }
+          sx={{ display: 'block', mt: 0.75 }}
+        >
+          {relativeValueLine(row.relativeValuePercent)}
+        </Typography>
+      )}
+
       <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
-        {!gv.muted && (
+        {!engagementHistory.muted && (
           <EmojiEventsOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
         )}
         <Typography
           variant="caption"
-          color={gv.muted ? 'text.disabled' : 'text.secondary'}
+          color={engagementHistory.muted ? 'text.disabled' : 'text.secondary'}
         >
-          {gv.text}
+          {engagementHistory.text}
         </Typography>
       </Stack>
 
@@ -609,17 +634,14 @@ export default function SubscriptionsPage() {
             {data.annualSpend.toFixed(2)}
           </Typography>
         </Stack>
-        {data.overallValueLabel && (
+        {data.portfolioCostPerValuePoint !== null && (
           <Stack direction="row" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
-              Overall value
+              Portfolio average
             </Typography>
-            <Typography
-              variant="subtitle1"
-              fontWeight={700}
-              color={`${VALUE_LABEL[data.overallValueLabel].colour}.main`}
-            >
-              {data.overallValueLabel}
+            <Typography variant="subtitle1" fontWeight={700}>
+              {currencySymbol}
+              {data.portfolioCostPerValuePoint.toFixed(2)}/pt
             </Typography>
           </Stack>
         )}
@@ -628,8 +650,8 @@ export default function SubscriptionsPage() {
           color="text.secondary"
           sx={{ display: 'block', mt: 1 }}
         >
-          Spend factors in each source's annual-billing discount where set. Score above is
-          scoped to{' '}
+          Value compares each subscription's engagement score with its effective monthly
+          price. Lower cost per point is better. Engagement is scoped to{' '}
           {year === 'last12' ? 'the last 12 months' : year === null ? 'all time' : year}.
         </Typography>
         {(data.bestValueSource || data.worstValueSource) && (
