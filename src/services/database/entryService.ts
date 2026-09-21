@@ -174,9 +174,7 @@ export async function getEntriesSnapshot(ids: string[]): Promise<MediaEntry[]> {
  * Captures the exact records and deletes them in one transaction so
  * the UI can offer a reliable short-lived Undo action.
  */
-export async function deleteEntriesWithSnapshot(
-  ids: string[],
-): Promise<MediaEntry[]> {
+export async function deleteEntriesWithSnapshot(ids: string[]): Promise<MediaEntry[]> {
   return db.transaction('rw', db.mediaEntries, async () => {
     const entries = await getEntriesSnapshot(ids);
     await db.mediaEntries.bulkDelete(ids);
@@ -446,6 +444,11 @@ export interface EntryListFilter {
   /** An entry is dropped if its source is any of these — checked
    * before `sources`, see `passesCategory` below. */
   sourcesExclude?: string[];
+  /** Exact rating match. */
+  rating?: number;
+  /** When true, only entries without a rating pass. Takes precedence
+   * over `rating`. */
+  ratingMissing?: boolean;
   /** OR-matched against `watchedWith` — an entry passes if it was
    * watched/read/listened to/played with any of these people.
    * Cross-media-type, same shape as Tags/Genres. */
@@ -465,6 +468,11 @@ export interface EntryListFilter {
   status?: EntryStatus;
 }
 
+/** Synthetic option used by category filters to represent an entry
+ * with no values in that category. Kept outside the user-visible
+ * label so a real tag or source named "None" still works normally. */
+export const MISSING_CATEGORY_FILTER_VALUE = '__media_journal_missing__';
+
 /**
  * Tri-state category filter shared by Type/Source/Genre/Tag on the
  * Journal page (see chat, Aug 2026 — "Include/Exclude filtering"):
@@ -480,10 +488,14 @@ function passesCategory(
   include?: string[],
   exclude?: string[],
 ): boolean {
-  if (exclude && exclude.length > 0 && entryValues.some((v) => exclude.includes(v)))
-    return false;
-  if (include && include.length > 0 && !entryValues.some((v) => include.includes(v)))
-    return false;
+  const values = entryValues.filter((value) => value.trim().length > 0);
+  const matches = (filterValue: string) =>
+    filterValue === MISSING_CATEGORY_FILTER_VALUE
+      ? values.length === 0
+      : values.includes(filterValue);
+
+  if (exclude && exclude.length > 0 && exclude.some(matches)) return false;
+  if (include && include.length > 0 && !include.some(matches)) return false;
   return true;
 }
 
@@ -575,13 +587,20 @@ export async function listEntries(
     (filter.sources && filter.sources.length > 0) ||
     (filter.sourcesExclude && filter.sourcesExclude.length > 0)
   ) {
-    entries = entries.filter((e) =>
-      passesCategory(
-        typeof e.metadata.source === 'string' ? [e.metadata.source] : [],
+    entries = entries.filter((e) => {
+      const source =
+        typeof e.metadata.source === 'string' ? e.metadata.source.trim() : '';
+      return passesCategory(
+        source ? [source] : [],
         filter.sources,
         filter.sourcesExclude,
-      ),
-    );
+      );
+    });
+  }
+  if (filter.ratingMissing) {
+    entries = entries.filter((e) => e.rating === undefined);
+  } else if (filter.rating !== undefined) {
+    entries = entries.filter((e) => e.rating === filter.rating);
   }
   if (
     (filter.watchedWith && filter.watchedWith.length > 0) ||

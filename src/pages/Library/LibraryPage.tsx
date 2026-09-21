@@ -38,6 +38,7 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
   type EntrySortOrder,
   TYPE_SORT_ORDER,
+  MISSING_CATEGORY_FILTER_VALUE,
   updateEntryStatus,
   normalizeWishlistOrder,
   swapWishlistOrder,
@@ -68,6 +69,19 @@ const MONTH_OPTIONS: FilterChipOption[] = MONTH_NAMES.map((name, index) => ({
   label: name,
   value: String(index + 1),
 }));
+
+const RATING_NONE_VALUE = 'none';
+const RATING_OPTIONS: FilterChipOption[] = [
+  { label: 'None', value: RATING_NONE_VALUE },
+  ...Array.from({ length: 21 }, (_, index) => {
+    const rating = 10 - index * 0.5;
+    return { label: String(rating), value: String(rating) };
+  }),
+];
+const NONE_CATEGORY_OPTION: FilterChipOption = {
+  label: 'None',
+  value: MISSING_CATEGORY_FILTER_VALUE,
+};
 
 const SORT_OPTIONS: { label: string; value: EntrySortOrder }[] = [
   { label: 'My Order', value: 'wishlistOrderAsc' },
@@ -133,6 +147,7 @@ export interface LibraryFilterRequest {
   genresExclude?: string[];
   sources?: string[];
   sourcesExclude?: string[];
+  rating?: string;
   watchedWith?: string[];
   watchedWithExclude?: string[];
   recommendedBy?: string[];
@@ -232,6 +247,9 @@ export default function LibraryPage() {
   const [sourcesExclude, setSourcesExclude] = useState<string[]>(
     incoming?.sourcesExclude ?? restored?.sourcesExclude ?? [],
   );
+  const [rating, setRating] = useState<string | undefined>(
+    incoming?.rating ?? restored?.rating,
+  );
   const [watchedWith, setWatchedWith] = useState<string[]>(
     incoming?.watchedWith ?? restored?.watchedWith ?? [],
   );
@@ -286,6 +304,7 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    rating,
     watchedWith,
     watchedWithExclude,
     recommendedBy,
@@ -307,6 +326,7 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      rating,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -346,6 +366,7 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    rating,
     watchedWith,
     watchedWithExclude,
     recommendedBy,
@@ -364,6 +385,7 @@ export default function LibraryPage() {
     genresExclude.length > 0 ||
     sources.length > 0 ||
     sourcesExclude.length > 0 ||
+    rating !== undefined ||
     watchedWith.length > 0 ||
     watchedWithExclude.length > 0 ||
     recommendedBy.length > 0 ||
@@ -388,6 +410,7 @@ export default function LibraryPage() {
     setGenresExclude([]);
     setSources([]);
     setSourcesExclude([]);
+    setRating(undefined);
     setWatchedWith([]);
     setWatchedWithExclude([]);
     setRecommendedBy([]);
@@ -422,6 +445,7 @@ export default function LibraryPage() {
       setGenresExclude(incoming.genresExclude ?? []);
       setSources(incoming.sources ?? []);
       setSourcesExclude(incoming.sourcesExclude ?? []);
+      setRating(incoming.rating);
       setWatchedWith(incoming.watchedWith ?? []);
       setWatchedWithExclude(incoming.watchedWithExclude ?? []);
       setRecommendedBy(incoming.recommendedBy ?? []);
@@ -470,6 +494,10 @@ export default function LibraryPage() {
     setSelectedIds(new Set());
   };
 
+  const exactRating =
+    rating !== undefined && rating !== RATING_NONE_VALUE ? Number(rating) : undefined;
+  const ratingMissing = rating === RATING_NONE_VALUE;
+
   const filter = useMemo(
     () => ({
       year: year ? Number(year) : undefined,
@@ -483,6 +511,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      rating: exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -501,6 +531,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -562,7 +594,8 @@ export default function LibraryPage() {
   // once I filter to Books"). Each dropdown's option list is recomputed
   // from entries matching every OTHER currently-active filter — status
   // tab, Year/Month, search text, Type, and the *other two* of these
-  // three categories — but deliberately excludes the category's own
+  // three categories — with the Rating filter also applied — but
+  // deliberately excludes the category's own
   // Include/Exclude picks, so choosing one Genre doesn't hide every
   // other Genre from ever being reachable again. A value already set to
   // Include or Exclude is always kept in its own list even if it stops
@@ -578,6 +611,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      rating: exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -594,6 +629,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -612,6 +649,8 @@ export default function LibraryPage() {
       tagsExclude,
       sources,
       sourcesExclude,
+      rating: exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -628,6 +667,8 @@ export default function LibraryPage() {
       tagsExclude,
       sources,
       sourcesExclude,
+      exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -646,6 +687,8 @@ export default function LibraryPage() {
       tagsExclude,
       genres,
       genresExclude,
+      rating: exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -662,6 +705,8 @@ export default function LibraryPage() {
       tagsExclude,
       genres,
       genresExclude,
+      exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       recommendedBy,
@@ -682,6 +727,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      rating: exactRating,
+      ratingMissing,
       recommendedBy,
       recommendedByExclude,
       status: statusTab,
@@ -698,6 +745,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      exactRating,
+      ratingMissing,
       recommendedBy,
       recommendedByExclude,
       statusTab,
@@ -716,6 +765,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      rating: exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       status: statusTab,
@@ -732,6 +783,8 @@ export default function LibraryPage() {
       genresExclude,
       sources,
       sourcesExclude,
+      exactRating,
+      ratingMissing,
       watchedWith,
       watchedWithExclude,
       statusTab,
@@ -758,11 +811,18 @@ export default function LibraryPage() {
     for (const entry of tagFacetEntries ?? []) {
       for (const tag of entry.tags ?? []) values.add(tag);
     }
-    for (const tag of tags) values.add(tag);
-    for (const tag of tagsExclude) values.add(tag);
-    return Array.from(values)
-      .sort()
-      .map((t) => ({ label: t, value: t }));
+    for (const tag of tags) {
+      if (tag !== MISSING_CATEGORY_FILTER_VALUE) values.add(tag);
+    }
+    for (const tag of tagsExclude) {
+      if (tag !== MISSING_CATEGORY_FILTER_VALUE) values.add(tag);
+    }
+    return [
+      NONE_CATEGORY_OPTION,
+      ...Array.from(values)
+        .sort()
+        .map((t) => ({ label: t, value: t })),
+    ];
   }, [tagFacetEntries, tags, tagsExclude]);
 
   const genreOptions = useMemo(() => {
@@ -783,11 +843,18 @@ export default function LibraryPage() {
       const source = entry.metadata.source;
       if (typeof source === 'string' && source.trim()) values.add(source);
     }
-    for (const source of sources) values.add(source);
-    for (const source of sourcesExclude) values.add(source);
-    return Array.from(values)
-      .sort()
-      .map((s) => ({ label: s, value: s }));
+    for (const source of sources) {
+      if (source !== MISSING_CATEGORY_FILTER_VALUE) values.add(source);
+    }
+    for (const source of sourcesExclude) {
+      if (source !== MISSING_CATEGORY_FILTER_VALUE) values.add(source);
+    }
+    return [
+      NONE_CATEGORY_OPTION,
+      ...Array.from(values)
+        .sort()
+        .map((s) => ({ label: s, value: s })),
+    ];
   }, [sourceFacetEntries, sources, sourcesExclude]);
 
   const watchedWithOptions = useMemo(() => {
@@ -898,6 +965,7 @@ export default function LibraryPage() {
     genresExclude,
     sources,
     sourcesExclude,
+    rating,
     watchedWith,
     watchedWithExclude,
     recommendedBy,
@@ -1153,6 +1221,12 @@ export default function LibraryPage() {
                 }}
               />
             )}
+            <FilterChip
+              label="Rating"
+              value={rating}
+              options={RATING_OPTIONS}
+              onChange={setRating}
+            />
             {genreOptions.length > 0 && (
               <MultiFilterChip
                 label="Genre"
