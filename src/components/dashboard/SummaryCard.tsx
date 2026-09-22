@@ -4,24 +4,20 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import type { MediaType } from '@/models';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
-import { GoalAchievedIcon } from '@/components/dashboard/GoalAchievedIcon';
+import { GoalStatusIcon } from '@/components/dashboard/GoalStatusIcon';
+import type { GoalStatus } from '@/components/dashboard/goalStatus';
 
 interface SummaryCardProps {
   mediaType: MediaType;
   count: number;
-  goalAchieved?: boolean;
+  goalStatus?: GoalStatus;
   onClick: () => void;
 }
 
 /** One card per media type on the Dashboard: icon, total and accent
  * colour — tappable through to a filtered Library (UI & UX
  * Specification, section 4). */
-export function SummaryCard({
-  mediaType,
-  count,
-  goalAchieved = false,
-  onClick,
-}: SummaryCardProps) {
+export function SummaryCard({ mediaType, count, goalStatus, onClick }: SummaryCardProps) {
   const Icon = getMediaTypeIcon(mediaType.icon);
 
   return (
@@ -35,12 +31,7 @@ export function SummaryCard({
         >
           {/* eslint-disable-next-line react-hooks/static-components -- see EntryCard.tsx */}
           <Icon sx={{ color: mediaType.colour, fontSize: 22 }} />
-          {goalAchieved && (
-            <GoalAchievedIcon
-              titleAccess="Goal achieved"
-              sx={{ color: 'success.main', fontSize: 27 }}
-            />
-          )}
+          {goalStatus && <GoalStatusIcon status={goalStatus} />}
         </Box>
         <Typography variant="h6" fontWeight={600} sx={{ mt: 0.5 }}>
           {count}

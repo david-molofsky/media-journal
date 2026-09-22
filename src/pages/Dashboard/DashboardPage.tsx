@@ -11,6 +11,8 @@ import { useRollingMonthlyBreakdown } from '@/hooks/useRollingMonthlyBreakdown';
 import { useGoals } from '@/hooks/useGoals';
 import { YearSelector } from '@/components/common/YearSelector';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
+import { GoalStatusLegend } from '@/components/dashboard/GoalStatusLegend';
+import { getGoalStatus } from '@/components/dashboard/goalStatus';
 import { GoalsSection } from '@/components/dashboard/GoalsSection';
 import { InProgressSection } from '@/components/dashboard/InProgressSection';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
@@ -114,12 +116,16 @@ export default function DashboardPage() {
               {mediaTypes.map((mediaType) => {
                 const count = data.totalsByMediaType[mediaType.id] ?? 0;
                 const goal = year === null ? undefined : goals?.[mediaType.id];
+                const goalStatus =
+                  goal !== undefined && year !== null
+                    ? getGoalStatus({ count, target: goal, year })
+                    : undefined;
                 return (
                   <SummaryCard
                     key={mediaType.id}
                     mediaType={mediaType}
                     count={count}
-                    goalAchieved={goal !== undefined && count >= goal}
+                    goalStatus={goalStatus}
                     onClick={() =>
                       goToLibrary(
                         year === null
@@ -131,6 +137,10 @@ export default function DashboardPage() {
                 );
               })}
             </Box>
+
+            {year !== null && goals && Object.keys(goals).length > 0 && (
+              <GoalStatusLegend />
+            )}
 
             {year !== null && (
               <GoalsSection
