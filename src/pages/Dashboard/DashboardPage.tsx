@@ -8,6 +8,7 @@ import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useAvailableYears } from '@/hooks/useAvailableYears';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useRollingMonthlyBreakdown } from '@/hooks/useRollingMonthlyBreakdown';
+import { useGoals } from '@/hooks/useGoals';
 import { YearSelector } from '@/components/common/YearSelector';
 import { SummaryCard } from '@/components/dashboard/SummaryCard';
 import { GoalsSection } from '@/components/dashboard/GoalsSection';
@@ -33,6 +34,7 @@ export default function DashboardPage() {
   const availableYears = useAvailableYears();
   const [year, setYear] = useState<number | null>(() => dayjs().year());
   const data = useDashboardData(year);
+  const goals = useGoals(year ?? dayjs().year());
   // Always a rolling 12 months, independent of the Dashboard's own
   // year selector above — see chat, Sept 2026.
   const rollingMonthlyData = useRollingMonthlyBreakdown();
@@ -111,11 +113,13 @@ export default function DashboardPage() {
             >
               {mediaTypes.map((mediaType) => {
                 const count = data.totalsByMediaType[mediaType.id] ?? 0;
+                const goal = year === null ? undefined : goals?.[mediaType.id];
                 return (
                   <SummaryCard
                     key={mediaType.id}
                     mediaType={mediaType}
                     count={count}
+                    goalAchieved={goal !== undefined && count >= goal}
                     onClick={() =>
                       goToLibrary(
                         year === null
