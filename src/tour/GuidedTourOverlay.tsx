@@ -110,6 +110,9 @@ export function GuidedTourOverlay() {
         backgroundColor: 'rgba(0,0,0,0.72)',
         alignItems: currentStep.centered || !spotlight ? 'center' : 'flex-start',
         justifyContent: 'center',
+        // Let the app remain usable during spotlight steps. The tour cards
+        // below opt back into pointer events so their controls still work.
+        pointerEvents: currentStep.centered ? 'auto' : 'none',
       }}
     >
       {showSpotlight && spotlight && (
@@ -137,6 +140,7 @@ export function GuidedTourOverlay() {
             textAlign: 'center',
             border: '1px solid',
             borderColor: 'primary.main',
+            pointerEvents: 'auto',
           }}
         >
           <Typography variant="h6" gutterBottom>
@@ -177,6 +181,7 @@ export function GuidedTourOverlay() {
             p: 2,
             border: '1px solid',
             borderColor: 'primary.main',
+            pointerEvents: 'auto',
           }}
         >
           <Box
