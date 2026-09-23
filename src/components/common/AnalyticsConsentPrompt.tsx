@@ -10,10 +10,12 @@ import {
   grantAnalyticsConsent,
   trackCurrentPageView,
 } from '@/services/analytics/analyticsService';
+import { useGuidedTour } from '@/tour/GuidedTourContext';
 
 const CONSENT_KEY = 'mediaJournalAnalyticsConsent';
 
 export function AnalyticsConsentPrompt() {
+  const { active: tourActive } = useGuidedTour();
   const [open, setOpen] = useState(() => {
     const consent = localStorage.getItem(CONSENT_KEY);
     return consent !== 'granted' && consent !== 'denied';
@@ -43,7 +45,7 @@ export function AnalyticsConsentPrompt() {
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open && !tourActive}>
       <DialogTitle>Help improve Media Journal?</DialogTitle>
 
       <DialogContent>
