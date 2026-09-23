@@ -18,7 +18,7 @@ export const tourSteps: TourStep[] = [
     route: ROUTES.dashboard,
     centered: true,
     title: 'Welcome to Media Journal',
-    body: "Let's take a quick tour — track films, books, shows, comics and more, all in one place, fully offline.",
+    body: "Keep everything you watch, read and listen to in one personal journal. We'll show you around by creating your first entry.",
   },
   {
     id: 'add-1',
