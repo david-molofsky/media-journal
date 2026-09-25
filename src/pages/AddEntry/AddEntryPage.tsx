@@ -452,6 +452,7 @@ export default function AddEntryPage() {
         </Alert>
       )}
       <EntryForm
+        detectRepeat
         key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : platformShareInitialValues ? 'platform-share' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
         mediaType={effectiveMediaType}
         initialValues={
@@ -463,6 +464,7 @@ export default function AddEntryPage() {
         }
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
+        autoDetectRepeat
         onDraftChange={saveAddEntryDraft}
         onSubmit={async (values) => {
           const librarySizeBefore = await db.mediaEntries.count();
