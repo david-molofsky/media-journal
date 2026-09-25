@@ -10,6 +10,7 @@ import {
   updateEntry,
 } from './entryService';
 import { completedEntryInput } from '@/test/factories';
+import { getRecentEntries } from '@/services/statistics/statisticsService';
 
 describe('entry service journeys', () => {
   beforeEach(async () => {
@@ -47,6 +48,40 @@ describe('entry service journeys', () => {
       createEntry(completedEntryInput({ completedDate: undefined })),
     ).rejects.toThrow('Completed date is required');
     expect(await db.mediaEntries.count()).toBe(0);
+  });
+
+  it('orders same-day completions by the order they were logged', async () => {
+    await db.mediaEntries.bulkAdd([
+      {
+        ...completedEntryInput({ title: 'First', completedDate: '2026-09-25' }),
+        id: 'first',
+        createdAt: '2026-09-25T09:00:00Z',
+        updatedAt: '2026-09-25T09:00:00Z',
+      },
+      {
+        ...completedEntryInput({ title: 'Yesterday', completedDate: '2026-09-24' }),
+        id: 'yesterday',
+        createdAt: '2026-09-25T12:00:00Z',
+        updatedAt: '2026-09-25T12:00:00Z',
+      },
+      {
+        ...completedEntryInput({ title: 'Second', completedDate: '2026-09-25' }),
+        id: 'second',
+        createdAt: '2026-09-25T10:00:00Z',
+        updatedAt: '2026-09-25T10:00:00Z',
+      },
+    ]);
+
+    expect(
+      (await listEntries({}, 'completedDateDesc')).map(({ title }) => title),
+    ).toEqual(['Second', 'First', 'Yesterday']);
+    expect((await listEntries({}, 'completedDateAsc')).map(({ title }) => title)).toEqual(
+      ['Yesterday', 'First', 'Second'],
+    );
+    expect((await getRecentEntries(2)).map(({ title }) => title)).toEqual([
+      'Second',
+      'First',
+    ]);
   });
 
   it('filters entries with missing tags, source or rating', async () => {

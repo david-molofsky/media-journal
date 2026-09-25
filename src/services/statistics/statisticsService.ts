@@ -1,3 +1,4 @@
+import { compareCompletionNewest } from '@/utils/entryDateSort';
 import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import type { MediaEntry } from '@/models';
@@ -845,8 +846,8 @@ export async function getRecentEntries(limit: number): Promise<MediaEntry[]> {
   return db.mediaEntries
     .where('status')
     .equals('completed')
-    .sortBy('completedDate')
-    .then((entries) => entries.reverse().slice(0, limit));
+    .toArray()
+    .then((entries) => entries.sort(compareCompletionNewest).slice(0, limit));
 }
 
 /**

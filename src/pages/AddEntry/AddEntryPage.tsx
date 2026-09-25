@@ -464,7 +464,6 @@ export default function AddEntryPage() {
         }
         defaultStatus={defaultStatus}
         submitLabel="Save Entry"
-        autoDetectRepeat
         onDraftChange={saveAddEntryDraft}
         onSubmit={async (values) => {
           const librarySizeBefore = await db.mediaEntries.count();
