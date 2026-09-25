@@ -6,6 +6,7 @@ import type {
   EntryMetadata,
   PodcastSubscription,
 } from '@/models';
+import { previousConsumption } from '@/utils/repeatDetection';
 import { defaultMediaTypes } from './defaultMediaTypes';
 import { mapOpenLibrarySubjectsToGenres } from '@/utils/openLibraryGenreMap';
 
@@ -1397,6 +1398,32 @@ export class MediaJournalDatabase extends Dexie {
           if (entry.watchedWith === undefined) entry.watchedWith = [];
           if (entry.recommendedBy === undefined) entry.recommendedBy = [];
         });
+      });
+
+    // Backfill older repeat viewings in date order. Preserve existing true flags
+    // and never treat another entry on the same day as a repeat.
+    this.version(31)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaEntry>('mediaEntries');
+        const entries = await table.toArray();
+        const completed = entries
+          .filter((entry) => entry.status === 'completed' && entry.completedDate)
+          .sort((a, b) => a.completedDate!.localeCompare(b.completedDate!));
+        const earlier: MediaEntry[] = [];
+        for (const entry of completed) {
+          if (!entry.repeatConsumption && previousConsumption(entry, earlier)) {
+            await table.update(entry.id, { repeatConsumption: true });
+          }
+          earlier.push(entry);
+        }
       });
   }
 }
