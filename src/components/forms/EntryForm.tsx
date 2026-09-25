@@ -22,7 +22,6 @@ import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import CachedOutlinedIcon from '@mui/icons-material/CachedOutlined';
 import { db } from '@/services/database/db';
 import { previousConsumption } from '@/utils/repeatDetection';
-import type { MediaEntry } from '@/models';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
 import { getIssueDetails } from '@/services/metadata/comicVineService';
 import {
@@ -33,8 +32,6 @@ import {
 import { computeReSearchDiffs, type ReSearchDiffSet } from '@/utils/reSearchDiff';
 import type { ReSearchResult } from '@/services/metadata/reSearchService';
 import { comicIssueCount } from '@/utils/comicIssues';
-import { previousConsumption } from '@/utils/repeatDetection';
-import { db } from '@/services/database/db';
 import { todayIso, isMoreThanSixMonthsAgo } from '@/utils/dateUtils';
 import { getMediaTypeIcon } from '@/utils/mediaTypeIcon';
 import { toTitleCase } from '@/utils/toTitleCase';
@@ -99,7 +96,6 @@ interface EntryFormProps {
    * the bottom of the viewport instead of inline at the end of the
    * form. Used on Edit Entry; Add Entry leaves this off. */
   stickySubmit?: boolean;
-  autoDetectRepeat?: boolean;
   /** Enable suggestions only for newly logged entries, never while editing. */
   detectRepeat?: boolean;
 }
@@ -143,7 +139,6 @@ export function EntryForm({
   onDraftChange,
   secondaryActions,
   stickySubmit = false,
-  autoDetectRepeat = false,
   detectRepeat = false,
 }: EntryFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -358,16 +353,32 @@ export function EntryForm({
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       const candidate = getValues();
-      const entries = await db.mediaEntries.where('mediaType').equals(candidate.mediaType).toArray();
+      const entries = await db.mediaEntries
+        .where('mediaType')
+        .equals(candidate.mediaType)
+        .toArray();
       if (cancelled) return;
       const previous = previousConsumption(candidate, entries);
       setPreviousDate(previous?.completedDate ?? null);
       if (!manualRepeatRef.current) {
-        setValue('repeatConsumption', Boolean(previous), { shouldDirty: Boolean(previous) });
+        setValue('repeatConsumption', Boolean(previous), {
+          shouldDirty: Boolean(previous),
+        });
       }
     }, 250);
-    return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [detectRepeat, title, completedDate, repeatStatus, repeatMetadata, getValues, setValue]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    detectRepeat,
+    title,
+    completedDate,
+    repeatStatus,
+    repeatMetadata,
+    getValues,
+    setValue,
+  ]);
 
   // An installed update may finish downloading while this form is
   // open. Keep it pending until the form is saved, reset or abandoned;
@@ -418,35 +429,6 @@ export function EntryForm({
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
-
-  const [previous, setPrevious] = useState<MediaEntry | undefined>();
-  const manualRepeatRef = useRef(false);
-  const detectionSequence = useRef(0);
-  useEffect(() => {
-    if (!autoDetectRepeat) return;
-    const check = () => {
-      const sequence = ++detectionSequence.current;
-      const candidate = getValues();
-      if (candidate.status !== 'completed' || !candidate.completedDate || !candidate.title.trim()) {
-        setPrevious(undefined);
-        return;
-      }
-      void db.mediaEntries.where('mediaType').equals(candidate.mediaType).toArray().then((entries) => {
-        if (sequence !== detectionSequence.current) return;
-        const match = previousConsumption(candidate, entries);
-        setPrevious(match);
-        if (!manualRepeatRef.current) {
-          setValue('repeatConsumption', Boolean(match), { shouldDirty: true });
-        }
-      });
-    };
-    check();
-    const subscription = watch((_values, info) => {
-      if (info.name === 'repeatConsumption') return;
-      if (info.name === 'title' || info.name === 'completedDate' || info.name === 'status' || info.name?.startsWith('metadata.')) check();
-    });
-    return () => { ++detectionSequence.current; subscription.unsubscribe(); };
-  }, [autoDetectRepeat, getValues, setValue, watch]);
 
   const status = watch('status') as EntryStatus | undefined;
   const issueStart = watch('metadata.issueStart' as 'metadata');
@@ -1433,27 +1415,28 @@ export function EntryForm({
               )}
             />
 
-            {autoDetectRepeat && previous && (
-              <Alert severity="info">
-                Previously completed {previous.completedDate}. Re-read / Re-watch selected automatically; you can change it below.
-              </Alert>
-            )}
             <Controller
               name="repeatConsumption"
               control={control}
               render={({ field }) => (
                 <FormControlLabel
-                  control={<Switch checked={field.value} onChange={(event) => {
-                    manualRepeatRef.current = true;
-                    field.onChange(event);
-                  }} />}
+                  control={
+                    <Switch
+                      checked={field.value}
+                      onChange={(event) => {
+                        manualRepeatRef.current = true;
+                        field.onChange(event);
+                      }}
+                    />
+                  }
                   label="Re-read / Re-watch"
                 />
               )}
             />
             {detectRepeat && previousDate && (
               <Typography variant="body2" color="text.secondary">
-                ↻ Previously completed {previousDate}. Re-read / Re-watch selected automatically; you can change it.
+                ↻ Previously completed {previousDate}. Re-read / Re-watch selected
+                automatically; you can change it.
               </Typography>
             )}
           </>

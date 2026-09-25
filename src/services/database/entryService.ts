@@ -1,3 +1,4 @@
+import { compareCompletionNewest, compareCompletionOldest } from '@/utils/entryDateSort';
 import { db } from './db';
 import type {
   MediaEntry,
@@ -630,13 +631,9 @@ function sortEntries(entries: MediaEntry[], sort: EntrySortOrder): MediaEntry[] 
   const sorted = [...entries];
   switch (sort) {
     case 'completedDateDesc':
-      return sorted.sort((a, b) =>
-        (b.completedDate ?? '').localeCompare(a.completedDate ?? ''),
-      );
+      return sorted.sort(compareCompletionNewest);
     case 'completedDateAsc':
-      return sorted.sort((a, b) =>
-        (a.completedDate ?? '').localeCompare(b.completedDate ?? ''),
-      );
+      return sorted.sort(compareCompletionOldest);
     // In Progress has no completedDate yet — sorts by startedDate
     // instead (see chat, Aug 2026: In Progress previously defaulted
     // to completedDateDesc, which is undefined for every in-progress
