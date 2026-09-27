@@ -25,6 +25,8 @@ export interface ExternalReviewItem {
   title: string;
   /** Author, season label, etc. — shown under the title. */
   subtitle?: string;
+  /** Optional source-specific metadata that must survive the review step. */
+  metadata?: Record<string, string>;
   mediaType: string;
   status: ExternalMatchStatus;
   /** Populated when status is 'ambiguous' (more than one plausible
