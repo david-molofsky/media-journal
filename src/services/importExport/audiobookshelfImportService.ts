@@ -97,7 +97,7 @@ export async function fetchAudiobookshelfLibrary(
       continue; // item may have been removed from the server since
     }
 
-    const { title, authorName, isbn } = detail.media.metadata;
+    const { title, authorName, narratorName, isbn } = detail.media.metadata;
     const libraryName = libraryNameById.get(detail.libraryId) ?? '';
     const { mediaType, ambiguous } = classify(detail, libraryName);
 
@@ -137,6 +137,7 @@ export async function fetchAudiobookshelfLibrary(
       key: progress.libraryItemId,
       title,
       subtitle: authorName,
+      metadata: narratorName ? { narrator: narratorName } : undefined,
       mediaType,
       status,
       candidates,
@@ -183,6 +184,9 @@ export async function applyAudiobookshelfImport(
       const candidate = item.candidates.find((c) => c.id === item.selectedCandidateId);
       const metadata: EntryMetadata = { source: SOURCE };
       if (item.subtitle) metadata['author'] = item.subtitle;
+      if (mediaType === 'audiobook' && item.metadata?.narrator) {
+        metadata['narrator'] = item.metadata.narrator;
+      }
 
       await createEntry({
         title: candidate?.title ?? toTitleCase(item.title),
