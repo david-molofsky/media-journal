@@ -302,8 +302,18 @@ export const defaultMediaTypes: MediaType[] = [
       { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
       { key: 'hoursPlayed', label: 'Hours Played', type: 'number', required: false },
       { key: 'completionPercent', label: 'Completion %', type: 'number', required: false },
-      { key: 'achievementsEarned', label: 'Achievements Earned', type: 'number', required: false },
-      { key: 'achievementsTotal', label: 'Achievements Total', type: 'number', required: false },
+      {
+        key: 'achievementsEarned',
+        label: 'Achievements Earned',
+        type: 'number',
+        required: false,
+      },
+      {
+        key: 'achievementsTotal',
+        label: 'Achievements Total',
+        type: 'number',
+        required: false,
+      },
     ],
   },
   {
