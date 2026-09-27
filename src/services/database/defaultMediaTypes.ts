@@ -60,6 +60,7 @@ export const defaultMediaTypes: MediaType[] = [
     enabled: true,
     fields: [
       { key: 'author', label: 'Author', type: 'text', required: false },
+      { key: 'narrator', label: 'Narrator', type: 'text', required: false },
       { key: 'series', label: 'Series', type: 'text', required: false },
       { key: 'volume', label: 'Volume', type: 'text', required: false },
       {
