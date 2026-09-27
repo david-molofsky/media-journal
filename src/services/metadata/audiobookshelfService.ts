@@ -86,6 +86,7 @@ export interface AbsLibraryItem {
     metadata: {
       title: string;
       authorName?: string;
+      narratorName?: string;
       seriesName?: string;
       isbn?: string;
       asin?: string;
