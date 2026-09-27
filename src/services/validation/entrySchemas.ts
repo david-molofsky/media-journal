@@ -116,6 +116,10 @@ const bookMetadataSchema = z.object({
   overview: z.string().max(2000).optional(),
 });
 
+const audiobookMetadataSchema = bookMetadataSchema.extend({
+  narrator: z.string().optional(),
+});
+
 const filmMetadataSchema = z.object({
   director: z.string().optional(),
   screenwriter: z.string().optional(),
@@ -351,7 +355,7 @@ const genericMetadataSchema = z.record(
 
 const metadataSchemasByMediaType: Record<string, z.ZodType> = {
   book: bookMetadataSchema,
-  audiobook: bookMetadataSchema,
+  audiobook: audiobookMetadataSchema,
   film: filmMetadataSchema,
   tv: tvMetadataSchema,
   comic: comicMetadataSchema,
