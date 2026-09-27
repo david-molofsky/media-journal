@@ -64,7 +64,10 @@ export async function loginAudiobookshelf(
 /** Confirms a server URL + token actually work, for both auth paths —
  * pasted tokens never went through loginAudiobookshelf, so this is the
  * only validation they get before being saved. */
-export async function verifyAudiobookshelfToken(serverUrl: string, token: string): Promise<void> {
+export async function verifyAudiobookshelfToken(
+  serverUrl: string,
+  token: string,
+): Promise<void> {
   await absFetch(serverUrl, token, '/api/me');
 }
 
@@ -124,7 +127,10 @@ interface AbsLibrariesResponse {
   libraries?: AbsLibrary[];
 }
 
-export async function getLibraries(serverUrl: string, token: string): Promise<AbsLibrary[]> {
+export async function getLibraries(
+  serverUrl: string,
+  token: string,
+): Promise<AbsLibrary[]> {
   const data = await absFetch<AbsLibrariesResponse>(serverUrl, token, '/api/libraries');
   return data.libraries ?? [];
 }
