@@ -55,7 +55,9 @@ export async function loginAudiobookshelf(
   if (!res.ok) throw new Error('Login failed — check your username and password.');
   const data = (await res.json()) as AbsLoginResponse;
   const token = data.user?.token;
-  if (!token) throw new Error("Audiobookshelf didn't return a token — check your server version.");
+  if (!token) {
+    throw new Error("Audiobookshelf didn't return a token — check your server version.");
+  }
   return token;
 }
 
