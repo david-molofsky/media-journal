@@ -19,7 +19,12 @@ function normalizeServerUrl(serverUrl: string): string {
   return serverUrl.trim().replace(/\/+$/, '');
 }
 
-async function absFetch<T>(serverUrl: string, token: string, path: string, init?: RequestInit): Promise<T> {
+async function absFetch<T>(
+  serverUrl: string,
+  token: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${normalizeServerUrl(serverUrl)}${path}`, {
     ...init,
     headers: {
@@ -74,7 +79,10 @@ interface AbsMeResponse {
   mediaProgress?: AbsMediaProgress[];
 }
 
-export async function getMediaProgress(serverUrl: string, token: string): Promise<AbsMediaProgress[]> {
+export async function getMediaProgress(
+  serverUrl: string,
+  token: string,
+): Promise<AbsMediaProgress[]> {
   const data = await absFetch<AbsMeResponse>(serverUrl, token, '/api/me');
   return data.mediaProgress ?? [];
 }
@@ -97,7 +105,11 @@ export interface AbsLibraryItem {
   };
 }
 
-export async function getLibraryItem(serverUrl: string, token: string, id: string): Promise<AbsLibraryItem> {
+export async function getLibraryItem(
+  serverUrl: string,
+  token: string,
+  id: string,
+): Promise<AbsLibraryItem> {
   return absFetch<AbsLibraryItem>(serverUrl, token, `/api/items/${id}?expanded=1`);
 }
 
