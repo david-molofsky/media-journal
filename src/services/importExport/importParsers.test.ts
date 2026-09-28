@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { parseNetflixCsv } from './netflixImportService';
+import {
+  findRepeatedNetflixPrefixes,
+  parseNetflixCsv,
+} from './netflixImportService';
 import { parseAmazonPrimeCsv } from './amazonPrimeImportService';
 import { parseLetterboxdDiary } from './letterboxdImportService';
+import {
+  looksLikeSeries,
+  parseSeriesTitle,
+  parseTitleSegment,
+} from '@/utils/importTitleParsing';
 
 describe('external import parsers', () => {
   it('deduplicates Netflix titles using the latest valid viewing date', () => {
@@ -10,6 +18,39 @@ describe('external import parsers', () => {
     );
 
     expect(rows).toEqual([{ title: 'Film A', date: '2026-02-01' }]);
+  });
+
+  it('recognises Netflix Series labels as numbered seasons', () => {
+    expect(parseSeriesTitle('The IT Crowd: Series 5: The Final Episode')).toEqual({
+      showTitle: 'The IT Crowd',
+      seasonNumber: 5,
+    });
+  });
+
+  it('recognises Netflix Volume labels as TV without inventing a season', () => {
+    expect(parseSeriesTitle('Love, Death & Robots: Volume 3: Bad Travelling')).toEqual({
+      showTitle: 'Love, Death & Robots',
+      seasonNumber: undefined,
+    });
+    expect(looksLikeSeries('Love, Death & Robots: Volume 3: Bad Travelling')).toBe(true);
+  });
+
+  it('lets Netflix treat Part labels as unresolved while preserving the shared default', () => {
+    expect(parseTitleSegment('Part 4')).toEqual({ isSeries: true, seasonNumber: 4 });
+    expect(parseTitleSegment('Part 4', { resolvePartAsSeason: false })).toEqual({
+      isSeries: true,
+      seasonNumber: undefined,
+    });
+  });
+
+  it('finds repeated legacy Netflix show prefixes without treating one-off colon titles as evidence', () => {
+    const rows = [
+      { title: "Community: Pascal's Triangle Revisited", date: '2022-11-25' },
+      { title: 'Community: Modern Warfare', date: '2022-11-24' },
+      { title: 'Captain America: Civil War', date: '2022-11-23' },
+    ];
+
+    expect(findRepeatedNetflixPrefixes(rows)).toEqual(new Set(['community']));
   });
 
   it('parses Prime movies and series while rejecting unknown types', () => {
