@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  findRepeatedNetflixPrefixes,
-  parseNetflixCsv,
-} from './netflixImportService';
+import { findRepeatedNetflixPrefixes, parseNetflixCsv } from './netflixImportService';
 import { parseAmazonPrimeCsv } from './amazonPrimeImportService';
 import { parseLetterboxdDiary } from './letterboxdImportService';
 import {
@@ -21,9 +18,7 @@ describe('external import parsers', () => {
   });
 
   it('recognises Netflix Series labels as numbered seasons', () => {
-    const parsed = parseSeriesTitle(
-      'The IT Crowd: Series 5: The Final Episode',
-    );
+    const parsed = parseSeriesTitle('The IT Crowd: Series 5: The Final Episode');
 
     expect(parsed).toEqual({
       showTitle: 'The IT Crowd',
