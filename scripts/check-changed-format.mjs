@@ -22,10 +22,4 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-try {
-  execFileSync('npx', ['prettier', '--check', ...files], { stdio: 'inherit' });
-} catch (error) {
-  execFileSync('npx', ['prettier', '--write', ...files], { stdio: 'inherit' });
-  execFileSync('git', ['diff', '--', ...files], { stdio: 'inherit' });
-  throw error;
-}
+execFileSync('npx', ['prettier', '--check', ...files], { stdio: 'inherit' });
