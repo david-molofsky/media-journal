@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { describe, expect, it } from 'vitest';
 import { storedEntry } from '@/test/factories';
+import { splitPeople } from '@/utils/personRoles';
 import {
   applyStatsFilters,
   getEntryWeight,
@@ -42,6 +43,14 @@ describe('statistics calculations', () => {
         'episode',
       ),
     ).toBe(4);
+  });
+
+  it('splits comma-separated people and de-duplicates a person within one entry', () => {
+    expect(splitPeople('Stephen Fry, Jim Dale, Stephen Fry, , Andy Serkis')).toEqual([
+      'Stephen Fry',
+      'Jim Dale',
+      'Andy Serkis',
+    ]);
   });
 
   it('applies calendar and rolling time windows', () => {
