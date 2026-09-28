@@ -28,16 +28,22 @@ describe('external import parsers', () => {
   });
 
   it('recognises Netflix Volume labels as TV without inventing a season', () => {
-    expect(parseSeriesTitle('Love, Death & Robots: Volume 3: Bad Travelling')).toEqual({
+    expect(
+      parseSeriesTitle('Love, Death & Robots: Volume 3: Bad Travelling'),
+    ).toEqual({
       showTitle: 'Love, Death & Robots',
       seasonNumber: undefined,
     });
-    expect(looksLikeSeries('Love, Death & Robots: Volume 3: Bad Travelling')).toBe(true);
+    expect(
+      looksLikeSeries('Love, Death & Robots: Volume 3: Bad Travelling'),
+    ).toBe(true);
   });
 
   it('lets Netflix treat Part labels as unresolved while preserving the shared default', () => {
     expect(parseTitleSegment('Part 4')).toEqual({ isSeries: true, seasonNumber: 4 });
-    expect(parseTitleSegment('Part 4', { resolvePartAsSeason: false })).toEqual({
+    expect(
+      parseTitleSegment('Part 4', { resolvePartAsSeason: false }),
+    ).toEqual({
       isSeries: true,
       seasonNumber: undefined,
     });
