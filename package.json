@@ -10,6 +10,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "format:changed": "node scripts/check-changed-format.mjs --write",
     "format:check:changed": "node scripts/check-changed-format.mjs",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
