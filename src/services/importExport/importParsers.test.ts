@@ -65,9 +65,7 @@ describe('external import parsers', () => {
       { title: 'Captain America: Civil War', date: '2022-11-23' },
     ];
 
-    expect(findRepeatedNetflixPrefixes(rows)).toEqual(
-      new Set(['community']),
-    );
+    expect(findRepeatedNetflixPrefixes(rows)).toEqual(new Set(['community']));
   });
 
   it('parses Prime movies and series while rejecting unknown types', () => {
