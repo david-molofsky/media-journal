@@ -1425,6 +1425,39 @@ export class MediaJournalDatabase extends Dexie {
           earlier.push(entry);
         }
       });
+
+    // Narrator field for Audiobooks. Fresh installs receive this from
+    // defaultMediaTypes.ts; existing installs need their persisted
+    // Audiobook field definition updated. Insert immediately after
+    // Author to keep the entry form order consistent without changing
+    // or overwriting any other user-customised fields.
+    this.version(32)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+        const audiobook = await table.get('audiobook');
+        if (!audiobook || audiobook.fields.some((field) => field.key === 'narrator')) {
+          return;
+        }
+
+        const fields = [...audiobook.fields];
+        const authorIndex = fields.findIndex((field) => field.key === 'author');
+        const narratorField = {
+          key: 'narrator',
+          label: 'Narrator',
+          type: 'text' as const,
+          required: false,
+        };
+        fields.splice(authorIndex >= 0 ? authorIndex + 1 : 0, 0, narratorField);
+        await table.put({ ...audiobook, fields });
+      });
   }
 }
 

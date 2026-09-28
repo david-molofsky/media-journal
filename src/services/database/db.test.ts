@@ -35,12 +35,29 @@ describe('database migrations', () => {
         legacyEntry,
         storedEntry({ id: 'same-day', completedDate: '2026-09-15' }),
       ]);
+    await legacy.table('mediaTypes').add({
+      id: 'audiobook',
+      displayName: 'Audiobook',
+      icon: 'headphones',
+      colour: '#7B1FA2',
+      enabled: true,
+      fields: [
+        { key: 'author', label: 'Author', type: 'text', required: false },
+        { key: 'series', label: 'Series', type: 'text', required: false },
+      ],
+    });
     legacy.close();
 
     await db.open();
     const migrated = await db.mediaEntries.get('entry-1');
+    const audiobook = await db.mediaTypes.get('audiobook');
 
-    expect(db.verno).toBe(31);
+    expect(db.verno).toBe(32);
+    expect(audiobook?.fields.map((field) => field.key)).toEqual([
+      'author',
+      'narrator',
+      'series',
+    ]);
     expect(migrated?.watchedWith).toEqual([]);
     expect(migrated?.recommendedBy).toEqual([]);
     expect(migrated?.repeatConsumption).toBe(true);
