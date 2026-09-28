@@ -27,8 +27,9 @@ export interface NetflixRow {
   date: string;
 }
 
-const DROPPED_TITLE_PATTERN = /\b(trailer|preview|interactive special)\b/i;
-const DATE_FORMATS = ['M/D/YY', 'M/D/YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY', 'MMM D, YYYY'];
+const DROPPED_TITLE_PATTERN =
+  /\b(trailer|preview|recap|teaser|clip|interactive special)\b/i;
+const DATE_FORMATS = ['M/D/YY', 'M/D/YYYY', 'YYYY-MM-DD', 'MMM D, YYYY'];
 const NETFLIX_TITLE_OPTIONS = { resolvePartAsSeason: false } as const;
 
 function parseNetflixDate(raw: string | undefined): string | undefined {
@@ -62,6 +63,15 @@ function legacyPrefix(title: string): string | undefined {
   if (separator <= 0) return undefined;
   const prefix = title.slice(0, separator).trim();
   return prefix || undefined;
+}
+
+function legacyPrefixCandidates(title: string): string[] {
+  const segments = title.split(':').map((segment) => segment.trim()).filter(Boolean);
+  const candidates: string[] = [];
+  for (let i = segments.length - 1; i >= 1; i -= 1) {
+    candidates.push(segments.slice(0, i).join(': '));
+  }
+  return candidates;
 }
 
 /**
@@ -107,23 +117,32 @@ export async function matchNetflixRows(
   }
 
   const repeatedPrefixes = findRepeatedNetflixPrefixes(rows);
-  const verifiedLegacyPrefixes = new Set<string>();
+  const verifiedLegacyPrefixes = new Map<string, string>();
   const showCache = new Map();
 
   for (const prefixKey of repeatedPrefixes) {
     if (explicitShowPrefixes.has(prefixKey)) {
-      verifiedLegacyPrefixes.add(prefixKey);
+      const displayPrefix = rows
+        .map((row) => legacyPrefix(row.title))
+        .find((prefix) => prefix?.toLowerCase() === prefixKey);
+      if (displayPrefix) verifiedLegacyPrefixes.set(prefixKey, displayPrefix);
       continue;
     }
 
-    const representative = rows
-      .map((row) => legacyPrefix(row.title))
-      .find((prefix) => prefix?.toLowerCase() === prefixKey);
-    if (!representative) continue;
+    const candidateTitles = Array.from(
+      new Set(
+        rows
+          .filter((row) => legacyPrefix(row.title)?.toLowerCase() === prefixKey)
+          .flatMap((row) => legacyPrefixCandidates(row.title)),
+      ),
+    );
 
-    const match = await matchShowTitle(representative, showCache);
-    if (match.status === 'auto') {
-      verifiedLegacyPrefixes.add(prefixKey);
+    for (const candidate of candidateTitles) {
+      const match = await matchShowTitle(candidate, showCache);
+      if (match.status === 'auto') {
+        verifiedLegacyPrefixes.set(prefixKey, candidate);
+        break;
+      }
     }
   }
 
@@ -138,17 +157,23 @@ export async function matchNetflixRows(
     }
 
     const prefix = legacyPrefix(row.title);
-    if (prefix && verifiedLegacyPrefixes.has(prefix.toLowerCase())) {
+    const verifiedShowTitle = prefix
+      ? verifiedLegacyPrefixes.get(prefix.toLowerCase())
+      : undefined;
+    if (verifiedShowTitle) {
       seriesRows.push({
         title: row.title,
-        showTitle: prefix,
+        showTitle: verifiedShowTitle,
         seasonNumber: undefined,
         date: row.date,
       });
       continue;
     }
 
-    movieRows.push(row);
+    movieRows.push({
+      ...row,
+      includeUnmatched: prefix === undefined,
+    });
   }
 
   return matchAndGroupRows(movieRows, seriesRows, onProgress);
