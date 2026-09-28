@@ -18,6 +18,7 @@ export type PersonRole =
   | 'creator'
   | 'showrunner'
   | 'author'
+  | 'narrator'
   | 'writer'
   | 'artist'
   | 'editor';
@@ -29,6 +30,7 @@ export const PERSON_ROLE_LABELS: Record<PersonRole, string> = {
   creator: 'Creators',
   showrunner: 'Showrunners',
   author: 'Authors',
+  narrator: 'Narrators',
   writer: 'Writers',
   artist: 'Artists',
   editor: 'Editors',
@@ -50,6 +52,7 @@ export const PERSON_ROLE_FIELDS: Record<
     { mediaTypeId: 'book', fieldKey: 'author' },
     { mediaTypeId: 'audiobook', fieldKey: 'author' },
   ],
+  narrator: [{ mediaTypeId: 'audiobook', fieldKey: 'narrator' }],
   writer: [{ mediaTypeId: 'comic', fieldKey: 'writer' }],
   artist: [
     { mediaTypeId: 'comic', fieldKey: 'penciller' },
@@ -64,10 +67,14 @@ export const PERSON_ROLE_FIELDS: Record<
 /** Splits a comma-separated metadata value (e.g. Cast, Screenwriter)
  * into individual trimmed names, dropping empties. */
 export function splitPeople(value: string): string[] {
-  return value
-    .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean);
+  return Array.from(
+    new Set(
+      value
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 /**
