@@ -66,7 +66,10 @@ function legacyPrefix(title: string): string | undefined {
 }
 
 function legacyPrefixCandidates(title: string): string[] {
-  const segments = title.split(':').map((segment) => segment.trim()).filter(Boolean);
+  const segments = title
+    .split(':')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
   const candidates: string[] = [];
   for (let i = segments.length - 1; i >= 1; i -= 1) {
     candidates.push(segments.slice(0, i).join(': '));
