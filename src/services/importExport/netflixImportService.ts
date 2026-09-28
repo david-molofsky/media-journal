@@ -101,7 +101,7 @@ export async function matchNetflixRows(
   rows: NetflixRow[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<ReviewItem[]> {
-  const movieRows: { title: string; date: string }[] = [];
+  const movieRows: { title: string; date: string; includeUnmatched?: boolean }[] = [];
   const seriesRows: {
     title: string;
     showTitle: string;
