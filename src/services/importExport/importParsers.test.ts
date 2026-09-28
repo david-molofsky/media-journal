@@ -21,47 +21,53 @@ describe('external import parsers', () => {
   });
 
   it('recognises Netflix Series labels as numbered seasons', () => {
-    expect(
-      parseSeriesTitle('The IT Crowd: Series 5: The Final Episode'),
-    ).toEqual({
+    const parsed = parseSeriesTitle(
+      'The IT Crowd: Series 5: The Final Episode',
+    );
+
+    expect(parsed).toEqual({
       showTitle: 'The IT Crowd',
       seasonNumber: 5,
     });
   });
 
-  it('recognises Netflix Volume labels as TV without inventing a season', () => {
-    expect(
-      parseSeriesTitle('Love, Death & Robots: Volume 3: Bad Travelling'),
-    ).toEqual({
+  it('recognises Netflix Volume labels without inventing a season', () => {
+    const title = 'Love, Death & Robots: Volume 3: Bad Travelling';
+    const parsed = parseSeriesTitle(title);
+
+    expect(parsed).toEqual({
       showTitle: 'Love, Death & Robots',
       seasonNumber: undefined,
     });
-    expect(
-      looksLikeSeries('Love, Death & Robots: Volume 3: Bad Travelling'),
-    ).toBe(true);
+    expect(looksLikeSeries(title)).toBe(true);
   });
 
-  it('lets Netflix treat Part labels as unresolved while preserving the shared default', () => {
-    expect(parseTitleSegment('Part 4')).toEqual({
+  it('can leave Netflix Part labels unresolved', () => {
+    const defaultResult = parseTitleSegment('Part 4');
+    const netflixResult = parseTitleSegment('Part 4', {
+      resolvePartAsSeason: false,
+    });
+
+    expect(defaultResult).toEqual({
       isSeries: true,
       seasonNumber: 4,
     });
-    expect(
-      parseTitleSegment('Part 4', { resolvePartAsSeason: false }),
-    ).toEqual({
+    expect(netflixResult).toEqual({
       isSeries: true,
       seasonNumber: undefined,
     });
   });
 
-  it('finds repeated legacy Netflix show prefixes without treating one-off colon titles as evidence', () => {
+  it('finds repeated legacy Netflix show prefixes', () => {
     const rows = [
       { title: "Community: Pascal's Triangle Revisited", date: '2022-11-25' },
       { title: 'Community: Modern Warfare', date: '2022-11-24' },
       { title: 'Captain America: Civil War', date: '2022-11-23' },
     ];
 
-    expect(findRepeatedNetflixPrefixes(rows)).toEqual(new Set(['community']));
+    expect(findRepeatedNetflixPrefixes(rows)).toEqual(
+      new Set(['community']),
+    );
   });
 
   it('parses Prime movies and series while rejecting unknown types', () => {
