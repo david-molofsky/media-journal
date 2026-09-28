@@ -1,34 +1,35 @@
 /**
  * Shared helper for classifying/parsing streaming-service watch-history
  * exports (Netflix, Amazon Prime Video) where a single "Title" column
- * carries the show name and season info together, rather than separate
- * columns — e.g. "Stranger Things: Season 4" or "The Terminal List:
- * Dark Wolf - Season 1". Both imports look for the same three signal
- * phrases to decide "this is TV, not a movie": an explicit season
- * number, "Limited Series", or "Part N" (some Netflix/Amazon minis are
- * split into numbered Parts instead of Seasons).
+ * carries the show name and season info together.
  */
 
 const SEASON_PATTERN = /season\s+(\d+)/i;
+const SERIES_PATTERN = /series\s+(\d+)/i;
 const PART_PATTERN = /part\s+(\d+)/i;
+const VOLUME_PATTERN = /volume\s+(\d+)/i;
 const LIMITED_SERIES_PATTERN = /limited series/i;
 
 export interface TitleSeasonInfo {
-  /** True if any segment matched a season/part/limited-series signal. */
+  /** True if the segment contains a reliable TV-series signal. */
   isSeries: boolean;
-  /** Parsed season number, if found. "Limited Series" alone (no
-   * explicit number) and unnumbered "Part" segments fall back to
-   * season 1 — both describe a single self-contained season. */
+  /** Parsed season number when the label is known to represent a season. */
   seasonNumber?: number;
 }
 
-/**
- * Inspects one colon/dash-separated segment of a title (e.g. "Season
- * 4", "Part 2", "Limited Series") and reports what it found. Segments
- * that match none of the patterns return `{ isSeries: false }` — the
- * caller keeps scanning the remaining segments.
- */
-export function parseTitleSegment(segment: string): TitleSeasonInfo {
+export interface ParseTitleOptions {
+  /**
+   * Amazon's exporter uses Part as season evidence. Netflix historically
+   * used Part labels that do not reliably map 1:1 to TMDB seasons, so its
+   * importer disables this conversion.
+   */
+  resolvePartAsSeason?: boolean;
+}
+
+export function parseTitleSegment(
+  segment: string,
+  options: ParseTitleOptions = {},
+): TitleSeasonInfo {
   const trimmed = segment.trim();
 
   const seasonMatch = trimmed.match(SEASON_PATTERN);
@@ -36,9 +37,22 @@ export function parseTitleSegment(segment: string): TitleSeasonInfo {
     return { isSeries: true, seasonNumber: Number(seasonMatch[1]) };
   }
 
+  const seriesMatch = trimmed.match(SERIES_PATTERN);
+  if (seriesMatch?.[1]) {
+    return { isSeries: true, seasonNumber: Number(seriesMatch[1]) };
+  }
+
   const partMatch = trimmed.match(PART_PATTERN);
   if (partMatch?.[1]) {
-    return { isSeries: true, seasonNumber: Number(partMatch[1]) };
+    return {
+      isSeries: true,
+      seasonNumber:
+        options.resolvePartAsSeason === false ? undefined : Number(partMatch[1]),
+    };
+  }
+
+  if (VOLUME_PATTERN.test(trimmed)) {
+    return { isSeries: true };
   }
 
   if (LIMITED_SERIES_PATTERN.test(trimmed)) {
@@ -48,37 +62,44 @@ export function parseTitleSegment(segment: string): TitleSeasonInfo {
   return { isSeries: false };
 }
 
-/**
- * Scans every colon-or-dash-separated segment of a full title string
- * and returns the show name (everything before the first matching
- * segment) plus whatever season info was found. Segments are checked
- * left-to-right; the first match wins, since Netflix/Amazon always put
- * the season/part marker directly after the show name.
- */
-export function parseSeriesTitle(fullTitle: string): {
+export function parseSeriesTitle(
+  fullTitle: string,
+  options: ParseTitleOptions = {},
+): {
   showTitle: string;
   seasonNumber: number | undefined;
 } {
-  const segments = fullTitle.split(/[:\-–]/).map((s) => s.trim()).filter(Boolean);
-  if (segments.length === 0) return { showTitle: fullTitle.trim(), seasonNumber: undefined };
+  const segments = fullTitle
+    .split(/[:\-–]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (segments.length === 0) {
+    return { showTitle: fullTitle.trim(), seasonNumber: undefined };
+  }
 
   for (let i = 1; i < segments.length; i += 1) {
-    const info = parseTitleSegment(segments[i]!);
+    const info = parseTitleSegment(segments[i]!, options);
     if (info.isSeries) {
-      return { showTitle: segments.slice(0, i).join(': '), seasonNumber: info.seasonNumber };
+      return {
+        showTitle: segments.slice(0, i).join(': '),
+        seasonNumber: info.seasonNumber,
+      };
     }
   }
 
-  // No season/part/limited-series segment found anywhere — still may
-  // be a series (e.g. an unnumbered special), but callers treat this
-  // as "no season resolved" and fall back to season 1 evidence-only.
   return { showTitle: segments[0]!, seasonNumber: undefined };
 }
 
-/** True if the full title contains any season/part/limited-series
- * signal in any segment after the first — used to classify a row as
- * TV vs. Movie before attempting to parse out a season number. */
-export function looksLikeSeries(fullTitle: string): boolean {
-  const segments = fullTitle.split(/[:\-–]/).map((s) => s.trim()).filter(Boolean);
-  return segments.slice(1).some((s) => parseTitleSegment(s).isSeries);
+/** True when a title contains an explicit TV-series marker. */
+export function looksLikeSeries(
+  fullTitle: string,
+  options: ParseTitleOptions = {},
+): boolean {
+  const segments = fullTitle
+    .split(/[:\-–]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return segments
+    .slice(1)
+    .some((segment) => parseTitleSegment(segment, options).isSeries);
 }

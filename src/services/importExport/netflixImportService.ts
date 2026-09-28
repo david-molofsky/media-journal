@@ -1,30 +1,35 @@
 import dayjs from 'dayjs';
 import { parseCsv } from '@/utils/csvParser';
 import { parseSeriesTitle, looksLikeSeries } from '@/utils/importTitleParsing';
-import { matchAndGroupRows, applyStreamingImport, type ReviewItem, type ApplyResult } from '@/services/importExport/streamingImportShared';
+import {
+  matchAndGroupRows,
+  matchShowTitle,
+  applyStreamingImport,
+  type ReviewItem,
+  type ApplyResult,
+} from '@/services/importExport/streamingImportShared';
 
-export type { ReviewItem, MovieReviewItem, ShowReviewGroup, ApplyResult } from '@/services/importExport/streamingImportShared';
+export type {
+  ReviewItem,
+  MovieReviewItem,
+  ShowReviewGroup,
+  ApplyResult,
+} from '@/services/importExport/streamingImportShared';
 
 /**
- * Import from Netflix's official "Viewing Activity" export (Account >
- * Profile & Parental Controls > Viewing Activity > Download all >
- * NetflixViewingHistory.csv). Two columns only — Title, Date — no id,
- * rating, runtime, or movie/TV flag, so classification and season
- * grouping both have to be inferred from the Title string alone (see
- * importTitleParsing.ts). Matching/review/apply logic lives in
- * streamingImportShared.ts, shared with the Amazon Prime Video import.
+ * Import from Netflix's official Viewing Activity export. Netflix has
+ * used several title formats over time, so classification combines
+ * explicit labels with conservative batch-level evidence.
  */
 
 export interface NetflixRow {
   title: string;
-  /** Defensively parsed to YYYY-MM-DD — Netflix's own date format has
-   * changed by region/era in the past, so this never hard-assumes
-   * MM/DD/YY. Rows with an unparseable date are dropped. */
   date: string;
 }
 
 const DROPPED_TITLE_PATTERN = /\b(trailer|preview|interactive special)\b/i;
 const DATE_FORMATS = ['M/D/YY', 'M/D/YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY', 'MMM D, YYYY'];
+const NETFLIX_TITLE_OPTIONS = { resolvePartAsSeason: false } as const;
 
 function parseNetflixDate(raw: string | undefined): string | undefined {
   const trimmed = raw?.trim();
@@ -33,13 +38,6 @@ function parseNetflixDate(raw: string | undefined): string | undefined {
   return parsed.isValid() ? parsed.format('YYYY-MM-DD') : undefined;
 }
 
-/**
- * Parses NetflixViewingHistory.csv. Drops trailer/preview/interactive-
- * special rows and anything with an unreadable title/date, then
- * collapses repeated viewing-session rows for the same episode/movie
- * (e.g. watched across two sittings) down to one row with the latest
- * date — see chat scoping.
- */
 export function parseNetflixCsv(csvText: string): NetflixRow[] {
   const records = parseCsv(csvText);
   const byTitle = new Map<string, NetflixRow>();
@@ -59,22 +57,98 @@ export function parseNetflixCsv(csvText: string): NetflixRow[] {
   return Array.from(byTitle.values());
 }
 
-/** Classifies parsed rows (movie vs. series+season, via Title-string
- * heuristics) and runs TMDB matching/grouping. */
+function legacyPrefix(title: string): string | undefined {
+  const separator = title.indexOf(':');
+  if (separator <= 0) return undefined;
+  const prefix = title.slice(0, separator).trim();
+  return prefix || undefined;
+}
+
+/**
+ * Finds prefixes that occur on multiple legacy "Show: Episode" rows.
+ * Repetition is only candidate evidence: matchNetflixRows still requires
+ * either an explicit TV-labelled row for that prefix or an exact TMDB TV
+ * match before classifying the rows as television.
+ */
+export function findRepeatedNetflixPrefixes(rows: NetflixRow[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (looksLikeSeries(row.title, NETFLIX_TITLE_OPTIONS)) continue;
+    const prefix = legacyPrefix(row.title);
+    if (!prefix) continue;
+    const key = prefix.toLowerCase();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return new Set(
+    Array.from(counts.entries())
+      .filter(([, count]) => count >= 2)
+      .map(([prefix]) => prefix),
+  );
+}
+
 export async function matchNetflixRows(
   rows: NetflixRow[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<ReviewItem[]> {
   const movieRows: { title: string; date: string }[] = [];
-  const seriesRows: { title: string; showTitle: string; seasonNumber: number | undefined; date: string }[] = [];
+  const seriesRows: {
+    title: string;
+    showTitle: string;
+    seasonNumber: number | undefined;
+    date: string;
+  }[] = [];
+
+  const explicitShowPrefixes = new Set<string>();
+  for (const row of rows) {
+    if (!looksLikeSeries(row.title, NETFLIX_TITLE_OPTIONS)) continue;
+    const parsed = parseSeriesTitle(row.title, NETFLIX_TITLE_OPTIONS);
+    explicitShowPrefixes.add(parsed.showTitle.trim().toLowerCase());
+  }
+
+  const repeatedPrefixes = findRepeatedNetflixPrefixes(rows);
+  const verifiedLegacyPrefixes = new Set<string>();
+  const showCache = new Map();
+
+  for (const prefixKey of repeatedPrefixes) {
+    if (explicitShowPrefixes.has(prefixKey)) {
+      verifiedLegacyPrefixes.add(prefixKey);
+      continue;
+    }
+
+    const representative = rows
+      .map((row) => legacyPrefix(row.title))
+      .find((prefix) => prefix?.toLowerCase() === prefixKey);
+    if (!representative) continue;
+
+    const match = await matchShowTitle(representative, showCache);
+    if (match.status === 'auto') {
+      verifiedLegacyPrefixes.add(prefixKey);
+    }
+  }
 
   for (const row of rows) {
-    if (looksLikeSeries(row.title)) {
-      const { showTitle, seasonNumber } = parseSeriesTitle(row.title);
+    if (looksLikeSeries(row.title, NETFLIX_TITLE_OPTIONS)) {
+      const { showTitle, seasonNumber } = parseSeriesTitle(
+        row.title,
+        NETFLIX_TITLE_OPTIONS,
+      );
       seriesRows.push({ title: row.title, showTitle, seasonNumber, date: row.date });
-    } else {
-      movieRows.push(row);
+      continue;
     }
+
+    const prefix = legacyPrefix(row.title);
+    if (prefix && verifiedLegacyPrefixes.has(prefix.toLowerCase())) {
+      seriesRows.push({
+        title: row.title,
+        showTitle: prefix,
+        seasonNumber: undefined,
+        date: row.date,
+      });
+      continue;
+    }
+
+    movieRows.push(row);
   }
 
   return matchAndGroupRows(movieRows, seriesRows, onProgress);
