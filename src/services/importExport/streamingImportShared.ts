@@ -266,7 +266,7 @@ export async function applyStreamingImport(
  * classification step.
  */
 export async function matchAndGroupRows(
-  movieRows: { title: string; date: string }[],
+  movieRows: { title: string; date: string; includeUnmatched?: boolean }[],
   seriesRows: {
     title: string;
     showTitle: string;
@@ -308,7 +308,7 @@ export async function matchAndGroupRows(
         status: match.status,
         candidates: match.candidates,
         selectedId: match.selectedId,
-        included: true,
+        included: match.status === 'none' ? (row.includeUnmatched ?? true) : true,
       });
     }
     done += 1;
