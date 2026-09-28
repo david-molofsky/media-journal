@@ -17,6 +17,27 @@ describe('external import parsers', () => {
     expect(rows).toEqual([{ title: 'Film A', date: '2026-02-01' }]);
   });
 
+  it('parses ambiguous Netflix dates as month/day/year', () => {
+    const rows = parseNetflixCsv(
+      'Title,Date\nQueen Charlotte: A Bridgerton Story: Queen To Be,05/04/2023',
+    );
+
+    expect(rows).toEqual([
+      {
+        title: 'Queen Charlotte: A Bridgerton Story: Queen To Be',
+        date: '2023-05-04',
+      },
+    ]);
+  });
+
+  it('drops Netflix recap and supplemental rows', () => {
+    const rows = parseNetflixCsv(
+      'Title,Date\nHouse of Cards: House of Cards: Season 2 (Recap),2/28/15\nFilm A,2/28/15',
+    );
+
+    expect(rows).toEqual([{ title: 'Film A', date: '2015-02-28' }]);
+  });
+
   it('recognises Netflix Series labels as numbered seasons', () => {
     const parsed = parseSeriesTitle('The IT Crowd: Series 5: The Final Episode');
 
