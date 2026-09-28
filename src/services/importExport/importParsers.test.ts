@@ -21,7 +21,9 @@ describe('external import parsers', () => {
   });
 
   it('recognises Netflix Series labels as numbered seasons', () => {
-    expect(parseSeriesTitle('The IT Crowd: Series 5: The Final Episode')).toEqual({
+    expect(
+      parseSeriesTitle('The IT Crowd: Series 5: The Final Episode'),
+    ).toEqual({
       showTitle: 'The IT Crowd',
       seasonNumber: 5,
     });
@@ -40,7 +42,10 @@ describe('external import parsers', () => {
   });
 
   it('lets Netflix treat Part labels as unresolved while preserving the shared default', () => {
-    expect(parseTitleSegment('Part 4')).toEqual({ isSeries: true, seasonNumber: 4 });
+    expect(parseTitleSegment('Part 4')).toEqual({
+      isSeries: true,
+      seasonNumber: 4,
+    });
     expect(
       parseTitleSegment('Part 4', { resolvePartAsSeason: false }),
     ).toEqual({
