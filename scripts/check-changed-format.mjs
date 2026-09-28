@@ -22,4 +22,5 @@ if (files.length === 0) {
   process.exit(0);
 }
 
-execFileSync('npx', ['prettier', '--check', ...files], { stdio: 'inherit' });
+const mode = process.argv.includes('--write') ? '--write' : '--check';
+execFileSync('npx', ['prettier', mode, ...files], { stdio: 'inherit' });
