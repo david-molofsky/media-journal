@@ -79,7 +79,9 @@ export async function fuzzyMatchTitle(
 
   const norm = title.trim().toLowerCase();
   const exact = results.filter((r) => r.title.trim().toLowerCase() === norm);
-  const candidates = results.slice(0, 5).map((r) => ({ id: r.id, title: r.title, subtitle: r.subtitle }));
+  const candidates = results
+    .slice(0, 5)
+    .map((r) => ({ id: r.id, title: r.title, subtitle: r.subtitle }));
 
   if (exact.length === 1) {
     return { status: 'matched', candidates, selectedCandidateId: exact[0]!.id };

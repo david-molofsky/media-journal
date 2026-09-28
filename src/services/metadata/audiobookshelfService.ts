@@ -19,7 +19,12 @@ function normalizeServerUrl(serverUrl: string): string {
   return serverUrl.trim().replace(/\/+$/, '');
 }
 
-async function absFetch<T>(serverUrl: string, token: string, path: string, init?: RequestInit): Promise<T> {
+async function absFetch<T>(
+  serverUrl: string,
+  token: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${normalizeServerUrl(serverUrl)}${path}`, {
     ...init,
     headers: {
@@ -50,14 +55,19 @@ export async function loginAudiobookshelf(
   if (!res.ok) throw new Error('Login failed — check your username and password.');
   const data = (await res.json()) as AbsLoginResponse;
   const token = data.user?.token;
-  if (!token) throw new Error("Audiobookshelf didn't return a token — check your server version.");
+  if (!token) {
+    throw new Error("Audiobookshelf didn't return a token — check your server version.");
+  }
   return token;
 }
 
 /** Confirms a server URL + token actually work, for both auth paths —
  * pasted tokens never went through loginAudiobookshelf, so this is the
  * only validation they get before being saved. */
-export async function verifyAudiobookshelfToken(serverUrl: string, token: string): Promise<void> {
+export async function verifyAudiobookshelfToken(
+  serverUrl: string,
+  token: string,
+): Promise<void> {
   await absFetch(serverUrl, token, '/api/me');
 }
 
@@ -74,7 +84,10 @@ interface AbsMeResponse {
   mediaProgress?: AbsMediaProgress[];
 }
 
-export async function getMediaProgress(serverUrl: string, token: string): Promise<AbsMediaProgress[]> {
+export async function getMediaProgress(
+  serverUrl: string,
+  token: string,
+): Promise<AbsMediaProgress[]> {
   const data = await absFetch<AbsMeResponse>(serverUrl, token, '/api/me');
   return data.mediaProgress ?? [];
 }
@@ -97,7 +110,11 @@ export interface AbsLibraryItem {
   };
 }
 
-export async function getLibraryItem(serverUrl: string, token: string, id: string): Promise<AbsLibraryItem> {
+export async function getLibraryItem(
+  serverUrl: string,
+  token: string,
+  id: string,
+): Promise<AbsLibraryItem> {
   return absFetch<AbsLibraryItem>(serverUrl, token, `/api/items/${id}?expanded=1`);
 }
 
@@ -110,7 +127,10 @@ interface AbsLibrariesResponse {
   libraries?: AbsLibrary[];
 }
 
-export async function getLibraries(serverUrl: string, token: string): Promise<AbsLibrary[]> {
+export async function getLibraries(
+  serverUrl: string,
+  token: string,
+): Promise<AbsLibrary[]> {
   const data = await absFetch<AbsLibrariesResponse>(serverUrl, token, '/api/libraries');
   return data.libraries ?? [];
 }
