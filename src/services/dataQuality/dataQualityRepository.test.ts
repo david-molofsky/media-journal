@@ -74,6 +74,9 @@ describe('data quality normalization', () => {
       metadata: { source: 'Cinema', tmdbId: 438631 },
     });
     expect(await db.mediaEntries.get('remove')).toBeUndefined();
+    expect((await db.appSettings.get(SETTINGS_KEYS.entryDeletionEvents))?.value).toEqual([
+      expect.objectContaining({ id: 'remove', undone: false }),
+    ]);
     expect(await db.mediaEntries.get('unrelated')).toBeDefined();
   });
 

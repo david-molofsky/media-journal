@@ -63,6 +63,9 @@ export const SETTINGS_KEYS = {
   lastCloudRevision: 'lastCloudRevision',
   lastSyncedJournalHash: 'lastSyncedJournalHash',
   lastDeviceSyncError: 'lastDeviceSyncError',
+  /** Entry IDs deliberately removed from this journal. Synced with entries so
+   * a stale device cannot bring a deleted copy back during conflict merging. */
+  entryDeletionEvents: 'entryDeletionEvents',
   /** ComicVine (Comic Issues) auto-fill toggles — read by
    * ComicVineAutofillSection.tsx (Settings > Metadata auto-fill
    * (ComicVine)). Same convention as the TMDB toggles above: all
