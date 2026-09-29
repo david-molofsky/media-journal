@@ -11,6 +11,7 @@ import {
 } from './entryService';
 import { completedEntryInput } from '@/test/factories';
 import { getRecentEntries } from '@/services/statistics/statisticsService';
+import { SETTINGS_KEYS } from '@/models';
 
 describe('entry service journeys', () => {
   beforeEach(async () => {
@@ -38,9 +39,15 @@ describe('entry service journeys', () => {
 
     const snapshot = await deleteEntriesWithSnapshot([created.id]);
     expect(await getEntry(created.id)).toBeUndefined();
+    expect((await db.appSettings.get(SETTINGS_KEYS.entryDeletionEvents))?.value).toEqual([
+      expect.objectContaining({ id: created.id, undone: false }),
+    ]);
 
     await restoreEntriesSnapshot(snapshot);
     expect(await getEntry(created.id)).toEqual(updated);
+    expect((await db.appSettings.get(SETTINGS_KEYS.entryDeletionEvents))?.value).toEqual([
+      expect.objectContaining({ id: created.id, undone: true }),
+    ]);
   });
 
   it('does not persist an invalid completed entry', async () => {

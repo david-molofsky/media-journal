@@ -1,5 +1,10 @@
 import type { ExportPayload } from '@/services/importExport/importExportService';
 import type { MediaEntry, MediaType, PodcastSubscription } from '@/models';
+import { SETTINGS_KEYS } from '@/models';
+import {
+  entryDeletionEventsFrom,
+  type EntryDeletionEvent,
+} from '@/services/database/entryDeletionService';
 
 function compareIds(left: { id: string }, right: { id: string }): number {
   return left.id.localeCompare(right.id);
@@ -62,16 +67,41 @@ export function mergeJournalSnapshots(
   cloud: ExportPayload,
   local: ExportPayload,
 ): ExportPayload {
+  const events = new Map<string, EntryDeletionEvent>();
+  for (const event of [
+    ...entryDeletionEventsFrom(cloud.settings[SETTINGS_KEYS.entryDeletionEvents]),
+    ...entryDeletionEventsFrom(local.settings[SETTINGS_KEYS.entryDeletionEvents]),
+  ]) {
+    const previous = events.get(event.eventId);
+    events.set(event.eventId, {
+      ...event,
+      undone: event.undone || Boolean(previous?.undone),
+    });
+  }
+  const deletionEvents = [...events.values()].sort((a, b) =>
+    a.eventId.localeCompare(b.eventId),
+  );
+  const deleted = new Set(
+    deletionEvents.filter((event) => !event.undone).map((event) => event.id),
+  );
   return {
     version: Math.max(cloud.version, local.version),
     exportedAt: new Date().toISOString(),
-    entries: mergeById(local.entries, cloud.entries, newestEntry),
+    entries: mergeById(local.entries, cloud.entries, newestEntry).filter(
+      ({ id }) => !deleted.has(id),
+    ),
     mediaTypes: mergeById<MediaType>(local.mediaTypes, cloud.mediaTypes),
     podcastSubscriptions: mergeById<PodcastSubscription>(
       local.podcastSubscriptions,
       cloud.podcastSubscriptions,
       newestSubscription,
     ),
-    settings: { ...local.settings, ...cloud.settings },
+    settings: {
+      ...local.settings,
+      ...cloud.settings,
+      ...(deletionEvents.length > 0
+        ? { [SETTINGS_KEYS.entryDeletionEvents]: deletionEvents }
+        : {}),
+    },
   };
 }

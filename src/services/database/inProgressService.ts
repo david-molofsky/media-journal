@@ -1,6 +1,7 @@
 import { db } from './db';
 import { nowIso, todayIso, yearOf } from '@/utils/dateUtils';
 import { createEntry } from './entryService';
+import { recordEntryDeletions, clearEntryDeletions } from './entryDeletionService';
 import type { NewInProgressInput, NewMediaEntryInput, MediaEntry } from '@/models';
 
 export async function listInProgressEntries(): Promise<MediaEntry[]> {
@@ -38,12 +39,13 @@ export async function updateInProgressEntry(
 }
 
 export async function deleteInProgressEntry(id: string): Promise<void> {
-  await db.transaction('rw', db.mediaEntries, async () => {
+  await db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
     const entry = await db.mediaEntries.get(id);
     if (!entry || entry.status !== 'in_progress') {
       throw new Error(`In-progress entry not found: ${id}`);
     }
     await db.mediaEntries.delete(id);
+    await recordEntryDeletions([id]);
   });
 }
 
@@ -51,10 +53,11 @@ export async function deleteInProgressEntry(id: string): Promise<void> {
 export async function deleteInProgressEntryWithSnapshot(
   id: string,
 ): Promise<MediaEntry | undefined> {
-  return db.transaction('rw', db.mediaEntries, async () => {
+  return db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
     const entry = await db.mediaEntries.get(id);
     if (!entry || entry.status !== 'in_progress') return undefined;
     await db.mediaEntries.delete(id);
+    await recordEntryDeletions([id]);
     return entry;
   });
 }
@@ -63,7 +66,10 @@ export async function restoreInProgressEntry(entry: MediaEntry): Promise<void> {
   if (entry.status !== 'in_progress') {
     throw new Error(`Cannot restore non-in-progress entry: ${entry.id}`);
   }
-  await db.mediaEntries.put(entry);
+  await db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
+    await db.mediaEntries.put(entry);
+    await clearEntryDeletions([entry.id]);
+  });
 }
 
 /**

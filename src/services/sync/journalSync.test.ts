@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { storedEntry } from '@/test/factories';
 import type { ExportPayload } from '@/services/importExport/importExportService';
 import { calculateJournalHash, mergeJournalSnapshots } from './journalSync';
+import { SETTINGS_KEYS } from '@/models';
 
 function snapshot(
   entries: ExportPayload['entries'],
@@ -63,5 +64,63 @@ describe('journal sync reconciliation', () => {
     ]);
     expect(merged.entries.find(({ id }) => id === 'shared')?.title).toBe('Local title');
     expect(merged.settings).toEqual({ selectedTheme: 'cloud', colorMode: 'dark' });
+  });
+
+  it('does not resurrect a Data Health merge removed on one device', () => {
+    const cloud = snapshot([
+      storedEntry({ id: 'keep' }),
+      storedEntry({ id: 'duplicate' }),
+    ]);
+    const local = snapshot(
+      [storedEntry({ id: 'keep', updatedAt: '2026-09-16T11:00:00.000Z' })],
+      {
+        [SETTINGS_KEYS.entryDeletionEvents]: [
+          { id: 'duplicate', eventId: 'delete-duplicate', undone: false },
+        ],
+      },
+    );
+
+    const merged = mergeJournalSnapshots(cloud, local);
+    expect(merged.entries.map(({ id }) => id)).toEqual(['keep']);
+    expect(merged.settings[SETTINGS_KEYS.entryDeletionEvents]).toEqual([
+      { id: 'duplicate', eventId: 'delete-duplicate', undone: false },
+    ]);
+    expect(mergeJournalSnapshots(merged, cloud).entries.map(({ id }) => id)).toEqual([
+      'keep',
+    ]);
+  });
+
+  it('combines deletions from both devices', () => {
+    const cloud = snapshot([storedEntry({ id: 'local-removed' })], {
+      [SETTINGS_KEYS.entryDeletionEvents]: [
+        { id: 'cloud-removed', eventId: 'cloud-delete', undone: false },
+      ],
+    });
+    const local = snapshot([storedEntry({ id: 'cloud-removed' })], {
+      [SETTINGS_KEYS.entryDeletionEvents]: [
+        { id: 'local-removed', eventId: 'local-delete', undone: false },
+      ],
+    });
+
+    const merged = mergeJournalSnapshots(cloud, local);
+    expect(merged.entries).toEqual([]);
+    expect(merged.settings[SETTINGS_KEYS.entryDeletionEvents]).toEqual([
+      { id: 'cloud-removed', eventId: 'cloud-delete', undone: false },
+      { id: 'local-removed', eventId: 'local-delete', undone: false },
+    ]);
+  });
+
+  it('keeps an Undo even when deletion already reached the cloud', () => {
+    const deleted = { id: 'restored', eventId: 'delete-restored', undone: false };
+    const cloud = snapshot([], { [SETTINGS_KEYS.entryDeletionEvents]: [deleted] });
+    const local = snapshot([storedEntry({ id: 'restored' })], {
+      [SETTINGS_KEYS.entryDeletionEvents]: [{ ...deleted, undone: true }],
+    });
+
+    const merged = mergeJournalSnapshots(cloud, local);
+    expect(merged.entries.map(({ id }) => id)).toEqual(['restored']);
+    expect(merged.settings[SETTINGS_KEYS.entryDeletionEvents]).toEqual([
+      { ...deleted, undone: true },
+    ]);
   });
 });

@@ -3,6 +3,7 @@ import { getSetting, setSetting } from '@/services/database/settingsService';
 import { nowIso } from '@/utils/dateUtils';
 import { SETTINGS_KEYS, type MediaEntry } from '@/models';
 import { duplicateAcceptanceKey, type NormalizableField } from './dataQualityService';
+import { recordEntryDeletions } from '@/services/database/entryDeletionService';
 
 function replaceListValues(
   values: string[],
@@ -83,7 +84,7 @@ export async function mergeDuplicateEntries(
   ids: string[],
   keeperId: string,
 ): Promise<MediaEntry> {
-  return db.transaction('rw', db.mediaEntries, async () => {
+  return db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
     const found = (await db.mediaEntries.bulkGet(ids)).filter(
       (entry): entry is MediaEntry => entry !== undefined,
     );
@@ -118,6 +119,7 @@ export async function mergeDuplicateEntries(
     };
 
     await db.mediaEntries.put(merged);
+    await recordEntryDeletions(others.map(({ id }) => id));
     await db.mediaEntries.bulkDelete(others.map(({ id }) => id));
     return merged;
   });

@@ -2,12 +2,7 @@ import { z } from 'zod';
 import { db } from '@/services/database/db';
 import { getMetadataSchema } from '@/services/validation/entrySchemas';
 import { SETTINGS_KEYS, type SettingsKey } from '@/models';
-import type {
-  EntryMetadata,
-  MediaEntry,
-  MediaType,
-  PodcastSubscription,
-} from '@/models';
+import type { EntryMetadata, MediaEntry, MediaType, PodcastSubscription } from '@/models';
 import { nowIso } from '@/utils/dateUtils';
 import { clearAllEntryDrafts } from '@/services/drafts/entryDraftService';
 import { notifyJournalReplaced } from '@/services/dataSafety/journalRestoreEvents';
@@ -60,6 +55,7 @@ const EXPORTABLE_SETTINGS_KEYS: readonly SettingsKey[] = [
   SETTINGS_KEYS.subscriptionAnnualPrices,
   SETTINGS_KEYS.yearlyGoals,
   SETTINGS_KEYS.acceptedDuplicateGroups,
+  SETTINGS_KEYS.entryDeletionEvents,
 ];
 
 const EXPORTABLE_SETTINGS_KEY_SET = new Set<string>(EXPORTABLE_SETTINGS_KEYS);
@@ -139,12 +135,7 @@ export async function exportLibrary(): Promise<ExportPayload> {
   };
 }
 
-const metadataValueSchema = z.union([
-  z.string(),
-  z.number(),
-  z.boolean(),
-  z.undefined(),
-]);
+const metadataValueSchema = z.union([z.string(), z.number(), z.boolean(), z.undefined()]);
 
 const importedEntrySchema = z.object({
   id: z.string().min(1),
@@ -257,9 +248,9 @@ function prepareImport(raw: unknown): PreparedImport {
       continue;
     }
 
-    const metadataResult = getMetadataSchema(
-      entryResult.data.mediaType,
-    ).safeParse(entryResult.data.metadata);
+    const metadataResult = getMetadataSchema(entryResult.data.mediaType).safeParse(
+      entryResult.data.metadata,
+    );
 
     if (!metadataResult.success) {
       skipped += 1;
@@ -286,8 +277,7 @@ function prepareImport(raw: unknown): PreparedImport {
   );
 
   const legacy = file.data.version === 1;
-  const mediaTypes =
-    file.data.version === 2 ? (file.data.mediaTypes as MediaType[]) : [];
+  const mediaTypes = file.data.version === 2 ? (file.data.mediaTypes as MediaType[]) : [];
   const podcastSubscriptions =
     file.data.version === 2
       ? (file.data.podcastSubscriptions as PodcastSubscription[])

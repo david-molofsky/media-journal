@@ -9,6 +9,7 @@ import type {
 import { generateId } from '@/utils/id';
 import { nowIso, yearOf, todayIso } from '@/utils/dateUtils';
 import { mediaEntrySchema, getMetadataSchema } from '@/services/validation/entrySchemas';
+import { recordEntryDeletions, clearEntryDeletions } from './entryDeletionService';
 
 function validateEntry(entry: NewMediaEntryInput): void {
   mediaEntrySchema.parse(entry);
@@ -159,11 +160,15 @@ export async function updateEntryDate(
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  await db.mediaEntries.delete(id);
+  await deleteEntries([id]);
 }
 
 export async function deleteEntries(ids: string[]): Promise<void> {
-  await db.mediaEntries.bulkDelete(ids);
+  await db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
+    const existing = await getEntriesSnapshot(ids);
+    await recordEntryDeletions(existing.map(({ id }) => id));
+    await db.mediaEntries.bulkDelete(existing.map(({ id }) => id));
+  });
 }
 
 export async function getEntriesSnapshot(ids: string[]): Promise<MediaEntry[]> {
@@ -176,8 +181,9 @@ export async function getEntriesSnapshot(ids: string[]): Promise<MediaEntry[]> {
  * the UI can offer a reliable short-lived Undo action.
  */
 export async function deleteEntriesWithSnapshot(ids: string[]): Promise<MediaEntry[]> {
-  return db.transaction('rw', db.mediaEntries, async () => {
+  return db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
     const entries = await getEntriesSnapshot(ids);
+    await recordEntryDeletions(entries.map(({ id }) => id));
     await db.mediaEntries.bulkDelete(ids);
     return entries;
   });
@@ -186,7 +192,10 @@ export async function deleteEntriesWithSnapshot(ids: string[]): Promise<MediaEnt
 /** Restores a captured snapshot, preserving original ids, timestamps,
  * metadata and wishlist ordering. Used for delete and bulk-edit Undo. */
 export async function restoreEntriesSnapshot(entries: MediaEntry[]): Promise<void> {
-  await db.mediaEntries.bulkPut(entries);
+  await db.transaction('rw', db.mediaEntries, db.appSettings, async () => {
+    await db.mediaEntries.bulkPut(entries);
+    await clearEntryDeletions(entries.map(({ id }) => id));
+  });
 }
 
 export async function duplicateEntry(id: string): Promise<MediaEntry> {
