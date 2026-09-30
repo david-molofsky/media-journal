@@ -30,7 +30,7 @@ export function RegionSection() {
     <CollapsibleSection title="Region" icon={PublicOutlinedIcon}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
         Film and TV Source suggestions use services marked as subscriptions in
-        Settings > Subscriptions.
+        Settings → Subscriptions.
       </Typography>
 
       <Autocomplete
