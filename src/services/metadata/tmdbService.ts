@@ -102,14 +102,25 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
  * then rental, then purchase. Returns `undefined` if the title has no
  * availability data for that region — Source is then left blank for
  * manual entry, same as before this feature existed. */
-function extractSource(
+function normalizeProviderName(name: string): string {
+  return (PROVIDER_NAME_MAP[name] ?? name).trim().toLowerCase();
+}
+
+export function extractSource(
   watchProviders: TmdbWatchProviders | undefined,
   region: string,
+  excludedProviders: string[] = [],
 ): string | undefined {
   const regionData = watchProviders?.results?.[region];
   if (!regionData) return undefined;
 
-  const best = regionData.flatrate?.[0] ?? regionData.rent?.[0] ?? regionData.buy?.[0];
+  const excluded = new Set(excludedProviders.map(normalizeProviderName));
+  const firstIncluded = (providers?: TmdbWatchProvider[]) =>
+    providers?.find((provider) => !excluded.has(normalizeProviderName(provider.provider_name)));
+  const best =
+    firstIncluded(regionData.flatrate) ??
+    firstIncluded(regionData.rent) ??
+    firstIncluded(regionData.buy);
   if (!best) return undefined;
 
   return PROVIDER_NAME_MAP[best.provider_name] ?? best.provider_name;
@@ -273,7 +284,8 @@ export async function getFilmDetails(
     .map((c) => c.name)
     .join(', ');
   const region = await getWatchProviderRegion();
-  const source = extractSource(data['watch/providers'], region);
+  const excludedProviders = await getSetting<string[]>('excludedWatchProviders', []);
+  const source = extractSource(data['watch/providers'], region, excludedProviders);
 
   const fields: Record<string, string> = {};
   if (director) fields['director'] = director;
@@ -426,7 +438,8 @@ export async function getTVDetails(
     .map((c) => c.name)
     .join(', ');
   const region = await getWatchProviderRegion();
-  const source = extractSource(data['watch/providers'], region);
+  const excludedProviders = await getSetting<string[]>('excludedWatchProviders', []);
+  const source = extractSource(data['watch/providers'], region, excludedProviders);
 
   const fields: Record<string, string> = {};
   if (creator) fields['creator'] = creator;
