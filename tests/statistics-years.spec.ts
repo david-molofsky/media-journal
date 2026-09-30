@@ -4,6 +4,9 @@ test('mobile statistics explores release years across types and keeps settings a
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });
+  await page.addInitScript(() =>
+    localStorage.setItem('mediaJournalAnalyticsConsent', 'denied'),
+  );
   await page.goto('./');
   await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
   await page.evaluate(async () => {
