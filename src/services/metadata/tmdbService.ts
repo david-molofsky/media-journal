@@ -127,8 +127,7 @@ export function extractSource(
       subscriptionSources,
       PROVIDER_NAME_MAP[provider.provider_name] ?? provider.provider_name,
     );
-  const firstEligible = (providers?: TmdbWatchProvider[]) =>
-    providers?.find(isEligible);
+  const firstEligible = (providers?: TmdbWatchProvider[]) => providers?.find(isEligible);
   const best =
     firstEligible(regionData.flatrate) ??
     firstEligible(regionData.rent) ??

@@ -29,8 +29,8 @@ export function RegionSection() {
   return (
     <CollapsibleSection title="Region" icon={PublicOutlinedIcon}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        Film and TV Source suggestions use services marked as subscriptions in
-        Settings → Subscriptions.
+        Film and TV Source suggestions use services marked as subscriptions in Settings →
+        Subscriptions.
       </Typography>
 
       <Autocomplete
@@ -46,7 +46,6 @@ export function RegionSection() {
           <TextField {...params} placeholder="Search countries…" />
         )}
       />
-
     </CollapsibleSection>
   );
 }

@@ -7,10 +7,7 @@ describe('extractSource', () => {
     const providers = {
       results: {
         GB: {
-          flatrate: [
-            { provider_name: 'Apple TV Plus' },
-            { provider_name: 'Netflix' },
-          ],
+          flatrate: [{ provider_name: 'Apple TV Plus' }, { provider_name: 'Netflix' }],
         },
       },
     };
