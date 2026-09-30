@@ -48,6 +48,7 @@ const EXPORTABLE_SETTINGS_KEYS: readonly SettingsKey[] = [
   SETTINGS_KEYS.autofillBookCoverImage,
   SETTINGS_KEYS.autofillBookReleaseYear,
   SETTINGS_KEYS.watchProviderRegion,
+  SETTINGS_KEYS.excludedWatchProviders,
   SETTINGS_KEYS.subscriptionSources,
   SETTINGS_KEYS.subscriptionTierSelections,
   SETTINGS_KEYS.subscriptionPriceOverrides,
