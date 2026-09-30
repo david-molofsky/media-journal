@@ -107,7 +107,12 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
 };
 
 function normalizeProviderName(name: string): string {
-  return (PROVIDER_NAME_MAP[name] ?? name).trim().toLowerCase();
+  const normalized = name.trim().toLowerCase();
+  const canonicalName =
+    Object.entries(PROVIDER_NAME_MAP).find(
+      ([providerName]) => providerName.toLowerCase() === normalized,
+    )?.[1] ?? name.trim();
+  return canonicalName.toLowerCase();
 }
 
 /** Picks a single best-guess Source value from a title's watch providers:
