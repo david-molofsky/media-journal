@@ -97,15 +97,14 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
   Hulu: 'Hulu',
 };
 
-/** Picks a single best-guess Source value from a title's watch
- * providers in `WATCH_PROVIDER_REGION`: subscription (flatrate) first,
- * then rental, then purchase. Returns `undefined` if the title has no
- * availability data for that region — Source is then left blank for
- * manual entry, same as before this feature existed. */
 function normalizeProviderName(name: string): string {
   return (PROVIDER_NAME_MAP[name] ?? name).trim().toLowerCase();
 }
 
+/** Picks a single best-guess Source value from a title's watch providers:
+ * subscription (flatrate) first, then rental, then purchase. Providers
+ * listed in `excludedProviders` are skipped. Returns `undefined` if no
+ * eligible provider exists for the selected region. */
 export function extractSource(
   watchProviders: TmdbWatchProviders | undefined,
   region: string,
