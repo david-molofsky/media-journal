@@ -67,12 +67,18 @@ test('mobile statistics explores release years across types and keeps settings a
   expect(scoreBounds!.y).toBe(valueBounds!.y);
   expect(scoreBounds!.x).toBeLessThan(valueBounds!.x);
   await page.getByRole('button', { name: /^Years/ }).click();
-  await page.getByRole('button', { name: '2001 2 entries', exact: true }).click();
+  const releaseYearSelect = page.getByLabel('Release year', { exact: true });
+  await expect(releaseYearSelect).toHaveValue('');
+  await releaseYearSelect.selectOption('2001');
   await expect(page.getByRole('button', { name: /Example film/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Example book/ })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Unknown 1 entry', exact: true }),
-  ).toBeVisible();
+  await expect(releaseYearSelect.locator('option[value="Unknown"]')).toHaveText(
+    'Unknown · 1 entry',
+  );
+  await releaseYearSelect.selectOption('Unknown');
+  await expect(page.getByRole('button', { name: /Unknown release/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Example film/ })).toHaveCount(0);
+  await releaseYearSelect.selectOption('2001');
   const overflow = await page.evaluate(() => ({
     width: window.innerWidth,
     scrollWidth: document.documentElement.scrollWidth,

@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
 import type { MediaType } from '@/models';
 import { db } from '@/services/database/db';
 import {
@@ -47,7 +50,8 @@ export function ReleaseYearsPanel({
   const years = [...groups.keys()].sort((a, b) =>
     a === 'Unknown' ? 1 : b === 'Unknown' ? -1 : Number(b) - Number(a),
   );
-  const selectedEntries = selected ? groups.get(selected) : undefined;
+  const activeYear = selected && groups.has(selected) ? selected : '';
+  const selectedEntries = activeYear ? groups.get(activeYear) : undefined;
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2">Years</Typography>
@@ -58,21 +62,28 @@ export function ReleaseYearsPanel({
       {years.length === 0 && (
         <Typography variant="body2">No entries match these filters.</Typography>
       )}
-      {years.map((releaseYear) => (
-        <Button
-          key={releaseYear}
-          variant={selected === releaseYear ? 'contained' : 'outlined'}
-          onClick={() => setSelected(selected === releaseYear ? null : releaseYear)}
-          aria-expanded={selected === releaseYear}
-          sx={{ justifyContent: 'space-between' }}
-        >
-          <span>{releaseYear}</span>
-          <span>
-            {groups.get(releaseYear)!.length}{' '}
-            {groups.get(releaseYear)!.length === 1 ? 'entry' : 'entries'}
-          </span>
-        </Button>
-      ))}
+      {years.length > 0 && (
+        <FormControl fullWidth size="small">
+          <InputLabel htmlFor="release-year-select" shrink>
+            Release year
+          </InputLabel>
+          <Select
+            native
+            value={activeYear}
+            label="Release year"
+            onChange={(event) => setSelected(event.target.value || null)}
+            inputProps={{ id: 'release-year-select' }}
+          >
+            <option value="">Select a year</option>
+            {years.map((releaseYear) => (
+              <option key={releaseYear} value={releaseYear}>
+                {releaseYear} · {groups.get(releaseYear)!.length}{' '}
+                {groups.get(releaseYear)!.length === 1 ? 'entry' : 'entries'}
+              </option>
+            ))}
+          </Select>
+        </FormControl>
+      )}
       {selectedEntries && (
         <Stack spacing={0.5} aria-live="polite">
           <Typography variant="subtitle2">{selected}</Typography>
