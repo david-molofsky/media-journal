@@ -30,5 +30,6 @@ test('production build exposes an installable offline PWA shell', async ({ page 
 
   await page.context().setOffline(true);
   await page.reload();
-  await expect(page.getByText('Media Journal', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
 });

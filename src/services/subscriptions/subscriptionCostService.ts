@@ -7,6 +7,7 @@ import {
   sourceOf,
   isWithinYearScope,
   type StatsYearScope,
+  type StatsFilters,
 } from '@/services/statistics/statisticsService';
 import {
   getSubscriptionValue,
@@ -29,32 +30,33 @@ import {
  * see `subscriptionBillingCycle`/`subscriptionAnnualPrices` in
  * AppSettings.ts. Missing/absent means `'monthly'`. */
 export type SubscriptionBillingCycle = 'monthly' | 'annual';
-export type SubscriptionValueLabel = 'Good' | 'Fair' | 'Poor';
+export type SubscriptionValueLabel = 'Great' | 'Good' | 'Fair' | 'Poor';
 
 export interface RelativeSubscriptionValue {
   label: SubscriptionValueLabel;
   percent: number | null;
 }
 
-/** Compares one subscription's cost per point with the portfolio
- * median. A result at least 20% cheaper is Good; at least 20% more
- * expensive is Poor; everything between is Fair. */
+/** Absolute GBP thresholds; the median remains a relative comparison only. */
 export function compareSubscriptionValue(
   costPerValuePoint: number,
   medianCostPerValuePoint: number,
+  region: SupportedPricingRegion | null = 'GB',
 ): RelativeSubscriptionValue {
-  if (medianCostPerValuePoint === 0) {
-    return {
-      label: costPerValuePoint === 0 ? 'Fair' : 'Poor',
-      percent: null,
-    };
-  }
-
-  const ratio = costPerValuePoint / medianCostPerValuePoint;
+  const ratio =
+    medianCostPerValuePoint > 0 ? costPerValuePoint / medianCostPerValuePoint : null;
   return {
-    label: ratio <= 0.8 ? 'Good' : ratio >= 1.2 ? 'Poor' : 'Fair',
-    percent:
-      ((medianCostPerValuePoint - costPerValuePoint) / medianCostPerValuePoint) * 100,
+    label:
+      region === 'GB' && costPerValuePoint < 0.1
+        ? 'Great'
+        : region === 'GB' && costPerValuePoint < 0.2
+          ? 'Good'
+          : region !== 'GB' && ratio !== null && ratio <= 0.8
+            ? 'Good'
+            : ratio !== null && ratio < 1.2
+              ? 'Fair'
+              : 'Poor',
+    percent: ratio === null ? null : (1 - ratio) * 100,
   };
 }
 
@@ -122,12 +124,11 @@ export interface SubscriptionCostRow {
    * when there's no price, or the row is `belowThreshold` / has a
    * `score` of 0, since dividing by either would be meaningless.
    * This combines the engagement score with price and supplies the
-   * basis for the relative Good/Fair/Poor value classification below.
+   * basis for the price-aware value classification below.
    */
   costPerValuePoint: number | null;
-  /** Price-aware classification relative to the median cost per value
-   * point of the user's eligible subscriptions. `null` when fewer than
-   * two subscriptions can be compared. */
+  /** Price-aware classification. GBP Good/Great use fixed cost thresholds;
+   * other bands retain the median comparison. Null without eligible usage/price. */
   valueLabel: SubscriptionValueLabel | null;
   /** Percentage better (positive) or worse (negative) than the median
    * eligible subscription. `null` when comparison isn't possible. */
@@ -223,6 +224,7 @@ async function getHoursBySource(
  */
 export async function getSubscriptionCostSummary(
   year: StatsYearScope = 'last12',
+  filters?: StatsFilters,
 ): Promise<SubscriptionCostSummary> {
   const [
     subsConfig,
@@ -248,7 +250,7 @@ export async function getSubscriptionCostSummary(
   const allMediaTypeIds = mediaTypes.map((mt) => mt.id);
 
   const [{ rows: valueRows }, hoursBySource, engagementHistory] = await Promise.all([
-    getSubscriptionValue(allMediaTypeIds, year),
+    getSubscriptionValue(allMediaTypeIds, year, filters),
     getHoursBySource(subsConfig, tvMode),
     getStrongEngagementHistory(allMediaTypeIds),
   ]);
@@ -369,10 +371,9 @@ export async function getSubscriptionCostSummary(
     worstValueSource = eligibleForMoneyValue.length > 1 ? worst.source : null;
   }
 
-  // Value is relative to the user's typical eligible subscription.
-  // A median baseline resists one unusually cheap or expensive service
-  // distorting every other label. One subscription cannot be compared.
-  if (eligibleForMoneyValue.length >= 2) {
+  // GBP uses absolute Good/Great thresholds, including a single subscription.
+  // The median still provides relative context and the lower-value bands.
+  if (eligibleForMoneyValue.length > 0) {
     const sortedCosts = eligibleForMoneyValue
       .map((row) => row.costPerValuePoint)
       .sort((a, b) => a - b);
@@ -386,9 +387,11 @@ export async function getSubscriptionCostSummary(
       const comparison = compareSubscriptionValue(
         row.costPerValuePoint,
         medianCostPerValuePoint,
+        region,
       );
       row.valueLabel = comparison.label;
-      row.relativeValuePercent = comparison.percent;
+      row.relativeValuePercent =
+        eligibleForMoneyValue.length >= 2 ? comparison.percent : null;
     }
   }
 

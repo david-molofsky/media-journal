@@ -3,7 +3,10 @@ import {
   getSubscriptionCostSummary,
   type SubscriptionCostSummary,
 } from '@/services/subscriptions/subscriptionCostService';
-import type { StatsYearScope } from '@/services/statistics/statisticsService';
+import type {
+  StatsFilters,
+  StatsYearScope,
+} from '@/services/statistics/statisticsService';
 
 /** Reactive Subscriptions calculator dataset — recomputes whenever
  * entries, the subscription-source config, region, tier/billing
@@ -16,6 +19,10 @@ import type { StatsYearScope } from '@/services/statistics/statisticsService';
  * prior always-rolling-12-months behaviour. */
 export function useSubscriptionCostData(
   year: StatsYearScope = 'last12',
+  filters?: StatsFilters,
 ): SubscriptionCostSummary | undefined {
-  return useLiveQuery(() => getSubscriptionCostSummary(year), [year]);
+  return useLiveQuery(
+    () => getSubscriptionCostSummary(year, filters),
+    [year, JSON.stringify(filters)],
+  );
 }

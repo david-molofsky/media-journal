@@ -41,6 +41,7 @@ export function StatTile({
         display: 'block',
         textAlign: 'left',
         width: '100%',
+        minWidth: 0,
         height: '100%',
         borderRadius: 2,
         border: '1px solid',
@@ -65,7 +66,7 @@ export function StatTile({
           <Icon sx={{ color: '#fff', fontSize: 16 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
+          <Typography variant="body2" fontWeight={600} sx={{ overflowWrap: 'anywhere' }}>
             {title}
           </Typography>
           <Typography
