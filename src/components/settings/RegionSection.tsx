@@ -29,8 +29,8 @@ export function RegionSection() {
   return (
     <CollapsibleSection title="Region" icon={PublicOutlinedIcon}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        Used for TMDB/JustWatch Source suggestions. Only services marked as subscriptions
-        in Settings are eligible.
+        Film and TV Source suggestions use services marked as subscriptions in
+        Settings > Subscriptions.
       </Typography>
 
       <Autocomplete
