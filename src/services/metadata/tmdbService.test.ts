@@ -30,6 +30,18 @@ describe('extractSource', () => {
     );
   });
 
+  it('matches exclusions without depending on provider name casing', () => {
+    const providers = {
+      results: {
+        GB: {
+          flatrate: [{ provider_name: 'Disney Plus' }, { provider_name: 'Netflix' }],
+        },
+      },
+    };
+
+    expect(extractSource(providers, 'GB', ['disney plus'])).toBe('Netflix');
+  });
+
   it('returns no suggestion when all providers are excluded', () => {
     const providers = {
       results: {
