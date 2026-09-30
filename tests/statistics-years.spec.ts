@@ -73,9 +73,20 @@ test('mobile statistics explores release years across types and keeps settings a
   await expect(
     page.getByRole('button', { name: 'Unknown 1 entry', exact: true }),
   ).toBeVisible();
-  expect(
-    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-  ).toBe(true);
+  const overflow = await page.evaluate(() => ({
+    width: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    elements: [...document.querySelectorAll('*')]
+      .filter((el) => el.getBoundingClientRect().right > window.innerWidth)
+      .map((el) => ({
+        tag: el.tagName,
+        text: el.textContent?.slice(0, 80),
+        width: el.getBoundingClientRect().width,
+      })),
+  }));
+  expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(
+    overflow.width,
+  );
   await page.screenshot({ path: '/tmp/mj-stats-mobile.png', fullPage: true });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(

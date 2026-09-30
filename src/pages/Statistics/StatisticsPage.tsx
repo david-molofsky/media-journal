@@ -555,7 +555,13 @@ export default function StatisticsPage() {
           STAT_TILES.slice(rowIndex * 2, rowIndex * 2 + 2),
         ).map((row, rowIndex) => (
           <Box key={rowIndex}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 1.5,
+              }}
+            >
               {row.map((tile) => (
                 <StatTile
                   key={tile.id}
