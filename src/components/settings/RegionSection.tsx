@@ -40,12 +40,18 @@ const PROVIDER_OPTIONS = [
 export function RegionSection() {
   const region = useWatchProviderRegion();
   const excludedProviders =
-    useLiveQuery(async () => {
-      const record = await db.appSettings.get('excludedWatchProviders');
-      return Array.isArray(record?.value)
-        ? record.value.filter((provider): provider is string => typeof provider === 'string')
-        : [];
-    }, [], []) ?? [];
+    useLiveQuery(
+      async () => {
+        const record = await db.appSettings.get('excludedWatchProviders');
+        return Array.isArray(record?.value)
+          ? record.value.filter(
+              (provider): provider is string => typeof provider === 'string',
+            )
+          : [];
+      },
+      [],
+      [],
+    ) ?? [];
   const selected = WATCH_PROVIDER_REGIONS.find((r) => r.code === region) ?? null;
 
   return (
@@ -72,8 +78,8 @@ export function RegionSection() {
         Ignore services when suggesting Source
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        Film and TV entries will skip these services when JustWatch suggests a Source.
-        You can choose a suggestion or type another provider.
+        Film and TV entries will skip these services when JustWatch suggests a Source. You
+        can choose a suggestion or type another provider.
       </Typography>
       <Autocomplete
         multiple

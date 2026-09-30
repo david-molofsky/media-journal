@@ -32,9 +32,18 @@ async function tmdbGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-interface TmdbCrewMember { job: string; department: string; name: string; }
-interface TmdbCastMember { order: number; name: string; }
-interface TmdbPerson { name: string; }
+interface TmdbCrewMember {
+  job: string;
+  department: string;
+  name: string;
+}
+interface TmdbCastMember {
+  order: number;
+  name: string;
+}
+interface TmdbPerson {
+  name: string;
+}
 
 // ── Watch providers (JustWatch, via TMDB's partnership) ─────────────────────
 //
@@ -115,7 +124,9 @@ export function extractSource(
 
   const excluded = new Set(excludedProviders.map(normalizeProviderName));
   const firstIncluded = (providers?: TmdbWatchProvider[]) =>
-    providers?.find((provider) => !excluded.has(normalizeProviderName(provider.provider_name)));
+    providers?.find(
+      (provider) => !excluded.has(normalizeProviderName(provider.provider_name)),
+    );
   const best =
     firstIncluded(regionData.flatrate) ??
     firstIncluded(regionData.rent) ??
@@ -143,7 +154,9 @@ const GENRE_NAME_MAP: Record<string, string[]> = {
   'War & Politics': ['War'],
 };
 
-interface TmdbGenre { name: string; }
+interface TmdbGenre {
+  name: string;
+}
 
 /** Maps TMDB's genre list onto this app's Genre vocabulary. Returns
  * `undefined` (rather than an empty array) when there's nothing to
@@ -161,7 +174,9 @@ function extractGenres(genres: TmdbGenre[] | undefined): string[] | undefined {
 // "Collection" (e.g. "Dune Collection"). Stripping that suffix gives a
 // cleaner value for this app's Series field than reproducing TMDB's
 // own naming convention verbatim.
-function extractSeriesFromCollection(collectionName: string | undefined): string | undefined {
+function extractSeriesFromCollection(
+  collectionName: string | undefined,
+): string | undefined {
   if (!collectionName) return undefined;
   return collectionName.replace(/\s+collection$/i, '').trim() || undefined;
 }
@@ -174,8 +189,13 @@ interface TmdbMovieSearchResult {
   release_date?: string;
 }
 
-interface TmdbCollection { id: number; name: string; }
-interface TmdbProductionCompany { name: string; }
+interface TmdbCollection {
+  id: number;
+  name: string;
+}
+interface TmdbProductionCompany {
+  name: string;
+}
 
 /** `external_ids` (see chat — IMDb link auto-fill), appended to the
  * same movie/TV detail request that already fetches credits and
@@ -242,9 +262,11 @@ export async function searchFilmsPage(
 ): Promise<{ results: SearchResult[]; hasMore: boolean }> {
   if (!query.trim()) return { results: [], hasMore: false };
 
-  const data = await tmdbGet<{ results: TmdbMovieSearchResult[]; page: number; total_pages: number }>(
-    `/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=${page}`,
-  );
+  const data = await tmdbGet<{
+    results: TmdbMovieSearchResult[];
+    page: number;
+    total_pages: number;
+  }>(`/search/movie?query=${encodeURIComponent(query)}&language=en-US&page=${page}`);
 
   return {
     results: data.results.map((movie) => ({
@@ -348,7 +370,9 @@ interface TmdbTVSearchResult {
   first_air_date?: string;
 }
 
-interface TmdbNetwork { name: string; }
+interface TmdbNetwork {
+  name: string;
+}
 
 interface TmdbTVDetails {
   id: number;
@@ -398,9 +422,11 @@ export async function searchTVPage(
 ): Promise<{ results: SearchResult[]; hasMore: boolean }> {
   if (!query.trim()) return { results: [], hasMore: false };
 
-  const data = await tmdbGet<{ results: TmdbTVSearchResult[]; page: number; total_pages: number }>(
-    `/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=${page}`,
-  );
+  const data = await tmdbGet<{
+    results: TmdbTVSearchResult[];
+    page: number;
+    total_pages: number;
+  }>(`/search/tv?query=${encodeURIComponent(query)}&language=en-US&page=${page}`);
 
   return {
     results: data.results.map((show) => ({
@@ -427,7 +453,10 @@ export async function getTVDetails(
   const cast = data.credits?.cast ?? [];
   const createdBy = data.created_by ?? [];
 
-  const creator = createdBy.map((p) => p.name).slice(0, 3).join(', ');
+  const creator = createdBy
+    .map((p) => p.name)
+    .slice(0, 3)
+    .join(', ');
   // TMDB doesn't have a dedicated showrunner field; Executive Producer
   // is the closest proxy and is usually the current showrunner.
   const showrunner = crew.find((c) => c.job === 'Executive Producer')?.name ?? '';
@@ -468,11 +497,14 @@ export async function getTVDetails(
   ]);
 
   if (autofillOverview && data.overview) fields['overview'] = data.overview;
-  if (autofillRuntime && data.episode_run_time?.[0]) fields['runtime'] = String(data.episode_run_time[0]);
-  if (autofillProductionCompany && data.networks?.[0]?.name) fields['network'] = data.networks[0].name;
+  if (autofillRuntime && data.episode_run_time?.[0])
+    fields['runtime'] = String(data.episode_run_time[0]);
+  if (autofillProductionCompany && data.networks?.[0]?.name)
+    fields['network'] = data.networks[0].name;
   if (autofillTvStatus && data.status) fields['tvStatus'] = data.status;
   if (autofillPoster && data.poster_path) fields['posterPath'] = data.poster_path;
-  if (autofillReleaseDate && data.first_air_date) fields['releaseDate'] = data.first_air_date;
+  if (autofillReleaseDate && data.first_air_date)
+    fields['releaseDate'] = data.first_air_date;
   if (autofillImdbLink && data.external_ids?.imdb_id) {
     fields['imdbUrl'] = `https://www.imdb.com/title/${data.external_ids.imdb_id}/`;
   }
@@ -483,9 +515,18 @@ export async function getTVDetails(
 // ── IMDb id lookup (used by IMDb import — direct ID matching rather
 // than the title/year search the Letterboxd import relies on) ────────────────
 
-interface TmdbFindMovieResult { id: number; }
-interface TmdbFindTVResult { id: number; }
-interface TmdbFindEpisodeResult { id: number; show_id: number; season_number: number; episode_number: number; }
+interface TmdbFindMovieResult {
+  id: number;
+}
+interface TmdbFindTVResult {
+  id: number;
+}
+interface TmdbFindEpisodeResult {
+  id: number;
+  show_id: number;
+  season_number: number;
+  episode_number: number;
+}
 
 export interface ImdbFindResult {
   /** A film's TMDB id, when the IMDb id resolves to a movie. */
@@ -534,8 +575,13 @@ export async function findByImdbId(imdbId: string): Promise<ImdbFindResult> {
   return {};
 }
 
-interface TmdbSeasonSummary { season_number: number; }
-interface TmdbShowSummary { name: string; seasons?: TmdbSeasonSummary[]; }
+interface TmdbSeasonSummary {
+  season_number: number;
+}
+interface TmdbShowSummary {
+  name: string;
+  seasons?: TmdbSeasonSummary[];
+}
 
 /**
  * A show's display title and real season-number list (excluding season
@@ -558,7 +604,9 @@ export async function getTVShowSummary(
 // ── Find Next in Series ─────────────────────────────────────────────────────
 // See chat (Aug 2026).
 
-interface TmdbSeasonDetail { air_date?: string; }
+interface TmdbSeasonDetail {
+  air_date?: string;
+}
 
 /**
  * TV's "next in series" — the next season of the *same show*, not a
@@ -577,7 +625,9 @@ export async function findNextTVSeason(
   const nextSeasonNumber = currentSeasonNumber + 1;
   if (!summary.seasonNumbers.includes(nextSeasonNumber)) return null;
 
-  const season = await tmdbGet<TmdbSeasonDetail>(`/tv/${tmdbId}/season/${nextSeasonNumber}`);
+  const season = await tmdbGet<TmdbSeasonDetail>(
+    `/tv/${tmdbId}/season/${nextSeasonNumber}`,
+  );
 
   const fields: Record<string, string> = {
     series: summary.title,
@@ -618,7 +668,9 @@ export async function findNextFilmInCollection(
   const collection = await tmdbGet<TmdbCollectionDetail>(`/collection/${collectionId}`);
   const sorted = collection.parts
     .filter((part) => part.release_date)
-    .sort((a, b) => (a.release_date! < b.release_date! ? -1 : a.release_date! > b.release_date! ? 1 : 0));
+    .sort((a, b) =>
+      a.release_date! < b.release_date! ? -1 : a.release_date! > b.release_date! ? 1 : 0,
+    );
 
   const currentIndex = sorted.findIndex((part) => part.id === Number(tmdbId));
   if (currentIndex === -1 || currentIndex === sorted.length - 1) return null;
