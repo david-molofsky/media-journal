@@ -10,6 +10,11 @@
 
 import type { SearchResult } from './openLibraryService';
 import { getSetting } from '@/services/database/settingsService';
+import {
+  getSubscriptionSourceConfig,
+  isSubscriptionSource,
+  type SubscriptionSourceConfig,
+} from '@/services/subscriptions/subscriptionSourcesService';
 export type { SearchResult };
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -106,36 +111,28 @@ const PROVIDER_NAME_MAP: Record<string, string> = {
   Hulu: 'Hulu',
 };
 
-function normalizeProviderName(name: string): string {
-  const normalized = name.trim().toLowerCase();
-  const canonicalName =
-    Object.entries(PROVIDER_NAME_MAP).find(
-      ([providerName]) => providerName.toLowerCase() === normalized,
-    )?.[1] ?? name.trim();
-  return canonicalName.toLowerCase();
-}
-
-/** Picks a single best-guess Source value from a title's watch providers:
- * subscription (flatrate) first, then rental, then purchase. Providers
- * listed in `excludedProviders` are skipped. Returns `undefined` if no
- * eligible provider exists for the selected region. */
+/** Picks the first provider enabled in Settings > Subscriptions, preserving
+ * JustWatch's subscription, rental, then purchase priority. Returns
+ * `undefined` when no enabled provider exists for the selected region. */
 export function extractSource(
   watchProviders: TmdbWatchProviders | undefined,
   region: string,
-  excludedProviders: string[] = [],
+  subscriptionSources: SubscriptionSourceConfig,
 ): string | undefined {
   const regionData = watchProviders?.results?.[region];
   if (!regionData) return undefined;
 
-  const excluded = new Set(excludedProviders.map(normalizeProviderName));
-  const firstIncluded = (providers?: TmdbWatchProvider[]) =>
-    providers?.find(
-      (provider) => !excluded.has(normalizeProviderName(provider.provider_name)),
+  const isEligible = (provider: TmdbWatchProvider) =>
+    isSubscriptionSource(
+      subscriptionSources,
+      PROVIDER_NAME_MAP[provider.provider_name] ?? provider.provider_name,
     );
+  const firstEligible = (providers?: TmdbWatchProvider[]) =>
+    providers?.find(isEligible);
   const best =
-    firstIncluded(regionData.flatrate) ??
-    firstIncluded(regionData.rent) ??
-    firstIncluded(regionData.buy);
+    firstEligible(regionData.flatrate) ??
+    firstEligible(regionData.rent) ??
+    firstEligible(regionData.buy);
   if (!best) return undefined;
 
   return PROVIDER_NAME_MAP[best.provider_name] ?? best.provider_name;
@@ -310,8 +307,8 @@ export async function getFilmDetails(
     .map((c) => c.name)
     .join(', ');
   const region = await getWatchProviderRegion();
-  const excludedProviders = await getSetting<string[]>('excludedWatchProviders', []);
-  const source = extractSource(data['watch/providers'], region, excludedProviders);
+  const subscriptionSources = await getSubscriptionSourceConfig();
+  const source = extractSource(data['watch/providers'], region, subscriptionSources);
 
   const fields: Record<string, string> = {};
   if (director) fields['director'] = director;
@@ -471,8 +468,8 @@ export async function getTVDetails(
     .map((c) => c.name)
     .join(', ');
   const region = await getWatchProviderRegion();
-  const excludedProviders = await getSetting<string[]>('excludedWatchProviders', []);
-  const source = extractSource(data['watch/providers'], region, excludedProviders);
+  const subscriptionSources = await getSubscriptionSourceConfig();
+  const source = extractSource(data['watch/providers'], region, subscriptionSources);
 
   const fields: Record<string, string> = {};
   if (creator) fields['creator'] = creator;
