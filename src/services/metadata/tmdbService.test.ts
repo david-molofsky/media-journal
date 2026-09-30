@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { extractSource } from './tmdbService';
+import type { SubscriptionSourceConfig } from '@/services/subscriptions/subscriptionSourcesService';
 
 describe('extractSource', () => {
-  it('skips excluded providers and suggests the next available subscription service', () => {
+  it('suggests the first provider marked as a subscription', () => {
     const providers = {
       results: {
         GB: {
@@ -10,11 +11,15 @@ describe('extractSource', () => {
         },
       },
     };
+    const subscriptions: SubscriptionSourceConfig = {
+      'Apple TV+': false,
+      Netflix: true,
+    };
 
-    expect(extractSource(providers, 'GB', ['Apple TV+'])).toBe('Netflix');
+    expect(extractSource(providers, 'GB', subscriptions)).toBe('Netflix');
   });
 
-  it('uses rental or purchase providers if every subscription provider is excluded', () => {
+  it('skips disabled providers across subscription, rental, and purchase offers', () => {
     const providers = {
       results: {
         GB: {
@@ -24,25 +29,16 @@ describe('extractSource', () => {
         },
       },
     };
-
-    expect(extractSource(providers, 'GB', ['Apple TV+', 'Amazon Prime Video'])).toBe(
-      'Netflix',
-    );
-  });
-
-  it('matches exclusions without depending on provider name casing', () => {
-    const providers = {
-      results: {
-        GB: {
-          flatrate: [{ provider_name: 'Disney Plus' }, { provider_name: 'Netflix' }],
-        },
-      },
+    const subscriptions: SubscriptionSourceConfig = {
+      'Apple TV+': false,
+      'Amazon Prime Video': true,
+      Netflix: false,
     };
 
-    expect(extractSource(providers, 'GB', ['disney plus'])).toBe('Netflix');
+    expect(extractSource(providers, 'GB', subscriptions)).toBe('Amazon Prime Video');
   });
 
-  it('returns no suggestion when all providers are excluded', () => {
+  it('returns no suggestion when no provider is enabled', () => {
     const providers = {
       results: {
         GB: {
@@ -51,6 +47,6 @@ describe('extractSource', () => {
       },
     };
 
-    expect(extractSource(providers, 'GB', ['apple tv+'])).toBeUndefined();
+    expect(extractSource(providers, 'GB', {})).toBeUndefined();
   });
 });
