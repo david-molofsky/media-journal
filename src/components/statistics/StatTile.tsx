@@ -65,7 +65,7 @@ export function StatTile({
           <Icon sx={{ color: '#fff', fontSize: 16 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
+          <Typography variant="body2" fontWeight={600}>
             {title}
           </Typography>
           <Typography

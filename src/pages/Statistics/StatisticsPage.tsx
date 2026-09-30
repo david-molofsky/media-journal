@@ -5,6 +5,9 @@ import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import SubscriptionsPage from '@/pages/Subscriptions/SubscriptionsPage';
+import { ReleaseYearsPanel } from '@/components/statistics/ReleaseYearsPanel';
 import TvOutlinedIcon from '@mui/icons-material/TvOutlined';
 import StarOutlineIcon from '@mui/icons-material/StarOutline';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
@@ -132,6 +135,8 @@ function mergedSourceGroups(
  */
 type StatSectionId =
   | 'subscriptionValue'
+  | 'subscriptionCost'
+  | 'years'
   | 'sources'
   | 'ratings'
   | 'insights'
@@ -153,6 +158,20 @@ const STAT_TILES: {
     colour: '#FF6F5E',
     title: 'Subscription Score',
     description: "What you're getting for what you pay",
+  },
+  {
+    id: 'subscriptionCost',
+    icon: PaidOutlinedIcon,
+    colour: '#D16A00',
+    title: 'Subscription Value',
+    description: 'What you pay per engagement point',
+  },
+  {
+    id: 'years',
+    icon: CalendarMonthOutlinedIcon,
+    colour: '#607D8B',
+    title: 'Years',
+    description: 'Explore across types by release year',
   },
   {
     id: 'sources',
@@ -484,7 +503,7 @@ export default function StatisticsPage() {
       <Box
         sx={{
           position: 'sticky',
-          top: { xs: 56, sm: 64 },
+          top: 0,
           zIndex: (theme) => theme.zIndex.appBar - 1,
           bgcolor: 'background.default',
           py: 1,
@@ -549,7 +568,9 @@ export default function StatisticsPage() {
                   tourTargetId={
                     tile.id === 'subscriptionValue'
                       ? 'stats-subscription-score'
-                      : undefined
+                      : tile.id === 'subscriptionCost'
+                        ? 'stats-subscription-value'
+                        : undefined
                   }
                 />
               ))}
@@ -608,6 +629,12 @@ export default function StatisticsPage() {
             </Stack>
           </Box>
         );
+
+      case 'subscriptionCost':
+        return <SubscriptionsPage embedded yearScope={year} filters={filters} />;
+
+      case 'years':
+        return <ReleaseYearsPanel year={year} filters={filters} mediaTypes={types} />;
 
       case 'sources':
         return (

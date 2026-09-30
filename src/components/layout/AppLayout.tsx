@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { Outlet } from 'react-router-dom';
-import { AppHeader } from './AppHeader';
 import { BottomNav } from './BottomNav';
 import { PlatformStatusBanner } from './PlatformStatusBanner';
 
@@ -16,7 +15,6 @@ const BOTTOM_NAV_HEIGHT = 64;
 export function AppLayout() {
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <AppHeader />
       <Box
         component="main"
         sx={{

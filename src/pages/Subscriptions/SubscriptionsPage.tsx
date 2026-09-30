@@ -48,12 +48,16 @@ import type {
   SubscriptionCostSummary,
 } from '@/services/subscriptions/subscriptionCostService';
 import type { StrongEngagementStatus } from '@/services/statistics/subscriptionValueService';
-import type { StatsYearScope } from '@/services/statistics/statisticsService';
+import type {
+  StatsFilters,
+  StatsYearScope,
+} from '@/services/statistics/statisticsService';
 
 const VALUE_LABEL: Record<
-  'Good' | 'Fair' | 'Poor',
+  'Great' | 'Good' | 'Fair' | 'Poor',
   { text: string; colour: 'success' | 'warning' | 'error' }
 > = {
+  Great: { text: 'Great value', colour: 'success' },
   Good: { text: 'Good value', colour: 'success' },
   Fair: { text: 'Fair value', colour: 'warning' },
   Poor: { text: 'Poor value', colour: 'error' },
@@ -65,7 +69,7 @@ function valueLabel(row: SubscriptionCostRow): {
 } {
   if (row.belowThreshold) return { text: 'Not enough data yet', colour: 'default' };
   if (!row.valueLabel) {
-    return { text: 'Another subscription needed to compare', colour: 'default' };
+    return { text: 'No value rating available', colour: 'default' };
   }
   return VALUE_LABEL[row.valueLabel];
 }
@@ -558,11 +562,20 @@ function SubscriptionCard({ row, currencySymbol }: SubscriptionCardProps) {
   );
 }
 
-export default function SubscriptionsPage() {
+export default function SubscriptionsPage({
+  embedded = false,
+  yearScope,
+  filters,
+}: {
+  embedded?: boolean;
+  yearScope?: StatsYearScope;
+  filters?: StatsFilters;
+} = {}) {
   const navigate = useNavigate();
   const availableYears = useAvailableYears();
-  const [year, setYear] = useState<StatsYearScope>('last12');
-  const data = useSubscriptionCostData(year);
+  const [localYear, setYear] = useState<StatsYearScope>('last12');
+  const year = yearScope === undefined ? localYear : yearScope;
+  const data = useSubscriptionCostData(year, filters);
 
   if (data === undefined || availableYears === undefined) return <LoadingIndicator />;
 
@@ -586,18 +599,20 @@ export default function SubscriptionsPage() {
   const firstPricelessIndex = data.rows.findIndex((r) => r.effectivePrice === null);
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h6" component="h1" fontWeight={600}>
-          Subscriptions
-        </Typography>
-        <StatsYearSelector year={year} years={availableYears} onChange={setYear} />
-      </Stack>
+    <Box sx={embedded ? {} : { px: 2, pt: 2, pb: 4 }}>
+      {!embedded && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ mb: 2 }}
+        >
+          <Typography variant="h6" component="h1" fontWeight={600}>
+            Subscriptions
+          </Typography>
+          <StatsYearSelector year={year} years={availableYears} onChange={setYear} />
+        </Stack>
+      )}
 
       {!data.pricingRegion && (
         <Alert severity="info" variant="outlined" sx={{ mb: 2 }}>
@@ -651,7 +666,10 @@ export default function SubscriptionsPage() {
           sx={{ display: 'block', mt: 1 }}
         >
           Value compares each subscription's engagement score with its effective monthly
-          price. Lower cost per point is better. Engagement is scoped to{' '}
+          price. Lower cost per point is better.{' '}
+          {data.pricingRegion === 'GB' &&
+            'Great value is below £0.10/pt; good value is £0.10 to below £0.20/pt. '}
+          Engagement is scoped to{' '}
           {year === 'last12' ? 'the last 12 months' : year === null ? 'all time' : year}.
         </Typography>
         {(data.bestValueSource || data.worstValueSource) && (

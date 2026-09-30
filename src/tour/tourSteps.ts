@@ -59,10 +59,10 @@ export const tourSteps: TourStep[] = [
   },
   {
     id: 'subscriptions',
-    route: ROUTES.subscriptions,
-    targetId: 'subscriptions-calculator',
-    title: 'Subscriptions Calculator',
-    body: "Flag the services you pay for in Settings and we'll show cost-per-watch and flag your best and worst value here.",
+    route: ROUTES.statistics,
+    targetId: 'stats-subscription-value',
+    title: 'Subscription Value',
+    body: 'Tap Subscription Value to compare cost per engagement point. Manage the services you pay for in Settings on the bottom bar.',
   },
   {
     id: 'settings-backup',
