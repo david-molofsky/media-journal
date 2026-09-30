@@ -11,6 +11,7 @@ import {
 import type { ExportPayload } from '@/services/importExport/importExportService';
 import { getFirebaseServices } from './firebaseClient';
 import { calculateJournalHash } from './journalSync';
+import { collectionChanges } from './collectionChanges';
 
 const BATCH_WRITE_LIMIT = 400;
 
@@ -232,15 +233,23 @@ async function snapshotWrites(
   const writes: PendingWrite[] = [];
 
   for (const group of groups) {
-    const targetIds = new Set(group.values.map(({ id }) => id));
     const current = await getDocs(collection(firestore, 'users', userId, group.name));
-    for (const item of current.docs) {
-      if (!targetIds.has(item.id)) writes.push({ ref: item.ref, delete: true });
+    const existing = new Map(current.docs.map((item) => [item.id, item.data()]));
+    const wanted = group.values.map(({ id, value }) => ({
+      id,
+      value: firestoreSafe(value) as Record<string, unknown>,
+    }));
+    const changes = collectionChanges(existing, wanted);
+    for (const id of changes.toDelete) {
+      writes.push({
+        ref: doc(collection(firestore, 'users', userId, group.name), id),
+        delete: true,
+      });
     }
-    for (const item of group.values) {
+    for (const item of changes.toSet) {
       writes.push({
         ref: doc(collection(firestore, 'users', userId, group.name), item.id),
-        value: firestoreSafe(item.value) as Record<string, unknown>,
+        value: item.value,
       });
     }
   }
