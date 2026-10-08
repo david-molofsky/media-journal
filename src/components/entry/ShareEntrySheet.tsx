@@ -727,6 +727,14 @@ export function ShareEntrySheet({
               </Typography>
             </Box>
           )}
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', color: 'text.secondary', mt: 0.75 }}
+          >
+            {includeMessage
+              ? 'Turn this off to share only the image.'
+              : 'The image will be shared without a message.'}
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
           <Button onClick={onClose} color="inherit">
