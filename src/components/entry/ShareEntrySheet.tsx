@@ -453,6 +453,7 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
 
   const [imageFailed, setImageFailed] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
+  const [includeMessage, setIncludeMessage] = useState(true);
   const imageUrl = getEntryImageUrl(entry, 'poster');
   const showImage = Boolean(imageUrl) && !imageFailed;
 
@@ -474,20 +475,23 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
       if (!blob) return;
       const file = new File([blob], 'entry.png', { type: 'image/png' });
 
-      // Tier 1: share the image + message together — the ideal case,
-      // supported by most mobile browsers.
+      const shareText = includeMessage ? message : undefined;
+
+      // Tier 1: share the image, with the generated message when enabled.
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: entry.title, text: message });
+        await navigator.share({
+          files: [file],
+          title: entry.title,
+          ...(shareText ? { text: shareText } : {}),
+        });
         return;
       }
 
-      // Tier 2: some browsers support the Web Share API for text/URLs
-      // but not files. Rather than silently dropping the message
-      // (the old behaviour — see chat, Aug 2026), try a text-only
-      // share so the link still goes out, just without the image.
-      if (navigator.share) {
+      // Tier 2: if this browser cannot share files, offer the generated
+      // message as a text-only share when the user has chosen to include it.
+      if (navigator.share && shareText) {
         try {
-          await navigator.share({ title: entry.title, text: message });
+          await navigator.share({ title: entry.title, text: shareText });
           return;
         } catch {
           // AbortError (user cancelled) or any other failure — fall
@@ -495,16 +499,18 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
         }
       }
 
-      // Tier 3: no Web Share API at all (or it just failed). Download
-      // the image as before, but also copy the message to the
-      // clipboard and say so — previously this tier lost the message
-      // entirely with no indication anything was missing.
+      // Tier 3: download the image when file sharing is unavailable.
+      // Copy the generated message only when the user has chosen to include it.
       handleDownload();
+      if (!shareText) {
+        setShareToast('Image downloaded');
+        return;
+      }
       try {
-        await navigator.clipboard.writeText(message);
+        await navigator.clipboard.writeText(shareText);
         setShareToast('Image downloaded — message copied to clipboard');
       } catch {
-        setShareToast('Image downloaded — copy the message from the preview above to share it');
+        setShareToast('Image downloaded — message is available in the preview above');
       }
     }, 'image/png');
   };
@@ -626,27 +632,39 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
           </Typography>
         </Box>
 
-        <Typography
-          variant="caption"
-          sx={{ display: 'block', textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', mb: 0.75 }}
-        >
-          Message
-        </Typography>
-        <Box
-          sx={{
-            bgcolor: 'action.hover',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1.5,
-            px: 1.5,
-            py: 1,
-            mb: 1,
-          }}
-        >
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-            {message}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+          <Typography
+            variant="caption"
+            sx={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}
+          >
+            Message
           </Typography>
+          <Button
+            size="small"
+            variant={includeMessage ? 'outlined' : 'text'}
+            aria-pressed={includeMessage}
+            onClick={() => setIncludeMessage((current) => !current)}
+          >
+            {includeMessage ? 'Include message ✓' : 'Include message'}
+          </Button>
         </Box>
+        {includeMessage && (
+          <Box
+            sx={{
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              px: 1.5,
+              py: 1,
+              mb: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+              {message}
+            </Typography>
+          </Box>
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
         <Button onClick={onClose} color="inherit">Cancel</Button>
