@@ -102,8 +102,13 @@ function getSubline(entry: MediaEntry): string {
  * URLs, which can point anywhere) falls back to the old best-effort
  * direct load — deliberately not proxying arbitrary URLs, see the
  * Worker's own comment on IMAGE_PROXY_ALLOWED_HOSTS. */
-const IMAGE_PROXY_BASE = 'https://media-journal-comicvine-proxy.david-molofsky.workers.dev';
-const IMAGE_PROXY_HOSTS = ['image.tmdb.org', 'covers.openlibrary.org', 'comicvine.gamespot.com'];
+const IMAGE_PROXY_BASE =
+  'https://media-journal-comicvine-proxy.david-molofsky.workers.dev';
+const IMAGE_PROXY_HOSTS = [
+  'image.tmdb.org',
+  'covers.openlibrary.org',
+  'comicvine.gamespot.com',
+];
 
 function proxiedImageUrl(url: string): string {
   try {
@@ -203,7 +208,11 @@ const DIVIDER_GAP_BELOW = 16;
  * currently set on `ctx`. Capped at MAX_TITLE_LINES — titles are
  * capped at 250 chars by validation, but an unbroken run of very long
  * words could otherwise still produce an impractically tall card. */
-function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string[] {
   const words = text.split(' ');
   const lines: string[] = [];
   let current = '';
@@ -289,7 +298,10 @@ async function buildShareCanvas(
   }
 
   const topBlockH =
-    LABEL_H + LABEL_GAP + titleLines.length * TITLE_LINE_H + (subline ? SUBLINE_GAP + SUBLINE_H : 0);
+    LABEL_H +
+    LABEL_GAP +
+    titleLines.length * TITLE_LINE_H +
+    (subline ? SUBLINE_GAP + SUBLINE_H : 0);
   const bottomBlockH =
     DIVIDER_GAP_ABOVE +
     2 +
@@ -441,14 +453,23 @@ async function buildShareCanvas(
   ctx.font = '500 24px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.textAlign = 'right';
-  ctx.fillText(`Media Journal · ${getFooterDateText(entry)}`, CANVAS_W - PAD, canvasH - 26);
+  ctx.fillText(
+    `Media Journal · ${getFooterDateText(entry)}`,
+    CANVAS_W - PAD,
+    canvasH - 26,
+  );
 
   return canvas;
 }
 
 // ── In-app preview + dialog ──────────────────────────────────────────────────
 
-export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntrySheetProps) {
+export function ShareEntrySheet({
+  open,
+  entry,
+  mediaType,
+  onClose,
+}: ShareEntrySheetProps) {
   const colour = mediaType?.colour ?? '#2E7D32';
 
   const [imageFailed, setImageFailed] = useState(false);
@@ -518,9 +539,9 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
   return (
     <>
       <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Share Entry</DialogTitle>
-      <DialogContent>
-        {/* Card preview — mirrors buildShareCanvas's layout: colour
+        <DialogTitle>Share Entry</DialogTitle>
+        <DialogContent>
+          {/* Card preview — mirrors buildShareCanvas's layout: colour
             fills the whole card, poster (when present) is a fixed 53%
             of the width. Sized via a fixed 2:3 aspect-ratio rather than
             alignSelf: 'stretch' (see chat) — stretch needs a defined
@@ -532,149 +553,200 @@ export function ShareEntrySheet({ open, entry, mediaType, onClose }: ShareEntryS
             do this by default), and the (now 3x larger) rating sits
             centred in the gap between the subline and the status
             divider — left blank when there isn't one. */}
-        <Box
-          sx={{
-            borderRadius: 3,
-            bgcolor: colour,
-            p: 2.5,
-            mb: 2,
-            color: '#fff',
-            overflow: 'hidden',
-          }}
-        >
-          <Stack direction="row" spacing={2} alignItems="flex-start">
-            {showImage && (
-              // Wrapper Box owns the width/shape (flex-basis + aspect-ratio),
-              // the <img> just fills it at 100%/100% — more reliable across
-              // browsers than putting aspect-ratio directly on the <img>
-              // itself (see chat): images are "replaced elements", and a
-              // percentage flex-basis + aspect-ratio on the element being
-              // replaced doesn't consistently compute the way it does on a
-              // plain div, which is what caused the poster to render at
-              // full card width just now instead of 53%.
-              <Box
-                sx={{
-                  flex: '0 0 53%',
-                  aspectRatio: '2 / 3',
-                  borderRadius: 4,
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
-                }}
-              >
-                <Box
-                  component="img"
-                  src={imageUrl}
-                  onError={() => setImageFailed(true)}
-                  alt=""
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              </Box>
-            )}
-            <Stack sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="caption" sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}>
-                {mediaType?.displayName ?? entry.mediaType}
-              </Typography>
-              <Typography variant="h6" fontWeight={700} sx={{ mt: 0.5, mb: 0.25, overflowWrap: 'break-word' }}>
-                {entry.title}
-              </Typography>
-              {subline && (
-                <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                  {subline}
-                </Typography>
-              )}
-              {entry.rating !== undefined ? (
-                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-                  <Typography sx={{ fontSize: '3.5rem', fontWeight: 700, lineHeight: 1 }}>
-                    {entry.rating}
-                    <Typography component="span" variant="body2" sx={{ ml: 0.75, opacity: 0.7 }}>
-                      / 10
-                    </Typography>
-                  </Typography>
-                </Box>
-              ) : (
-                middleReplacementText && (
-                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-                    <Typography sx={{ fontSize: '2.5rem', fontWeight: 700, opacity: 0.85, lineHeight: 1.2 }}>
-                      {middleReplacementText}
-                    </Typography>
-                  </Box>
-                )
-              )}
-              <Box sx={{ mt: 'auto' }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    opacity: 0.9,
-                    pt: 1,
-                    borderTop: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  {getStatusLineText(entry)}
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
-          {entry.notes && (
-            <Typography
-              variant="caption"
-              sx={{ display: 'block', mt: 1.5, opacity: 0.8, fontStyle: 'italic' }}
-            >
-              "{entry.notes.slice(0, 100)}{entry.notes.length > 100 ? '…' : ''}"
-            </Typography>
-          )}
-          <Typography variant="caption" sx={{ display: 'block', mt: 2, opacity: 0.5 }}>
-            Media Journal · {getFooterDateText(entry)}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-          <Typography
-            variant="caption"
-            sx={{ textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary' }}
-          >
-            Message
-          </Typography>
-          <Button
-            size="small"
-            variant={includeMessage ? 'outlined' : 'text'}
-            aria-pressed={includeMessage}
-            onClick={() => setIncludeMessage((current) => !current)}
-          >
-            {includeMessage ? 'Include message ✓' : 'Include message'}
-          </Button>
-        </Box>
-        {includeMessage && (
           <Box
             sx={{
-              bgcolor: 'action.hover',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1.5,
-              px: 1.5,
-              py: 1,
-              mb: 1,
+              borderRadius: 3,
+              bgcolor: colour,
+              p: 2.5,
+              mb: 2,
+              color: '#fff',
+              overflow: 'hidden',
             }}
           >
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-              {message}
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              {showImage && (
+                // Wrapper Box owns the width/shape (flex-basis + aspect-ratio),
+                // the <img> just fills it at 100%/100% — more reliable across
+                // browsers than putting aspect-ratio directly on the <img>
+                // itself (see chat): images are "replaced elements", and a
+                // percentage flex-basis + aspect-ratio on the element being
+                // replaced doesn't consistently compute the way it does on a
+                // plain div, which is what caused the poster to render at
+                // full card width just now instead of 53%.
+                <Box
+                  sx={{
+                    flex: '0 0 53%',
+                    aspectRatio: '2 / 3',
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={imageUrl}
+                    onError={() => setImageFailed(true)}
+                    alt=""
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                  />
+                </Box>
+              )}
+              <Stack sx={{ minWidth: 0, flex: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{ opacity: 0.75, textTransform: 'uppercase', letterSpacing: 1 }}
+                >
+                  {mediaType?.displayName ?? entry.mediaType}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight={700}
+                  sx={{ mt: 0.5, mb: 0.25, overflowWrap: 'break-word' }}
+                >
+                  {entry.title}
+                </Typography>
+                {subline && (
+                  <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                    {subline}
+                  </Typography>
+                )}
+                {entry.rating !== undefined ? (
+                  <Box
+                    sx={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}
+                  >
+                    <Typography
+                      sx={{ fontSize: '3.5rem', fontWeight: 700, lineHeight: 1 }}
+                    >
+                      {entry.rating}
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        sx={{ ml: 0.75, opacity: 0.7 }}
+                      >
+                        / 10
+                      </Typography>
+                    </Typography>
+                  </Box>
+                ) : (
+                  middleReplacementText && (
+                    <Box
+                      sx={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        minHeight: 0,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: '2.5rem',
+                          fontWeight: 700,
+                          opacity: 0.85,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {middleReplacementText}
+                      </Typography>
+                    </Box>
+                  )
+                )}
+                <Box sx={{ mt: 'auto' }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      opacity: 0.9,
+                      pt: 1,
+                      borderTop: '1px solid rgba(255,255,255,0.2)',
+                    }}
+                  >
+                    {getStatusLineText(entry)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Stack>
+            {entry.notes && (
+              <Typography
+                variant="caption"
+                sx={{ display: 'block', mt: 1.5, opacity: 0.8, fontStyle: 'italic' }}
+              >
+                "{entry.notes.slice(0, 100)}
+                {entry.notes.length > 100 ? '…' : ''}"
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ display: 'block', mt: 2, opacity: 0.5 }}>
+              Media Journal · {getFooterDateText(entry)}
             </Typography>
           </Box>
-        )}
-      </DialogContent>
-      <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
-        <Button onClick={onClose} color="inherit">Cancel</Button>
-        <Button startIcon={<DownloadOutlinedIcon />} variant="outlined" onClick={handleDownload}>
-          Save image
-        </Button>
-        <Button startIcon={<ShareOutlinedIcon />} variant="contained" onClick={handleShare}>
-          Share
-        </Button>
-      </DialogActions>
+
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              mb: 0.75,
+            }}
+          >
+            <Typography
+              variant="caption"
+              sx={{
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+                color: 'text.secondary',
+              }}
+            >
+              Message
+            </Typography>
+            <Button
+              size="small"
+              variant={includeMessage ? 'outlined' : 'text'}
+              aria-pressed={includeMessage}
+              onClick={() => setIncludeMessage((current) => !current)}
+            >
+              {includeMessage ? 'Include message ✓' : 'Include message'}
+            </Button>
+          </Box>
+          {includeMessage && (
+            <Box
+              sx={{
+                bgcolor: 'action.hover',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1.5,
+                px: 1.5,
+                py: 1,
+                mb: 1,
+              }}
+            >
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                {message}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
+          <Button onClick={onClose} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            startIcon={<DownloadOutlinedIcon />}
+            variant="outlined"
+            onClick={handleDownload}
+          >
+            Save image
+          </Button>
+          <Button
+            startIcon={<ShareOutlinedIcon />}
+            variant="contained"
+            onClick={handleShare}
+          >
+            Share
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Snackbar
