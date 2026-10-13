@@ -7,6 +7,7 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined';
+import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import { BrandIcon } from '@/components/dashboard/BrandIcon';
 import type { BrandIconSlug } from '@/utils/brandIcons';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
@@ -15,8 +16,16 @@ import { ImdbImportSection } from '@/components/settings/ImdbImportSection';
 import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportSection';
 import { NetflixImportSection } from '@/components/settings/NetflixImportSection';
 import { AmazonPrimeImportSection } from '@/components/settings/AmazonPrimeImportSection';
+import { LibbyImportSection } from '@/components/settings/LibbyImportSection';
 
-type ImportSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph' | 'netflix' | 'amazonPrime';
+type ImportSource =
+  | 'letterboxd'
+  | 'goodreads'
+  | 'imdb'
+  | 'storygraph'
+  | 'netflix'
+  | 'amazonPrime'
+  | 'libby';
 
 /** `slug` matches BrandIconSlug exactly for these four — real logos
  * via BrandIcon (simple-icons), same as MyAnimeList/Trakt below them
@@ -26,7 +35,12 @@ type ImportSource = 'letterboxd' | 'goodreads' | 'imdb' | 'storygraph' | 'netfli
  * with a plain Material icon in Amazon's brand blue instead — see
  * the inline row below rather than the ROWS/BrandIcon table. */
 const ROWS: { key: ImportSource; label: string; meta: string; slug: BrandIconSlug }[] = [
-  { key: 'netflix', label: 'Netflix', meta: 'Viewing Activity export from netflix.com', slug: 'netflix' },
+  {
+    key: 'netflix',
+    label: 'Netflix',
+    meta: 'Viewing Activity export from netflix.com',
+    slug: 'netflix',
+  },
   {
     key: 'letterboxd',
     label: 'Letterboxd',
@@ -66,8 +80,33 @@ export function ImportSourcesSection() {
         Import sources
       </Typography>
       <List disablePadding>
+        <ListItemButton onClick={() => setOpenSource('libby')} divider sx={{ px: 1 }}>
+          <ListItemIcon sx={{ minWidth: 44 }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1.5,
+                bgcolor: '#00becd',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <AutoStoriesOutlinedIcon sx={{ fontSize: 17, color: '#07343a' }} />
+            </Box>
+          </ListItemIcon>
+          <ListItemText primary="Libby" secondary="Timeline export (.json)" />
+          <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+        </ListItemButton>
         {ROWS.map((row) => (
-          <ListItemButton key={row.key} onClick={() => setOpenSource(row.key)} divider sx={{ px: 1 }}>
+          <ListItemButton
+            key={row.key}
+            onClick={() => setOpenSource(row.key)}
+            divider
+            sx={{ px: 1 }}
+          >
             <ListItemIcon sx={{ minWidth: 44 }}>
               <BrandIcon slug={row.slug} size={28} />
             </ListItemIcon>
@@ -79,20 +118,33 @@ export function ImportSourcesSection() {
           <ListItemIcon sx={{ minWidth: 44 }}>
             <Box
               sx={{
-                width: 28, height: 28, borderRadius: 1.5, bgcolor: '#00A8E1',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                width: 28,
+                height: 28,
+                borderRadius: 1.5,
+                bgcolor: '#00A8E1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
               <LocalMoviesOutlinedIcon sx={{ fontSize: 17, color: '#0b1a24' }} />
             </Box>
           </ListItemIcon>
-          <ListItemText primary="Amazon Prime Video" secondary="Third-party watch-history export tool" />
+          <ListItemText
+            primary="Amazon Prime Video"
+            secondary="Third-party watch-history export tool"
+          />
           <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
         </ListItemButton>
       </List>
 
       <NetflixImportSection
         open={openSource === 'netflix'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
+      <LibbyImportSection
+        open={openSource === 'libby'}
         onCloseInstructions={() => setOpenSource(null)}
       />
       <AmazonPrimeImportSection
