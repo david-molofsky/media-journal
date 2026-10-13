@@ -11,6 +11,7 @@ export type ImportSource =
   | 'goodreads'
   | 'imdb'
   | 'jellyfin'
+  | 'libby'
   | 'letterboxd'
   | 'myanimelist'
   | 'netflix'
@@ -18,7 +19,7 @@ export type ImportSource =
   | 'storygraph'
   | 'trakt';
 
-export type ImportMethod = 'api' | 'csv';
+export type ImportMethod = 'api' | 'csv' | 'json';
 
 export interface ImportResultAnalytics {
   itemsFound?: number;

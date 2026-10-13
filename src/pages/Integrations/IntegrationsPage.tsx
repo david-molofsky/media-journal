@@ -30,6 +30,7 @@ const SOURCE_LABELS: Record<ImportSource, string> = {
   goodreads: 'Goodreads',
   imdb: 'IMDb',
   jellyfin: 'Jellyfin',
+  libby: 'Libby',
   letterboxd: 'Letterboxd',
   myanimelist: 'MyAnimeList',
   netflix: 'Netflix',
