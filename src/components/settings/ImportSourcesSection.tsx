@@ -82,8 +82,27 @@ export function ImportSourcesSection() {
         Import sources
       </Typography>
       <List disablePadding>
-        <ListItemButton onClick={() => setOpenSource('disneyPlus')} divider sx={{ px: 1 }}>
-          <ListItemIcon sx={{ minWidth: 44 }}><Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: '#113ccf', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><LocalMoviesOutlinedIcon sx={{ fontSize: 17, color: '#fff' }} /></Box></ListItemIcon>
+        <ListItemButton
+          onClick={() => setOpenSource('disneyPlus')}
+          divider
+          sx={{ px: 1 }}
+        >
+          <ListItemIcon sx={{ minWidth: 44 }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1.5,
+                bgcolor: '#113ccf',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <LocalMoviesOutlinedIcon sx={{ fontSize: 17, color: '#fff' }} />
+            </Box>
+          </ListItemIcon>
           <ListItemText primary="Disney+" secondary="Viewing history export (.xlsx)" />
           <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
         </ListItemButton>
