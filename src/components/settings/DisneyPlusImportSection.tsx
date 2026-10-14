@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { ImportInstructionsDialog } from '@/components/settings/ImportInstructionsDialog';
-import { DisneyPlusReviewDialog, type DisneyPlusReviewItem } from '@/components/settings/DisneyPlusReviewDialog';
+import {
+  DisneyPlusReviewDialog,
+  type DisneyPlusReviewItem,
+} from '@/components/settings/DisneyPlusReviewDialog';
 import {
   applyDisneyPlusImport,
   parseDisneyPlusWorkbook,
@@ -40,12 +43,19 @@ export function DisneyPlusImportSection({
       const cacheKey = item.mediaType + '|' + item.title.trim().toLowerCase();
       let candidates = cache.get(cacheKey);
       if (!candidates) {
-        candidates = await (item.mediaType === 'film' ? searchFilms(item.title) : searchTV(item.title));
+        candidates = await (item.mediaType === 'film'
+          ? searchFilms(item.title)
+          : searchTV(item.title));
         cache.set(cacheKey, candidates);
       }
-      const exact = candidates.filter((candidate) => candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase());
-      const status: DisneyPlusReviewItem['matchStatus'] = exact.length === 1 ? 'auto' : candidates.length ? 'ambiguous' : 'none';
-      const selectedId = status === 'auto' ? exact[0]!.id : candidates[0]?.id ?? '__raw__';
+      const exact = candidates.filter(
+        (candidate) =>
+          candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase(),
+      );
+      const status: DisneyPlusReviewItem['matchStatus'] =
+        exact.length === 1 ? 'auto' : candidates.length ? 'ambiguous' : 'none';
+      const selectedId =
+        status === 'auto' ? exact[0]!.id : (candidates[0]?.id ?? '__raw__');
       results.push({
         ...item,
         candidates: candidates.slice(0, 5),
@@ -74,7 +84,9 @@ export function DisneyPlusImportSection({
       setPhase('review');
       onCloseInstructions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not read this Disney+ export.');
+      setError(
+        err instanceof Error ? err.message : 'Could not read this Disney+ export.',
+      );
       setPhase('error');
       onCloseInstructions();
     }
@@ -89,10 +101,14 @@ export function DisneyPlusImportSection({
   };
 
   const pick = (key: string, value: string) => {
-    setItems((prev) => prev.map((item) => item.key === key ? { ...item, selectedId: value } : item));
+    setItems((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, selectedId: value } : item)),
+    );
   };
   const include = (key: string, included: boolean) => {
-    setItems((prev) => prev.map((item) => item.key === key ? { ...item, included } : item));
+    setItems((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, included } : item)),
+    );
   };
   const selectAll = (included: boolean) => {
     setItems((prev) => prev.map((item) => ({ ...item, included })));
@@ -102,7 +118,9 @@ export function DisneyPlusImportSection({
     setPhase('applying');
     trackImportStarted('disney_plus', 'xlsx');
     try {
-      const selected = items.filter((item) => item.included).map(({ candidates: _candidates, matchStatus: _matchStatus, ...item }) => item);
+      const selected = items
+        .filter((item) => item.included)
+        .map(({ candidates: _candidates, matchStatus: _matchStatus, ...item }) => item);
       const n = await applyDisneyPlusImport(selected);
       setCount(n);
       trackImportCompleted('disney_plus', 'xlsx', {
@@ -127,9 +145,21 @@ export function DisneyPlusImportSection({
         title="Import from Disney+"
         buttonLabel="Choose Excel file"
         onChoose={choose}
-        description={<>Choose the Disney+ viewing-history .xlsx export. Film playback segments are grouped into sessions; TV episodes are grouped by series. Re-imported sessions are skipped, and you can review title matches before importing.</>}
+        description={
+          <>
+            Choose the Disney+ viewing-history .xlsx export. Film playback segments are
+            grouped into sessions; TV episodes are grouped by series. Re-imported sessions
+            are skipped, and you can review title matches before importing.
+          </>
+        }
       />
-      <input ref={ref} type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={fileChange} />
+      <input
+        ref={ref}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        hidden
+        onChange={fileChange}
+      />
       <DisneyPlusReviewDialog
         open={phase !== 'idle'}
         phase={phase}

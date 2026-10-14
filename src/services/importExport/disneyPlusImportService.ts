@@ -311,7 +311,12 @@ export async function applyDisneyPlusImport(items: DisneyPlusItem[]) {
   >();
   for (const i of items) {
     if (i.included === false) continue;
-    const cacheKey = i.mediaType + '|' + i.title.trim().toLowerCase() + '|' + (i.selectedId ?? '__raw__');
+    const cacheKey =
+      i.mediaType +
+      '|' +
+      i.title.trim().toLowerCase() +
+      '|' +
+      (i.selectedId ?? '__raw__');
     let matched = metadataCache.get(cacheKey);
     if (!matched) {
       matched = await getDisneyPlusMetadata(i);
