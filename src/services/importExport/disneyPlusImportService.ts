@@ -1,6 +1,9 @@
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { importedFromTag } from '@/utils/importedFromTag';
+import { getFilmDetails, getTVDetails, searchFilms, searchTV } from '@/services/metadata/tmdbService';
+import { toTitleCase } from '@/utils/toTitleCase';
+import type { EntryMetadata } from '@/models';
 
 export interface DisneyPlusItem {
   key: string;
@@ -145,7 +148,11 @@ export async function parseDisneyPlusWorkbook(
       filteredRows.filter((r) => r.type === 'movie' || (r.type === 'episode' && r.series))
         .length,
     ms = (s: string) => {
-      const n = Date.parse(s);
+      if (!s) return 0;
+      // Disney+ exports timestamps with a space separator and six-digit
+      // fractional seconds; normalize to a browser-portable ISO timestamp.
+      const normalized = s.trim().replace(' ', 'T').replace(/\.(\d{3})\d+(?=[+-]\d{2}:?\d{2}$|Z$)/, '.$1');
+      const n = Date.parse(normalized);
       return Number.isFinite(n) ? n : 0;
     };
   const items: DisneyPlusItem[] = [];
@@ -179,11 +186,16 @@ export async function parseDisneyPlusWorkbook(
     };
     for (const r of g) {
       const prev = session.at(-1);
+      // Disney+ logs each playback segment separately. A long pause,
+      // including an overnight break, can still be the same film watch.
+      // Split only after a full day without activity so a film watched
+      // across consecutive days becomes one entry, while later rewatches
+      // remain separate.
       if (
         prev &&
         ms(r.start) &&
         ms(prev.end) &&
-        ms(r.start) - ms(prev.end) > 45 * 60 * 1000
+        ms(r.start) - ms(prev.end) > 24 * 60 * 60 * 1000
       )
         save();
       session.push(r);
@@ -245,25 +257,74 @@ export async function parseDisneyPlusWorkbook(
     },
   };
 }
+function buildDisneyPlusMetadata(fields: Record<string, string>): EntryMetadata {
+  const metadata: EntryMetadata = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === 'runtime') metadata[key] = Number(value);
+    else if (key === 'overview' || key === 'posterPath') metadata[key] = value;
+    else metadata[key] = toTitleCase(value);
+  }
+  metadata.source = 'Disney+';
+  return metadata;
+}
+
+async function getDisneyPlusMetadata(item: DisneyPlusItem): Promise<{
+  title: string;
+  genres: string[];
+  metadata: EntryMetadata;
+}> {
+  const search = item.mediaType === 'film' ? searchFilms : searchTV;
+  const details = item.mediaType === 'film' ? getFilmDetails : getTVDetails;
+  try {
+    const candidates = await search(item.title);
+    const exact = candidates.filter(
+      (candidate) => candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase(),
+    );
+    // Prefer an exact title match; use a sole search result as a safe
+    // fallback when Disney+ and TMDB title punctuation differs.
+    const match = exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+    if (!match) return { title: item.title, genres: [], metadata: { source: 'Disney+' } };
+    const result = await details(match.id);
+    return {
+      title: result.title || match.title,
+      genres: result.genres ?? [],
+      metadata: buildDisneyPlusMetadata(result.fields),
+    };
+  } catch {
+    // A transient TMDB failure must not prevent the viewing history
+    // from importing; the raw Disney+ title and dates are still useful.
+    return { title: item.title, genres: [], metadata: { source: 'Disney+' } };
+  }
+}
+
 export async function applyDisneyPlusImport(items: DisneyPlusItem[]) {
-  for (const i of items)
+  const metadataCache = new Map<string, Awaited<ReturnType<typeof getDisneyPlusMetadata>>>();
+  for (const i of items) {
+    const cacheKey = i.mediaType + '|' + i.title.trim().toLowerCase();
+    let matched = metadataCache.get(cacheKey);
+    if (!matched) {
+      matched = await getDisneyPlusMetadata(i);
+      metadataCache.set(cacheKey, matched);
+    }
     await createEntry({
-      title: i.title,
+      title: matched.title,
       mediaType: i.mediaType,
       status: 'completed',
       startedDate: i.startedDate,
       completedDate: i.completedDate,
       repeatConsumption: false,
       tags: [importedFromTag('Disney+')],
-      genres: [],
+      genres: matched.genres,
       watchedWith: [],
       recommendedBy: [],
       metadata: {
+        ...matched.metadata,
         source: 'Disney+',
         disneyPlusImportKey: i.key,
         disneyPlusProfile: i.profile,
         disneyPlusActivityRows: i.sessionCount,
       },
     });
+  }
   return items.length;
 }
