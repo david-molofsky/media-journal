@@ -33,21 +33,22 @@ export async function parseDisneyPlusWorkbook(buffer:ArrayBuffer,range:{startDat
  for(const k of ['date','profile_id','program_title','program_type','create_ts','end_ts'])if(h[k]===undefined)throw Error('Missing expected Disney+ column: '+k);
  const read=(r:Map<number,string>,k:string)=>r.get(h[k]!)?.trim()??'';
  const all=rows.slice(1).map(r=>({date:read(r,'date').slice(0,10),profile:read(r,'profile_id')||'Unknown',title:read(r,'program_title'),series:read(r,'season_title'),type:read(r,'program_type').toLowerCase(),start:read(r,'create_ts'),end:read(r,'end_ts')})).filter(r=>r.date&&r.title);
- const data=all.filter(r=>(!range.startDate||r.date>=range.startDate)&&(!range.endDate||r.date<=range.endDate));
+ const inRange=(r:{date:string})=>(!range.startDate||r.date>=range.startDate)&&(!range.endDate||r.date<=range.endDate);
+ const data=all,filteredRows=all.filter(inRange);
  const films=data.filter(r=>r.type==='movie'),episodes=data.filter(r=>r.type==='episode'&&r.series);
- const ignored=data.length-films.length-episodes.length,ms=(s:string)=>{const n=Date.parse(s);return Number.isFinite(n)?n:0};
+ const ignored=filteredRows.length-filteredRows.filter(r=>r.type==='movie'||(r.type==='episode'&&r.series)).length,ms=(s:string)=>{const n=Date.parse(s);return Number.isFinite(n)?n:0};
  const items:DisneyPlusItem[]=[];
  const groups=new Map<string,typeof films>();
  for(const r of films){const k=r.profile+'|'+r.title.toLowerCase(),g=groups.get(k)??[];g.push(r);groups.set(k,g)}
  for(const [key,g] of groups){g.sort((a,b)=>ms(a.start)-ms(b.start));let session:typeof g=[];
-  const save=()=>{if(!session.length)return;const first=session.reduce((a,b)=>ms(a.start)<=ms(b.start)?a:b),last=session.reduce((a,b)=>ms(a.end)>=ms(b.end)?a:b),start=(first.start||first.date).slice(0,10),finish=(last.end||last.date).slice(0,10);items.push({key:'film|'+key+'|'+start+'|'+finish,title:first.title,mediaType:'film',startedDate:start,completedDate:finish,profile:first.profile,sessionCount:session.length});session=[]};
+  const save=()=>{if(!session.length)return;const first=session.reduce((a,b)=>ms(a.start)<=ms(b.start)?a:b),last=session.reduce((a,b)=>ms(a.end)>=ms(b.end)?a:b),start=(first.start||first.date).slice(0,10),finish=(last.end||last.date).slice(0,10);if(session.some(inRange))items.push({key:'film|'+key+'|'+start+'|'+finish,title:first.title,mediaType:'film',startedDate:start,completedDate:finish,profile:first.profile,sessionCount:session.length});session=[]};
   for(const r of g){const prev=session.at(-1);if(prev&&ms(r.start)&&ms(prev.end)&&ms(r.start)-ms(prev.end)>45*60*1000)save();session.push(r)}save()
  }
  const shows=new Map<string,typeof episodes>();
  for(const r of episodes){const k=r.profile+'|'+r.series.toLowerCase(),g=shows.get(k)??[];g.push(r);shows.set(k,g)}
- for(const [key,g] of shows){const first=g.reduce((a,b)=>ms(a.start)<=ms(b.start)?a:b),last=g.reduce((a,b)=>ms(a.end)>=ms(b.end)?a:b);items.push({key:'tv|'+key,title:first.series,mediaType:'tv',startedDate:(first.start||first.date).slice(0,10),completedDate:(last.end||last.date).slice(0,10),profile:first.profile,sessionCount:g.length})}
+ for(const [key,g] of shows){if(!g.some(inRange))continue;const first=g.reduce((a,b)=>ms(a.start)<=ms(b.start)?a:b),last=g.reduce((a,b)=>ms(a.end)>=ms(b.end)?a:b);items.push({key:'tv|'+key,title:first.series,mediaType:'tv',startedDate:(first.start||first.date).slice(0,10),completedDate:(last.end||last.date).slice(0,10),profile:first.profile,sessionCount:g.length})}
  const existing=await db.mediaEntries.toArray(),keys=new Set(existing.map(e=>e.metadata.disneyPlusImportKey).filter((k):k is string=>typeof k==='string')),filmKeys=new Set(existing.filter(e=>e.mediaType==='film').map(e=>e.title.trim().toLowerCase()+'|'+e.startedDate+'|'+e.completedDate));
  const fresh=items.filter(i=>!keys.has(i.key)&&!(i.mediaType==='film'&&filmKeys.has(i.title.trim().toLowerCase()+'|'+i.startedDate+'|'+i.completedDate)));
- return {items:fresh,preview:{films:fresh.filter(i=>i.mediaType==='film').length,shows:fresh.filter(i=>i.mediaType==='tv').length,ignored,rows:data.length}};
+ return {items:fresh,preview:{films:fresh.filter(i=>i.mediaType==='film').length,shows:fresh.filter(i=>i.mediaType==='tv').length,ignored,rows:filteredRows.length}};
 }
 export async function applyDisneyPlusImport(items:DisneyPlusItem[]){for(const i of items)await createEntry({title:i.title,mediaType:i.mediaType,status:'completed',startedDate:i.startedDate,completedDate:i.completedDate,repeatConsumption:false,tags:[importedFromTag('Disney+')],genres:[],watchedWith:[],recommendedBy:[],metadata:{source:'Disney+',disneyPlusImportKey:i.key,disneyPlusProfile:i.profile,disneyPlusActivityRows:i.sessionCount}});return items.length}
