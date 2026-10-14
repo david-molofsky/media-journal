@@ -6,8 +6,6 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined';
-import AutoStoriesOutlinedIcon from '@mui/icons-material/AutoStoriesOutlined';
 import { BrandIcon } from '@/components/dashboard/BrandIcon';
 import type { BrandIconSlug } from '@/utils/brandIcons';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';
@@ -88,19 +86,12 @@ export function ImportSourcesSection() {
           sx={{ px: 1 }}
         >
           <ListItemIcon sx={{ minWidth: 44 }}>
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: 1.5,
-                bgcolor: '#113ccf',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <LocalMoviesOutlinedIcon sx={{ fontSize: 17, color: '#fff' }} />
+            <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid', borderColor: 'divider' }}>
+              <Box component="svg" viewBox="0 0 48 28" role="img" aria-label="Disney+ logo" sx={{ width: 25, height: 17 }}>
+                <text x="2" y="18" fontSize="15" fontWeight="700" fontFamily="Arial, sans-serif" fill="#113ccf" letterSpacing="-0.8">Disney</text>
+                <text x="37" y="18" fontSize="10" fontWeight="700" fontFamily="Arial, sans-serif" fill="#113ccf">+</text>
+                <path d="M23 4 Q35 -1 44 4" fill="none" stroke="#113ccf" strokeWidth="1.2" strokeLinecap="round" />
+              </Box>
             </Box>
           </ListItemIcon>
           <ListItemText primary="Disney+" secondary="Viewing history export (.xlsx)" />
@@ -108,20 +99,14 @@ export function ImportSourcesSection() {
         </ListItemButton>
         <ListItemButton onClick={() => setOpenSource('libby')} divider sx={{ px: 1 }}>
           <ListItemIcon sx={{ minWidth: 44 }}>
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: 1.5,
-                bgcolor: '#00becd',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <AutoStoriesOutlinedIcon sx={{ fontSize: 17, color: '#07343a' }} />
-            </Box>
+            <Box sx={{ width: 28, height: 28, borderRadius: 1.5, bgcolor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid', borderColor: 'divider' }}>
+                <Box component="svg" viewBox="0 0 28 28" role="img" aria-label="Libby logo" sx={{ width: 23, height: 23 }}>
+                  <path d="M4 6 Q9 3 14 7 V23 Q9 19 4 22 Z" fill="#00a8e0" />
+                  <path d="M14 7 Q19 3 24 6 V22 Q19 19 14 23 Z" fill="#ff9e1b" />
+                  <path d="M14 7 V23" stroke="#263b53" strokeWidth="1.2" />
+                  <circle cx="14" cy="4" r="2" fill="#263b53" />
+                </Box>
+              </Box>
           </ListItemIcon>
           <ListItemText primary="Libby" secondary="Timeline export (.json)" />
           <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
