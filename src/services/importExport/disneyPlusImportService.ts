@@ -18,6 +18,10 @@ export interface DisneyPlusItem {
   completedDate: string;
   profile: string;
   sessionCount: number;
+  candidates?: { id: string; title: string; subtitle?: string }[];
+  selectedId?: string;
+  matchStatus?: 'auto' | 'ambiguous' | 'none';
+  included?: boolean;
 }
 export interface DisneyPlusPreview {
   films: number;
@@ -281,22 +285,15 @@ async function getDisneyPlusMetadata(item: DisneyPlusItem): Promise<{
   genres: string[];
   metadata: EntryMetadata;
 }> {
-  const search = item.mediaType === 'film' ? searchFilms : searchTV;
   const details = item.mediaType === 'film' ? getFilmDetails : getTVDetails;
   try {
-    const candidates = await search(item.title);
-    const exact = candidates.filter(
-      (candidate) =>
-        candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase(),
-    );
-    // Prefer an exact title match; use a sole search result as a safe
-    // fallback when Disney+ and TMDB title punctuation differs.
-    const match =
-      exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
-    if (!match) return { title: item.title, genres: [], metadata: { source: 'Disney+' } };
-    const result = await details(match.id);
+    if (!item.selectedId || item.selectedId === '__raw__') {
+      return { title: item.title, genres: [], metadata: { source: 'Disney+' } };
+    }
+    const match = item.candidates?.find((candidate) => candidate.id === item.selectedId);
+    const result = await details(item.selectedId);
     return {
-      title: result.title || match.title,
+      title: result.title || match?.title || item.title,
       genres: result.genres ?? [],
       metadata: buildDisneyPlusMetadata(result.fields),
     };
@@ -313,7 +310,13 @@ export async function applyDisneyPlusImport(items: DisneyPlusItem[]) {
     Awaited<ReturnType<typeof getDisneyPlusMetadata>>
   >();
   for (const i of items) {
-    const cacheKey = i.mediaType + '|' + i.title.trim().toLowerCase();
+    if (i.included === false) continue;
+    const cacheKey =
+      i.mediaType +
+      '|' +
+      i.title.trim().toLowerCase() +
+      '|' +
+      (i.selectedId ?? '__raw__');
     let matched = metadataCache.get(cacheKey);
     if (!matched) {
       matched = await getDisneyPlusMetadata(i);
@@ -339,5 +342,5 @@ export async function applyDisneyPlusImport(items: DisneyPlusItem[]) {
       },
     });
   }
-  return items.length;
+  return items.filter((item) => item.included !== false).length;
 }
