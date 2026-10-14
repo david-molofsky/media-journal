@@ -8,6 +8,7 @@ import {
 export type ImportSource =
   | 'amazon_prime'
   | 'audiobookshelf'
+  | 'disney_plus'
   | 'goodreads'
   | 'imdb'
   | 'jellyfin'
@@ -19,7 +20,7 @@ export type ImportSource =
   | 'storygraph'
   | 'trakt';
 
-export type ImportMethod = 'api' | 'csv' | 'json';
+export type ImportMethod = 'api' | 'csv' | 'json' | 'xlsx';
 
 export interface ImportResultAnalytics {
   itemsFound?: number;
