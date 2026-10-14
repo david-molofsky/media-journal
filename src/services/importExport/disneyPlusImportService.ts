@@ -1,7 +1,12 @@
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { importedFromTag } from '@/utils/importedFromTag';
-import { getFilmDetails, getTVDetails, searchFilms, searchTV } from '@/services/metadata/tmdbService';
+import {
+  getFilmDetails,
+  getTVDetails,
+  searchFilms,
+  searchTV,
+} from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
 import type { EntryMetadata } from '@/models';
 
@@ -151,7 +156,10 @@ export async function parseDisneyPlusWorkbook(
       if (!s) return 0;
       // Disney+ exports timestamps with a space separator and six-digit
       // fractional seconds; normalize to a browser-portable ISO timestamp.
-      const normalized = s.trim().replace(' ', 'T').replace(/\.(\d{3})\d+(?=[+-]\d{2}:?\d{2}$|Z$)/, '.$1');
+      const normalized = s
+        .trim()
+        .replace(' ', 'T')
+        .replace(/\.(\d{3})\d+(?=[+-]\d{2}:?\d{2}$|Z$)/, '.$1');
       const n = Date.parse(normalized);
       return Number.isFinite(n) ? n : 0;
     };
@@ -278,11 +286,13 @@ async function getDisneyPlusMetadata(item: DisneyPlusItem): Promise<{
   try {
     const candidates = await search(item.title);
     const exact = candidates.filter(
-      (candidate) => candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase(),
+      (candidate) =>
+        candidate.title.trim().toLowerCase() === item.title.trim().toLowerCase(),
     );
     // Prefer an exact title match; use a sole search result as a safe
     // fallback when Disney+ and TMDB title punctuation differs.
-    const match = exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
+    const match =
+      exact.length === 1 ? exact[0] : candidates.length === 1 ? candidates[0] : undefined;
     if (!match) return { title: item.title, genres: [], metadata: { source: 'Disney+' } };
     const result = await details(match.id);
     return {
@@ -298,7 +308,10 @@ async function getDisneyPlusMetadata(item: DisneyPlusItem): Promise<{
 }
 
 export async function applyDisneyPlusImport(items: DisneyPlusItem[]) {
-  const metadataCache = new Map<string, Awaited<ReturnType<typeof getDisneyPlusMetadata>>>();
+  const metadataCache = new Map<
+    string,
+    Awaited<ReturnType<typeof getDisneyPlusMetadata>>
+  >();
   for (const i of items) {
     const cacheKey = i.mediaType + '|' + i.title.trim().toLowerCase();
     let matched = metadataCache.get(cacheKey);
