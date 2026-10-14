@@ -17,6 +17,7 @@ import { StoryGraphImportSection } from '@/components/settings/StoryGraphImportS
 import { NetflixImportSection } from '@/components/settings/NetflixImportSection';
 import { AmazonPrimeImportSection } from '@/components/settings/AmazonPrimeImportSection';
 import { LibbyImportSection } from '@/components/settings/LibbyImportSection';
+import { DisneyPlusImportSection } from '@/components/settings/DisneyPlusImportSection';
 
 type ImportSource =
   | 'letterboxd'
@@ -25,7 +26,8 @@ type ImportSource =
   | 'storygraph'
   | 'netflix'
   | 'amazonPrime'
-  | 'libby';
+  | 'libby'
+  | 'disneyPlus';
 
 /** `slug` matches BrandIconSlug exactly for these four — real logos
  * via BrandIcon (simple-icons), same as MyAnimeList/Trakt below them
@@ -80,6 +82,30 @@ export function ImportSourcesSection() {
         Import sources
       </Typography>
       <List disablePadding>
+        <ListItemButton
+          onClick={() => setOpenSource('disneyPlus')}
+          divider
+          sx={{ px: 1 }}
+        >
+          <ListItemIcon sx={{ minWidth: 44 }}>
+            <Box
+              sx={{
+                width: 28,
+                height: 28,
+                borderRadius: 1.5,
+                bgcolor: '#113ccf',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <LocalMoviesOutlinedIcon sx={{ fontSize: 17, color: '#fff' }} />
+            </Box>
+          </ListItemIcon>
+          <ListItemText primary="Disney+" secondary="Viewing history export (.xlsx)" />
+          <ChevronRightIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+        </ListItemButton>
         <ListItemButton onClick={() => setOpenSource('libby')} divider sx={{ px: 1 }}>
           <ListItemIcon sx={{ minWidth: 44 }}>
             <Box
@@ -141,6 +167,10 @@ export function ImportSourcesSection() {
 
       <NetflixImportSection
         open={openSource === 'netflix'}
+        onCloseInstructions={() => setOpenSource(null)}
+      />
+      <DisneyPlusImportSection
+        open={openSource === 'disneyPlus'}
         onCloseInstructions={() => setOpenSource(null)}
       />
       <LibbyImportSection

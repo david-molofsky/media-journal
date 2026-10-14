@@ -27,6 +27,7 @@ import type { ImportSource } from '@/services/analytics/importAnalytics';
 const SOURCE_LABELS: Record<ImportSource, string> = {
   amazon_prime: 'Amazon Prime Video',
   audiobookshelf: 'Audiobookshelf',
+  disney_plus: 'Disney+',
   goodreads: 'Goodreads',
   imdb: 'IMDb',
   jellyfin: 'Jellyfin',
