@@ -11,6 +11,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { DisneyPlusItem } from '@/services/importExport/disneyPlusImportService';
 
@@ -27,6 +28,11 @@ interface Props {
   items: DisneyPlusReviewItem[];
   count: number;
   error: string;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onReselectFile: () => void;
   onPick: (key: string, value: string) => void;
   onInclude: (key: string, included: boolean) => void;
   onSelectAll: (included: boolean) => void;
@@ -40,6 +46,11 @@ export function DisneyPlusReviewDialog({
   items,
   count,
   error,
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  onReselectFile,
   onPick,
   onInclude,
   onSelectAll,
@@ -79,6 +90,28 @@ export function DisneyPlusReviewDialog({
               Review matches before adding entries. Your existing library is not changed
               during preview.
             </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Optional inclusive viewing-date filters. Change a filter and select the export again to refresh the preview.
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                label="Start date"
+                type="date"
+                size="small"
+                value={startDate}
+                onChange={(event) => onStartDateChange(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+              <TextField
+                label="End date"
+                type="date"
+                size="small"
+                value={endDate}
+                onChange={(event) => onEndDateChange(event.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+              <Button onClick={onReselectFile}>Re-select file</Button>
+            </Stack>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="body2" color="text.secondary">
                 {selected} selected · {unmatched} without a match
