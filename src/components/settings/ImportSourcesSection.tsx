@@ -6,6 +6,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import LocalMoviesOutlinedIcon from '@mui/icons-material/LocalMoviesOutlined';
 import { BrandIcon } from '@/components/dashboard/BrandIcon';
 import type { BrandIconSlug } from '@/utils/brandIcons';
 import { LetterboxdImportSection } from '@/components/settings/LetterboxdImportSection';

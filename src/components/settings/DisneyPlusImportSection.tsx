@@ -162,10 +162,15 @@ export function DisneyPlusImportSection({
       />
       <DisneyPlusReviewDialog
         open={phase !== 'idle'}
-        phase={phase}
+        phase={phase === 'idle' ? 'matching' : phase}
         items={items}
         count={count}
         error={error}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
+        onReselectFile={choose}
         onPick={pick}
         onInclude={include}
         onSelectAll={selectAll}

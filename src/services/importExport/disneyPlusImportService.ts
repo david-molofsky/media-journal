@@ -1,12 +1,7 @@
 import { db } from '@/services/database/db';
 import { createEntry } from '@/services/database/entryService';
 import { importedFromTag } from '@/utils/importedFromTag';
-import {
-  getFilmDetails,
-  getTVDetails,
-  searchFilms,
-  searchTV,
-} from '@/services/metadata/tmdbService';
+import { getFilmDetails, getTVDetails } from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
 import type { EntryMetadata } from '@/models';
 
