@@ -91,7 +91,8 @@ export function DisneyPlusReviewDialog({
               during preview.
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Optional inclusive viewing-date filters. Change a filter and select the export again to refresh the preview.
+              Optional inclusive viewing-date filters. Change a filter and select the
+              export again to refresh the preview.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <TextField
