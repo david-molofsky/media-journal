@@ -4,8 +4,6 @@ import { importedFromTag } from '@/utils/importedFromTag';
 import {
   getFilmDetails,
   getTVDetails,
-  searchFilms,
-  searchTV,
 } from '@/services/metadata/tmdbService';
 import { toTitleCase } from '@/utils/toTitleCase';
 import type { EntryMetadata } from '@/models';
