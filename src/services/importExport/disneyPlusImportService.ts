@@ -193,16 +193,14 @@ export async function parseDisneyPlusWorkbook(
     };
     for (const r of g) {
       const prev = session.at(-1);
-      // Disney+ logs each playback segment separately. A long pause,
-      // including an overnight break, can still be the same film watch.
-      // Split only after a full day without activity so a film watched
-      // across consecutive days becomes one entry, while later rewatches
-      // remain separate.
+      // Disney+ logs each playback segment separately. Sessions less than
+      // a week apart are treated as one viewing, even across several days.
+      // A gap of seven days or more starts a separate viewing.
       if (
         prev &&
         ms(r.start) &&
         ms(prev.end) &&
-        ms(r.start) - ms(prev.end) > 24 * 60 * 60 * 1000
+        ms(r.start) - ms(prev.end) >= 7 * 24 * 60 * 60 * 1000
       )
         save();
       session.push(r);
