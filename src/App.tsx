@@ -21,6 +21,8 @@ import { AnalyticsConsentPrompt } from '@/components/common/AnalyticsConsentProm
 import { AnalyticsRouteTracker } from '@/components/common/AnalyticsRouteTracker';
 import { DeleteUndoProvider } from '@/contexts/DeleteUndoContext';
 import { useDeviceSync } from '@/hooks/useDeviceSync';
+import { db } from '@/services/database/db';
+import { entryDetailPath } from '@/routes/paths';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -40,6 +42,47 @@ export default function App() {
 
   useAutoBackup();
   useDeviceSync();
+
+  // Local notifications are checked while the app is running. Browser/PWA
+  // background delivery needs a server-side push scheduler and is not implied here.
+  useEffect(() => {
+    let checking = false;
+    const checkReminders = async () => {
+      if (
+        checking ||
+        !('Notification' in window) ||
+        Notification.permission !== 'granted'
+      )
+        return;
+      checking = true;
+      try {
+        const due = await db.reminders.toArray();
+        for (const reminder of due) {
+          if (reminder.notifiedAt || new Date(reminder.dueAt).getTime() > Date.now())
+            continue;
+          await db.reminders.update(reminder.id, {
+            notifiedAt: new Date().toISOString(),
+          });
+          const notification = new Notification('Media Journal reminder', {
+            body: reminder.title,
+            tag: reminder.id,
+          });
+          notification.onclick = () => {
+            window.focus();
+            window.location.hash = reminder.entryId
+              ? entryDetailPath(reminder.entryId)
+              : '/reminders';
+            notification.close();
+          };
+        }
+      } finally {
+        checking = false;
+      }
+    };
+    void checkReminders();
+    const timer = window.setInterval(() => void checkReminders(), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <PwaUpdateProvider>

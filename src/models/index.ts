@@ -13,6 +13,15 @@ export type {
   FieldDefinition,
   FieldInputType,
 } from './MediaType';
-export type { AppSettingRecord, SettingsKey, TvTrackingMode, ColorMode } from './AppSettings';
+export type {
+  AppSettingRecord,
+  SettingsKey,
+  TvTrackingMode,
+  ColorMode,
+} from './AppSettings';
 export { SETTINGS_KEYS } from './AppSettings';
-export type { PodcastSubscription, NewPodcastSubscriptionInput } from './PodcastSubscription';
+export type {
+  PodcastSubscription,
+  NewPodcastSubscriptionInput,
+} from './PodcastSubscription';
+export type { Reminder } from './Reminder';

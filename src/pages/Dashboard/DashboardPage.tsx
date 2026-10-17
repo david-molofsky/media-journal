@@ -15,6 +15,7 @@ import { GoalStatusLegend } from '@/components/dashboard/GoalStatusLegend';
 import { getGoalStatus } from '@/components/dashboard/goalStatus';
 import { GoalsSection } from '@/components/dashboard/GoalsSection';
 import { InProgressSection } from '@/components/dashboard/InProgressSection';
+import { UpcomingRemindersSection } from '@/components/dashboard/UpcomingRemindersSection';
 import { MonthlyActivityChart } from '@/components/charts/MonthlyActivityChart';
 import { MediaBreakdownChart } from '@/components/charts/MediaBreakdownChart';
 import { RatingDistributionChart } from '@/components/charts/RatingDistributionChart';
@@ -82,6 +83,7 @@ export default function DashboardPage() {
       </Stack>
 
       <Stack spacing={4}>
+        <UpcomingRemindersSection />
         <InProgressSection mediaTypes={mediaTypes} />
 
         {showWelcomeScreen ? (
