@@ -22,6 +22,7 @@ import { AnalyticsRouteTracker } from '@/components/common/AnalyticsRouteTracker
 import { DeleteUndoProvider } from '@/contexts/DeleteUndoContext';
 import { useDeviceSync } from '@/hooks/useDeviceSync';
 import { db } from '@/services/database/db';
+import { entryDetailPath } from '@/routes/paths';
 
 export default function App() {
   const colorMode = useColorMode();
@@ -69,7 +70,7 @@ export default function App() {
           notification.onclick = () => {
             window.focus();
             window.location.hash = reminder.entryId
-              ? `/entry/${reminder.entryId}/view`
+              ? entryDetailPath(reminder.entryId)
               : '/reminders';
             notification.close();
           };
