@@ -73,8 +73,12 @@ export default function SettingsPage() {
 
         <CollapsibleSection title="Reminders" icon={NotificationsActiveOutlinedIcon}>
           <Stack spacing={1.5} alignItems="flex-start">
-            <Typography variant="body2" color="text.secondary">Schedule one-off reminders for things you want to read, watch or listen to.</Typography>
-            <Button component={RouterLink} to={ROUTES.reminders} variant="outlined">Open Reminders</Button>
+            <Typography variant="body2" color="text.secondary">
+              Schedule one-off reminders for things you want to read, watch or listen to.
+            </Typography>
+            <Button component={RouterLink} to={ROUTES.reminders} variant="outlined">
+              Open Reminders
+            </Button>
           </Stack>
         </CollapsibleSection>
 

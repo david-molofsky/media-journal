@@ -5,7 +5,10 @@ export async function listReminders(): Promise<Reminder[]> {
   return (await db.reminders.toArray()).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
 }
 
-export async function saveReminder(input: Pick<Reminder, 'title' | 'dueAt' | 'entryId'>, id?: string): Promise<void> {
+export async function saveReminder(
+  input: Pick<Reminder, 'title' | 'dueAt' | 'entryId'>,
+  id?: string,
+): Promise<void> {
   const title = input.title.trim();
   if (!title) throw new Error('Enter a reminder title.');
   const dueAt = new Date(input.dueAt);
@@ -18,7 +21,7 @@ export async function saveReminder(input: Pick<Reminder, 'title' | 'dueAt' | 'en
     title,
     dueAt: dueAt.toISOString(),
     ...(input.entryId ? { entryId: input.entryId } : {}),
-    createdAt: id ? (await db.reminders.get(id))?.createdAt ?? now : now,
+    createdAt: id ? ((await db.reminders.get(id))?.createdAt ?? now) : now,
     updatedAt: now,
   });
 }
@@ -31,9 +34,15 @@ export async function snoozeReminder(id: string): Promise<void> {
   const reminder = await db.reminders.get(id);
   if (!reminder) return;
   const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  await db.reminders.update(id, { dueAt, updatedAt: new Date().toISOString(), notifiedAt: undefined });
+  await db.reminders.update(id, {
+    dueAt,
+    updatedAt: new Date().toISOString(),
+    notifiedAt: undefined,
+  });
 }
 
 export async function getUpcomingReminders(): Promise<Reminder[]> {
-  return (await listReminders()).filter((reminder) => new Date(reminder.dueAt).getTime() > Date.now());
+  return (await listReminders()).filter(
+    (reminder) => new Date(reminder.dueAt).getTime() > Date.now(),
+  );
 }

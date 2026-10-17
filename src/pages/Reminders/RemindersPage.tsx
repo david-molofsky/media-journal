@@ -14,7 +14,11 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
 import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
-import { deleteReminder, saveReminder, snoozeReminder } from '@/services/database/reminderService';
+import {
+  deleteReminder,
+  saveReminder,
+  snoozeReminder,
+} from '@/services/database/reminderService';
 import { EntryDatePicker } from '@/components/forms/EntryDatePicker';
 
 const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -30,79 +34,212 @@ export default function RemindersPage() {
   const [hour, setHour] = useState('19');
   const [minute, setMinute] = useState('00');
   const [error, setError] = useState('');
-  const sortedEntries = useMemo(() => [...(entries ?? [])].sort((a,b) => a.title.localeCompare(b.title)), [entries]);
+  const sortedEntries = useMemo(
+    () => [...(entries ?? [])].sort((a, b) => a.title.localeCompare(b.title)),
+    [entries],
+  );
 
   const reset = () => {
-    setEditingId(undefined); setTitle(''); setEntryId('');
-    setDate(dayjs().add(1, 'day').format('YYYY-MM-DD')); setHour('19'); setMinute('00'); setError('');
+    setEditingId(undefined);
+    setTitle('');
+    setEntryId('');
+    setDate(dayjs().add(1, 'day').format('YYYY-MM-DD'));
+    setHour('19');
+    setMinute('00');
+    setError('');
   };
 
   const edit = (reminder: NonNullable<typeof reminders>[number]) => {
-    setEditingId(reminder.id); setTitle(reminder.title); setEntryId(reminder.entryId ?? '');
+    setEditingId(reminder.id);
+    setTitle(reminder.title);
+    setEntryId(reminder.entryId ?? '');
     const due = dayjs(reminder.dueAt);
-    setDate(due.format('YYYY-MM-DD')); setHour(due.format('HH')); setMinute(['00','15','30','45'].includes(due.format('mm')) ? due.format('mm') : '00');
+    setDate(due.format('YYYY-MM-DD'));
+    setHour(due.format('HH'));
+    setMinute(
+      ['00', '15', '30', '45'].includes(due.format('mm')) ? due.format('mm') : '00',
+    );
     setError('');
   };
 
   const submit = async () => {
-    const dueAt = dayjs(date).hour(Number(hour)).minute(Number(minute)).second(0).millisecond(0);
-    if (dueAt.valueOf() <= Date.now()) { setError('Choose a date and time in the future.'); return; }
+    const dueAt = dayjs(date)
+      .hour(Number(hour))
+      .minute(Number(minute))
+      .second(0)
+      .millisecond(0);
+    if (dueAt.valueOf() <= Date.now()) {
+      setError('Choose a date and time in the future.');
+      return;
+    }
     try {
-      await saveReminder({ title, dueAt: dueAt.toISOString(), ...(entryId ? { entryId } : {}) }, editingId);
+      await saveReminder(
+        { title, dueAt: dueAt.toISOString(), ...(entryId ? { entryId } : {}) },
+        editingId,
+      );
       reset();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not save reminder.'); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save reminder.');
+    }
   };
 
   const enableNotifications = async () => {
-    if (!('Notification' in window)) { setError('This browser does not support notifications.'); return; }
+    if (!('Notification' in window)) {
+      setError('This browser does not support notifications.');
+      return;
+    }
     const permission = await Notification.requestPermission();
-    setError(permission === 'granted' ? 'Notifications enabled while Media Journal is open. Background delivery requires push-notification setup.' : 'Notification permission was not granted.');
+    setError(
+      permission === 'granted'
+        ? 'Notifications enabled while Media Journal is open. Background delivery requires push-notification setup.'
+        : 'Notification permission was not granted.',
+    );
   };
 
-  return <Box>
-    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
-      <NotificationsActiveOutlinedIcon color="primary" />
-      <Typography variant="h6" component="h1" fontWeight={600}>Reminders</Typography>
-    </Stack>
-    <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
-      <CardContent>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{editingId ? 'Edit reminder' : 'New reminder'}</Typography>
-        <Stack spacing={2}>
-          <TextField label="Reminder" value={title} onChange={e => setTitle(e.target.value)} fullWidth required placeholder="e.g. Watch Scrubs" />
-          <TextField select label="Link to a journal entry (optional)" value={entryId} onChange={e => setEntryId(e.target.value)} fullWidth>
-            <MenuItem value="">No linked entry</MenuItem>
-            {sortedEntries.map(entry => <MenuItem key={entry.id} value={entry.id}>{entry.title}</MenuItem>)}
-          </TextField>
-          <EntryDatePicker label="Date" value={date} onChange={(next) => { if (next) setDate(next); }} />
-          <Stack direction="row" spacing={2}>
-            <TextField select label="Hour" value={hour} onChange={e => setHour(e.target.value)} fullWidth>{hours.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
-            <TextField select label="Minute" value={minute} onChange={e => setMinute(e.target.value)} fullWidth>{minutes.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
+        <NotificationsActiveOutlinedIcon color="primary" />
+        <Typography variant="h6" component="h1" fontWeight={600}>
+          Reminders
+        </Typography>
+      </Stack>
+      <Card variant="outlined" sx={{ mb: 3, borderRadius: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+            {editingId ? 'Edit reminder' : 'New reminder'}
+          </Typography>
+          <Stack spacing={2}>
+            <TextField
+              label="Reminder"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              fullWidth
+              required
+              placeholder="e.g. Watch Scrubs"
+            />
+            <TextField
+              select
+              label="Link to a journal entry (optional)"
+              value={entryId}
+              onChange={(e) => setEntryId(e.target.value)}
+              fullWidth
+            >
+              <MenuItem value="">No linked entry</MenuItem>
+              {sortedEntries.map((entry) => (
+                <MenuItem key={entry.id} value={entry.id}>
+                  {entry.title}
+                </MenuItem>
+              ))}
+            </TextField>
+            <EntryDatePicker
+              label="Date"
+              value={date}
+              onChange={(next) => {
+                if (next) setDate(next);
+              }}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                select
+                label="Hour"
+                value={hour}
+                onChange={(e) => setHour(e.target.value)}
+                fullWidth
+              >
+                {hours.map((v) => (
+                  <MenuItem key={v} value={v}>
+                    {v}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Minute"
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+                fullWidth
+              >
+                {minutes.map((v) => (
+                  <MenuItem key={v} value={v}>
+                    {v}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            {error && (
+              <Typography
+                variant="body2"
+                color={error.includes('enabled') ? 'success.main' : 'error.main'}
+              >
+                {error}
+              </Typography>
+            )}
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Button variant="contained" onClick={() => void submit()}>
+                {editingId ? 'Save changes' : 'Add reminder'}
+              </Button>
+              <Button variant="outlined" onClick={() => void enableNotifications()}>
+                Enable notifications
+              </Button>
+              {editingId && <Button onClick={reset}>Cancel edit</Button>}
+            </Stack>
           </Stack>
-          {error && <Typography variant="body2" color={error.includes('enabled') ? 'success.main' : 'error.main'}>{error}</Typography>}
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Button variant="contained" onClick={() => void submit()}>{editingId ? 'Save changes' : 'Add reminder'}</Button>
-            <Button variant="outlined" onClick={() => void enableNotifications()}>Enable notifications</Button>
-            {editingId && <Button onClick={reset}>Cancel edit</Button>}
-          </Stack>
+        </CardContent>
+      </Card>
+      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Scheduled reminders
+      </Typography>
+      {!reminders?.length ? (
+        <Typography color="text.secondary" variant="body2">
+          No reminders yet.
+        </Typography>
+      ) : (
+        <Stack spacing={1.5}>
+          {reminders.map((reminder) => {
+            const linked = sortedEntries.find((entry) => entry.id === reminder.entryId);
+            return (
+              <Card key={reminder.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                <CardContent
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    '&:last-child': { pb: 2 },
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontWeight={600}>{reminder.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {dayjs(reminder.dueAt).format('ddd D MMM YYYY, HH:mm')}
+                    </Typography>
+                    {linked && (
+                      <Typography variant="caption" color="text.secondary">
+                        Entry: {linked.title}
+                      </Typography>
+                    )}
+                  </Box>
+                  <IconButton aria-label="Edit reminder" onClick={() => edit(reminder)}>
+                    <EditOutlinedIcon />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Snooze for 24 hours"
+                    onClick={() => void snoozeReminder(reminder.id)}
+                  >
+                    <NotificationsActiveOutlinedIcon />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Cancel reminder"
+                    onClick={() => void deleteReminder(reminder.id)}
+                  >
+                    <DeleteOutlineIcon />
+                  </IconButton>
+                </CardContent>
+              </Card>
+            );
+          })}
         </Stack>
-      </CardContent>
-    </Card>
-    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>Scheduled reminders</Typography>
-    {!reminders?.length ? <Typography color="text.secondary" variant="body2">No reminders yet.</Typography> :
-      <Stack spacing={1.5}>{reminders.map(reminder => {
-        const linked = sortedEntries.find(entry => entry.id === reminder.entryId);
-        return <Card key={reminder.id} variant="outlined" sx={{ borderRadius: 3 }}>
-          <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1, '&:last-child': { pb: 2 } }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography fontWeight={600}>{reminder.title}</Typography>
-              <Typography variant="body2" color="text.secondary">{dayjs(reminder.dueAt).format('ddd D MMM YYYY, HH:mm')}</Typography>
-              {linked && <Typography variant="caption" color="text.secondary">Entry: {linked.title}</Typography>}
-            </Box>
-            <IconButton aria-label="Edit reminder" onClick={() => edit(reminder)}><EditOutlinedIcon /></IconButton>
-            <IconButton aria-label="Snooze for 24 hours" onClick={() => void snoozeReminder(reminder.id)}><NotificationsActiveOutlinedIcon /></IconButton>
-            <IconButton aria-label="Cancel reminder" onClick={() => void deleteReminder(reminder.id)}><DeleteOutlineIcon /></IconButton>
-          </CardContent>
-        </Card>;
-      })}</Stack>}
-  </Box>;
+      )}
+    </Box>
+  );
 }

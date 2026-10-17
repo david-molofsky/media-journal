@@ -1470,7 +1470,6 @@ export class MediaJournalDatabase extends Dexie {
       podcastSubscriptions: 'id, feedUrl, createdAt',
       reminders: 'id, dueAt, entryId',
     });
-
   }
 }
 

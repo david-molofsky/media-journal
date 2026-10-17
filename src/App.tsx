@@ -47,17 +47,30 @@ export default function App() {
   useEffect(() => {
     let checking = false;
     const checkReminders = async () => {
-      if (checking || !('Notification' in window) || Notification.permission !== 'granted') return;
+      if (
+        checking ||
+        !('Notification' in window) ||
+        Notification.permission !== 'granted'
+      )
+        return;
       checking = true;
       try {
         const due = await db.reminders.toArray();
         for (const reminder of due) {
-          if (reminder.notifiedAt || new Date(reminder.dueAt).getTime() > Date.now()) continue;
-          await db.reminders.update(reminder.id, { notifiedAt: new Date().toISOString() });
-          const notification = new Notification('Media Journal reminder', { body: reminder.title, tag: reminder.id });
+          if (reminder.notifiedAt || new Date(reminder.dueAt).getTime() > Date.now())
+            continue;
+          await db.reminders.update(reminder.id, {
+            notifiedAt: new Date().toISOString(),
+          });
+          const notification = new Notification('Media Journal reminder', {
+            body: reminder.title,
+            tag: reminder.id,
+          });
           notification.onclick = () => {
             window.focus();
-            window.location.hash = reminder.entryId ? `/entry/${reminder.entryId}/view` : '/reminders';
+            window.location.hash = reminder.entryId
+              ? `/entry/${reminder.entryId}/view`
+              : '/reminders';
             notification.close();
           };
         }
