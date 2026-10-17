@@ -5,4 +5,5 @@ export interface Reminder {
   entryId?: string;
   createdAt: string;
   updatedAt: string;
+  notifiedAt?: string;
 }
