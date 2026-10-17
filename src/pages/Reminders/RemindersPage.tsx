@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -34,23 +34,12 @@ export default function RemindersPage() {
   const entries = useLiveQuery(() => db.mediaEntries.toArray(), [], []);
   const reminders = useLiveQuery(() => db.reminders.orderBy('dueAt').toArray(), [], []);
   const [editingId, setEditingId] = useState<string>();
-  const [title, setTitle] = useState('');
-  const [entryId, setEntryId] = useState('');
+  const [title, setTitle] = useState(prefill?.prefillTitle ?? '');
+  const [entryId, setEntryId] = useState(prefill?.prefillEntryId ?? '');
   const [date, setDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
   const [hour, setHour] = useState('19');
   const [minute, setMinute] = useState('00');
   const [error, setError] = useState('');
-  useEffect(() => {
-    if (!prefill?.prefillEntryId) return;
-    setEditingId(undefined);
-    setEntryId(prefill.prefillEntryId);
-    setTitle(prefill.prefillTitle ?? '');
-    setDate(dayjs().add(1, 'day').format('YYYY-MM-DD'));
-    setHour('19');
-    setMinute('00');
-    setError('');
-  }, [prefill?.prefillEntryId, prefill?.prefillTitle]);
-
   const sortedEntries = useMemo(
     () => [...(entries ?? [])].sort((a, b) => a.title.localeCompare(b.title)),
     [entries],
