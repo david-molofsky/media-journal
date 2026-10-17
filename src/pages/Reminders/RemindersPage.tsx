@@ -26,7 +26,7 @@ export default function RemindersPage() {
   const [editingId, setEditingId] = useState<string>();
   const [title, setTitle] = useState('');
   const [entryId, setEntryId] = useState('');
-  const [date, setDate] = useState(dayjs().add(1, 'day'));
+  const [date, setDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
   const [hour, setHour] = useState('19');
   const [minute, setMinute] = useState('00');
   const [error, setError] = useState('');
@@ -34,18 +34,18 @@ export default function RemindersPage() {
 
   const reset = () => {
     setEditingId(undefined); setTitle(''); setEntryId('');
-    setDate(dayjs().add(1, 'day')); setHour('19'); setMinute('00'); setError('');
+    setDate(dayjs().add(1, 'day').format('YYYY-MM-DD')); setHour('19'); setMinute('00'); setError('');
   };
 
   const edit = (reminder: NonNullable<typeof reminders>[number]) => {
     setEditingId(reminder.id); setTitle(reminder.title); setEntryId(reminder.entryId ?? '');
     const due = dayjs(reminder.dueAt);
-    setDate(due); setHour(due.format('HH')); setMinute(['00','15','30','45'].includes(due.format('mm')) ? due.format('mm') : '00');
+    setDate(due.format('YYYY-MM-DD')); setHour(due.format('HH')); setMinute(['00','15','30','45'].includes(due.format('mm')) ? due.format('mm') : '00');
     setError('');
   };
 
   const submit = async () => {
-    const dueAt = date.hour(Number(hour)).minute(Number(minute)).second(0).millisecond(0);
+    const dueAt = dayjs(date).hour(Number(hour)).minute(Number(minute)).second(0).millisecond(0);
     if (dueAt.valueOf() <= Date.now()) { setError('Choose a date and time in the future.'); return; }
     try {
       await saveReminder({ title, dueAt: dueAt.toISOString(), ...(entryId ? { entryId } : {}) }, editingId);
@@ -73,7 +73,7 @@ export default function RemindersPage() {
             <MenuItem value="">No linked entry</MenuItem>
             {sortedEntries.map(entry => <MenuItem key={entry.id} value={entry.id}>{entry.title}</MenuItem>)}
           </TextField>
-          <EntryDatePicker value={date} onChange={(next) => { if (next) setDate(next); }} />
+          <EntryDatePicker label="Date" value={date} onChange={(next) => { if (next) setDate(next); }} />
           <Stack direction="row" spacing={2}>
             <TextField select label="Hour" value={hour} onChange={e => setHour(e.target.value)} fullWidth>{hours.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
             <TextField select label="Minute" value={minute} onChange={e => setMinute(e.target.value)} fullWidth>{minutes.map(v => <MenuItem key={v} value={v}>{v}</MenuItem>)}</TextField>
