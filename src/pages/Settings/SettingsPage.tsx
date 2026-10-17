@@ -23,6 +23,7 @@ import { PwaUpdateSection } from '@/components/settings/PwaUpdateSection';
 import Button from '@mui/material/Button';
 import ExploreOutlinedIcon from '@mui/icons-material/ExploreOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
 import { useGuidedTour } from '@/tour/GuidedTourContext';
 import { DeviceSyncSection } from '@/components/settings/DeviceSyncSection';
 import { DataHealthSection } from '@/components/settings/DataHealthSection';
@@ -69,6 +70,13 @@ export default function SettingsPage() {
         <RegionSection />
 
         <ImportExportSection />
+
+        <CollapsibleSection title="Reminders" icon={NotificationsActiveOutlinedIcon}>
+          <Stack spacing={1.5} alignItems="flex-start">
+            <Typography variant="body2" color="text.secondary">Schedule one-off reminders for things you want to read, watch or listen to.</Typography>
+            <Button component={RouterLink} to={ROUTES.reminders} variant="outlined">Open Reminders</Button>
+          </Stack>
+        </CollapsibleSection>
 
         <CollapsibleSection title="Integrations" icon={HubOutlinedIcon}>
           <Stack spacing={1.5} alignItems="flex-start">
