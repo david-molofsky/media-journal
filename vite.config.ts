@@ -65,6 +65,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Firebase Messaging must share the existing Workbox service worker;
+        // registering a second worker at this scope would replace the PWA worker.
+        importScripts: ['firebase-messaging-sw.js'],
         // Cache the app shell; all user data lives in IndexedDB, not in the
         // service worker cache, so this only ever needs to cache static assets.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
