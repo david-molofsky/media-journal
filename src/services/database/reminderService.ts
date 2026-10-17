@@ -31,7 +31,7 @@ export async function snoozeReminder(id: string): Promise<void> {
   const reminder = await db.reminders.get(id);
   if (!reminder) return;
   const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  await db.reminders.update(id, { dueAt, updatedAt: new Date().toISOString() });
+  await db.reminders.update(id, { dueAt, updatedAt: new Date().toISOString(), notifiedAt: undefined });
 }
 
 export async function getUpcomingReminders(): Promise<Reminder[]> {
