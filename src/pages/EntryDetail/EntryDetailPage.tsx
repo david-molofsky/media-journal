@@ -14,6 +14,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
 import dayjs from 'dayjs';
 import { useMediaEntry } from '@/hooks/useMediaEntry';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
@@ -194,6 +195,9 @@ export default function EntryDetailPage() {
   // the Library card's onStartTracking/onMoveToWishlist/onMarkFinished
   // (EntryCard.tsx), so a Completed entry deliberately shows neither
   // (matches Library exactly — confirmed in chat, Aug 2026).
+  const handleSetReminder = () =>
+    navigate(ROUTES.reminders, { state: { prefillEntryId: entry.id, prefillTitle: entry.title } });
+
   const handleStartTracking = () => void updateEntryStatus(entry.id, 'in_progress');
   const handleMoveToWishlist = () => void updateEntryStatus(entry.id, 'wishlist');
   const openFinishDialog = () => {
@@ -297,6 +301,25 @@ export default function EntryDetailPage() {
             )}
           </Stack>
         </Stack>
+
+        {status === 'wishlist' && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Reminder
+              </Typography>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<NotificationsActiveOutlinedIcon />}
+                onClick={handleSetReminder}
+              >
+                Set a reminder
+              </Button>
+            </Box>
+          </>
+        )}
 
         {(status === 'wishlist' || status === 'in_progress') && (
           <Stack direction="row" spacing={1}>
