@@ -83,6 +83,7 @@ export default function DashboardPage() {
       </Stack>
 
       <Stack spacing={4}>
+        <UpcomingRemindersSection />
         <InProgressSection mediaTypes={mediaTypes} />
 
         {showWelcomeScreen ? (
