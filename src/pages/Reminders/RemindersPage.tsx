@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useLocation } from 'react-router-dom';
+import { getMessaging, getToken } from 'firebase/messaging';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -20,6 +21,7 @@ import {
   saveReminder,
   snoozeReminder,
 } from '@/services/database/reminderService';
+import { getFirebaseServices } from '@/services/sync/firebaseClient';
 import { EntryDatePicker } from '@/components/forms/EntryDatePicker';
 
 const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -90,16 +92,48 @@ export default function RemindersPage() {
   };
 
   const enableNotifications = async () => {
-    if (!('Notification' in window)) {
-      setError('This browser does not support notifications.');
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+    if (!vapidKey) {
+      setError(
+        'Push test is not configured yet. Add the Web Push certificate key from Firebase Console to VITE_FIREBASE_VAPID_KEY, then rebuild.',
+      );
       return;
     }
-    const permission = await Notification.requestPermission();
-    setError(
-      permission === 'granted'
-        ? 'Notifications enabled while Media Journal is open. Background delivery requires push-notification setup.'
-        : 'Notification permission was not granted.',
-    );
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      setError('This browser does not support push notifications.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setError('Notification permission was not granted.');
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const { app } = getFirebaseServices();
+      const messaging = getMessaging(app);
+      const token = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration,
+      });
+
+      if (!token) {
+        setError('Firebase did not return a push registration token for this device.');
+        return;
+      }
+
+      setError(
+        `Push registration succeeded on this device. For the spike, copy this token into Firebase Console > Messaging > Send test message: ${token}`,
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error
+          ? `Could not register this device for push notifications: ${e.message}`
+          : 'Could not register this device for push notifications.',
+      );
+    }
   };
 
   return (
@@ -176,7 +210,8 @@ export default function RemindersPage() {
             {error && (
               <Typography
                 variant="body2"
-                color={error.includes('enabled') ? 'success.main' : 'error.main'}
+                color={error.includes('succeeded') ? 'success.main' : 'error.main'}
+                sx={{ overflowWrap: 'anywhere', userSelect: 'text' }}
               >
                 {error}
               </Typography>
