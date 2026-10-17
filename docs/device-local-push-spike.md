@@ -14,7 +14,7 @@ The spike deliberately uses the existing Workbox service worker. A second servic
 4. Add that public key as `VITE_FIREBASE_VAPID_KEY` in the GitHub Pages workflow build environment (or the local `.env` for a local build). It is a public key, not a server credential.
 5. Confirm Cloud Messaging is available for the Firebase project.
 
-The public key is intentionally not committed to this spike. Without it, the Enable notifications button reports that configuration is missing.
+The public key is intentionally not committed to this spike. Without it, the existing foreground-permission behavior remains available, but FCM registration and closed-app delivery cannot be tested.
 
 ## Test on one device
 
