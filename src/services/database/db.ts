@@ -6,6 +6,7 @@ import type {
   EntryMetadata,
   PodcastSubscription,
 } from '@/models';
+import type { Reminder } from '@/models/Reminder';
 import { previousConsumption } from '@/utils/repeatDetection';
 import { defaultMediaTypes } from './defaultMediaTypes';
 import { mapOpenLibrarySubjectsToGenres } from '@/utils/openLibraryGenreMap';
@@ -32,6 +33,7 @@ export class MediaJournalDatabase extends Dexie {
   mediaTypes!: EntityTable<MediaType, 'id'>;
   appSettings!: EntityTable<AppSettingRecord, 'key'>;
   podcastSubscriptions!: EntityTable<PodcastSubscription, 'id'>;
+  reminders!: EntityTable<Reminder, 'id'>;
 
   constructor() {
     super('MediaJournalDatabase');
@@ -1458,6 +1460,17 @@ export class MediaJournalDatabase extends Dexie {
         fields.splice(authorIndex >= 0 ? authorIndex + 1 : 0, 0, narratorField);
         await table.put({ ...audiobook, fields });
       });
+    // One-off reminders are stored locally alongside the journal.
+    this.version(33).stores({
+      mediaEntries:
+        'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+      mediaTypes: 'id, enabled',
+      appSettings: 'key',
+      inProgressEntries: null,
+      podcastSubscriptions: 'id, feedUrl, createdAt',
+      reminders: 'id, dueAt, entryId',
+    });
+
   }
 }
 
