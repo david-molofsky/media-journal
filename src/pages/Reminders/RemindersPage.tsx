@@ -41,7 +41,7 @@ export default function RemindersPage() {
     if (!prefill?.prefillEntryId) return;
     setEditingId(undefined);
     setEntryId(prefill.prefillEntryId);
-    setTitle(prefill.prefillTitle ? `Watch/read/listen to ${prefill.prefillTitle}` : '');
+    setTitle(prefill.prefillTitle ?? '');
     setDate(dayjs().add(1, 'day').format('YYYY-MM-DD'));
     setHour('19');
     setMinute('00');
