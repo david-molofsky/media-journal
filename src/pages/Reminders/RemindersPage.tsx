@@ -92,15 +92,8 @@ export default function RemindersPage() {
   };
 
   const enableNotifications = async () => {
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-    if (!vapidKey) {
-      setError(
-        'Push test is not configured yet. Add the Web Push certificate key from Firebase Console to VITE_FIREBASE_VAPID_KEY, then rebuild.',
-      );
-      return;
-    }
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      setError('This browser does not support push notifications.');
+    if (!('Notification' in window)) {
+      setError('This browser does not support notifications.');
       return;
     }
 
@@ -108,6 +101,18 @@ export default function RemindersPage() {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setError('Notification permission was not granted.');
+        return;
+      }
+
+      const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+      if (!vapidKey) {
+        setError(
+          'Notifications are permitted while Media Journal is open. Background push testing still needs VITE_FIREBASE_VAPID_KEY configured.',
+        );
+        return;
+      }
+      if (!('serviceWorker' in navigator)) {
+        setError('This browser does not support service workers for push notifications.');
         return;
       }
 
