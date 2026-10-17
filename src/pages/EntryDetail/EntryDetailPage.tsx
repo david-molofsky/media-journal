@@ -196,7 +196,9 @@ export default function EntryDetailPage() {
   // (EntryCard.tsx), so a Completed entry deliberately shows neither
   // (matches Library exactly — confirmed in chat, Aug 2026).
   const handleSetReminder = () =>
-    navigate(ROUTES.reminders, { state: { prefillEntryId: entry.id, prefillTitle: entry.title } });
+    navigate(ROUTES.reminders, {
+      state: { prefillEntryId: entry.id, prefillTitle: entry.title },
+    });
 
   const handleStartTracking = () => void updateEntryStatus(entry.id, 'in_progress');
   const handleMoveToWishlist = () => void updateEntryStatus(entry.id, 'wishlist');

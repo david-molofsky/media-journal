@@ -27,7 +27,10 @@ const minutes = ['00', '15', '30', '45'];
 
 export default function RemindersPage() {
   const location = useLocation();
-  const prefill = location.state as { prefillEntryId?: string; prefillTitle?: string } | null;
+  const prefill = location.state as {
+    prefillEntryId?: string;
+    prefillTitle?: string;
+  } | null;
   const entries = useLiveQuery(() => db.mediaEntries.toArray(), [], []);
   const reminders = useLiveQuery(() => db.reminders.orderBy('dueAt').toArray(), [], []);
   const [editingId, setEditingId] = useState<string>();
