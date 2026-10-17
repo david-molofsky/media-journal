@@ -52,7 +52,7 @@ describe('database migrations', () => {
     const migrated = await db.mediaEntries.get('entry-1');
     const audiobook = await db.mediaTypes.get('audiobook');
 
-    expect(db.verno).toBe(32);
+    expect(db.verno).toBe(33);
     expect(audiobook?.fields.map((field) => field.key)).toEqual([
       'author',
       'narrator',
