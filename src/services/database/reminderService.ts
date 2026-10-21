@@ -1,5 +1,9 @@
 import { db } from './db';
 import type { Reminder } from '@/models/Reminder';
+import {
+  deleteReminderFromPushBackend,
+  syncReminderToPushBackend,
+} from '@/services/sync/reminderPushService';
 
 export async function listReminders(): Promise<Reminder[]> {
   return (await db.reminders.toArray()).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
@@ -16,18 +20,27 @@ export async function saveReminder(
     throw new Error('Choose a date and time in the future.');
   }
   const now = new Date().toISOString();
-  await db.reminders.put({
+  const reminder: Reminder = {
     id: id ?? crypto.randomUUID(),
     title,
     dueAt: dueAt.toISOString(),
     ...(input.entryId ? { entryId: input.entryId } : {}),
     createdAt: id ? ((await db.reminders.get(id))?.createdAt ?? now) : now,
     updatedAt: now,
+  };
+  await db.reminders.put(reminder);
+  // Local storage remains authoritative; a temporary network failure must not
+  // prevent saving a reminder in the offline-first app.
+  void syncReminderToPushBackend(reminder).catch((error: unknown) => {
+    console.warn('Could not sync reminder push schedule.', error);
   });
 }
 
 export async function deleteReminder(id: string): Promise<void> {
   await db.reminders.delete(id);
+  void deleteReminderFromPushBackend(id).catch((error: unknown) => {
+    console.warn('Could not cancel remote reminder push schedule.', error);
+  });
 }
 
 export async function snoozeReminder(id: string): Promise<void> {
@@ -39,6 +52,12 @@ export async function snoozeReminder(id: string): Promise<void> {
     updatedAt: new Date().toISOString(),
     notifiedAt: undefined,
   });
+  const updated = await db.reminders.get(id);
+  if (updated) {
+    void syncReminderToPushBackend(updated).catch((error: unknown) => {
+      console.warn('Could not snooze remote reminder push schedule.', error);
+    });
+  }
 }
 
 export async function getUpcomingReminders(): Promise<Reminder[]> {
