@@ -22,6 +22,10 @@ import {
   snoozeReminder,
 } from '@/services/database/reminderService';
 import { getFirebaseServices } from '@/services/sync/firebaseClient';
+import {
+  registerReminderPushToken,
+  syncPendingRemindersToPushBackend,
+} from '@/services/sync/reminderPushService';
 import { EntryDatePicker } from '@/components/forms/EntryDatePicker';
 
 const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
@@ -129,8 +133,10 @@ export default function RemindersPage() {
         return;
       }
 
+      await registerReminderPushToken(token);
+      await syncPendingRemindersToPushBackend(reminders ?? []);
       setError(
-        `Push registration succeeded on this device. For the spike, copy this token into Firebase Console > Messaging > Send test message: ${token}`,
+        `Notifications enabled for this device. Synced ${reminders?.length ?? 0} existing reminder(s).`,
       );
     } catch (e) {
       setError(
