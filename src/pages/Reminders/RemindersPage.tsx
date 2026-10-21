@@ -221,7 +221,11 @@ export default function RemindersPage() {
             {error && (
               <Typography
                 variant="body2"
-                color={error.includes('succeeded') || error.includes('Notifications enabled') ? 'success.main' : 'error.main'}
+                color={
+                  error.includes('succeeded') || error.includes('Notifications enabled')
+                    ? 'success.main'
+                    : 'error.main'
+                }
                 sx={{ overflowWrap: 'anywhere', userSelect: 'text' }}
               >
                 {error}

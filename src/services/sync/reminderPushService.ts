@@ -1,10 +1,4 @@
-import {
-  Timestamp,
-  collection,
-  deleteDoc,
-  doc,
-  setDoc,
-} from 'firebase/firestore';
+import { Timestamp, collection, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import type { Reminder } from '@/models/Reminder';
 import { getReminderPushServices } from './firebaseClient';
