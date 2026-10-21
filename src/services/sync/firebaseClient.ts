@@ -6,7 +6,7 @@ import {
   type FirebaseOptions,
 } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { initializeFirestore, type Firestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, type Firestore } from 'firebase/firestore';
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -55,7 +55,7 @@ export function getReminderPushServices(): FirebaseServices {
   return {
     app,
     auth: getAuth(app),
-    firestore: initializeFirestore(app, { ignoreUndefinedProperties: true }),
+    firestore: getFirestore(app),
   };
 }
 
