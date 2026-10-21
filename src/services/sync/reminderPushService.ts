@@ -31,6 +31,7 @@ export async function registerReminderPushToken(token: string): Promise<void> {
  */
 export async function syncReminderToPushBackend(reminder: Reminder): Promise<void> {
   const { auth, firestore } = getReminderPushServices();
+  await auth.authStateReady();
   const user = auth.currentUser;
   if (!user) return;
 
@@ -44,6 +45,7 @@ export async function syncReminderToPushBackend(reminder: Reminder): Promise<voi
 
 export async function deleteReminderFromPushBackend(id: string): Promise<void> {
   const { auth, firestore } = getReminderPushServices();
+  await auth.authStateReady();
   const user = auth.currentUser;
   if (!user) return;
   await deleteDoc(doc(firestore, 'users', user.uid, 'reminders', id));
