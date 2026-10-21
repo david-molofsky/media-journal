@@ -40,6 +40,25 @@ let services: FirebaseServices | undefined;
  * Lazily initialises Firebase so releases without sync configuration keep
  * behaving exactly as they do today. Undefined values never reach Firebase.
  */
+/**
+ * Separate Firebase Auth identity for reminder delivery. This prevents a
+ * Google account used for journal sync from sharing reminder notifications
+ * across devices signed into the same sync account.
+ */
+export function getReminderPushServices(): FirebaseServices {
+  if (!isFirebaseSyncConfigured) {
+    throw new Error('Firebase notifications have not been configured for this release.');
+  }
+
+  const existingApp = getApps().find((candidate) => candidate.name === 'reminder-push');
+  const app = existingApp ?? initializeApp(firebaseConfig, 'reminder-push');
+  return {
+    app,
+    auth: getAuth(app),
+    firestore: initializeFirestore(app, { ignoreUndefinedProperties: true }),
+  };
+}
+
 export function getFirebaseServices(): FirebaseServices {
   if (!isFirebaseSyncConfigured) {
     throw new Error('Device sync has not been configured for this release.');
