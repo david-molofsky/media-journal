@@ -46,8 +46,12 @@ export function UpcomingRemindersSection() {
       const due = new Date(reminder.dueAt).getTime();
       return due >= start && due <= end;
     });
-  const overdue = outstanding.filter((reminder) => new Date(reminder.dueAt).getTime() < now);
-  const upcoming = outstanding.filter((reminder) => new Date(reminder.dueAt).getTime() >= now);
+  const overdue = outstanding.filter(
+    (reminder) => new Date(reminder.dueAt).getTime() < now,
+  );
+  const upcoming = outstanding.filter(
+    (reminder) => new Date(reminder.dueAt).getTime() >= now,
+  );
   const entryById = new Map((entries ?? []).map((entry) => [entry.id, entry]));
   const mediaTypeById = new Map((mediaTypes ?? []).map((type) => [type.id, type]));
 
@@ -62,7 +66,9 @@ export function UpcomingRemindersSection() {
       setSnoozeId(undefined);
       setActionError('');
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Could not snooze reminder.');
+      setActionError(
+        error instanceof Error ? error.message : 'Could not snooze reminder.',
+      );
     }
   };
 
@@ -139,7 +145,10 @@ export function UpcomingRemindersSection() {
                         {reminder.title}
                       </Typography>
                       {entry && (
-                        <Typography variant="caption" sx={{ color: colour, fontWeight: 700 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colour, fontWeight: 700 }}
+                        >
                           {mediaType?.displayName ?? entry.mediaType}
                           {entry.title !== reminder.title ? ` · ${entry.title}` : ''}
                         </Typography>
