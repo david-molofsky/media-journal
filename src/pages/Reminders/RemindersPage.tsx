@@ -14,10 +14,16 @@ import IconButton from '@mui/material/IconButton';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import dayjs from 'dayjs';
 import { db } from '@/services/database/db';
 import {
   deleteReminder,
+  dismissReminder,
   saveReminder,
   snoozeReminder,
 } from '@/services/database/reminderService';
@@ -42,10 +48,33 @@ export default function RemindersPage() {
   const [hour, setHour] = useState('19');
   const [minute, setMinute] = useState('00');
   const [error, setError] = useState('');
+  const [snoozeId, setSnoozeId] = useState<string>();
+  const [snoozeDays, setSnoozeDays] = useState('1');
+  const [customDays, setCustomDays] = useState('5');
   const sortedEntries = useMemo(
     () => [...(entries ?? [])].sort((a, b) => a.title.localeCompare(b.title)),
     [entries],
   );
+
+  const activeReminders = (reminders ?? []).filter((reminder) => !reminder.dismissedAt);
+  const dismissedReminders = (reminders ?? []).filter((reminder) =>
+    Boolean(reminder.dismissedAt),
+  );
+
+  const confirmSnooze = async () => {
+    const days = snoozeDays === 'custom' ? Number(customDays) : Number(snoozeDays);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      setError('Enter a whole number of days between 1 and 365.');
+      return;
+    }
+    try {
+      if (snoozeId) await snoozeReminder(snoozeId, days);
+      setSnoozeId(undefined);
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not snooze reminder.');
+    }
+  };
 
   const reset = () => {
     setEditingId(undefined);
@@ -236,13 +265,13 @@ export default function RemindersPage() {
       <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
         Scheduled reminders
       </Typography>
-      {!reminders?.length ? (
+      {!activeReminders.length ? (
         <Typography color="text.secondary" variant="body2">
-          No reminders yet.
+          No outstanding reminders.
         </Typography>
       ) : (
         <Stack spacing={1.5}>
-          {reminders.map((reminder) => {
+          {activeReminders.map((reminder) => {
             const linked = sortedEntries.find((entry) => entry.id === reminder.entryId);
             return (
               <Card key={reminder.id} variant="outlined" sx={{ borderRadius: 3 }}>
@@ -269,10 +298,20 @@ export default function RemindersPage() {
                     <EditOutlinedIcon />
                   </IconButton>
                   <IconButton
-                    aria-label="Snooze for 24 hours"
-                    onClick={() => void snoozeReminder(reminder.id)}
+                    aria-label="Snooze reminder"
+                    onClick={() => {
+                      setSnoozeId(reminder.id);
+                      setSnoozeDays('1');
+                      setCustomDays('5');
+                    }}
                   >
                     <NotificationsActiveOutlinedIcon />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Dismiss reminder"
+                    onClick={() => void dismissReminder(reminder.id)}
+                  >
+                    <CloseOutlinedIcon />
                   </IconButton>
                   <IconButton
                     aria-label="Cancel reminder"
@@ -286,6 +325,92 @@ export default function RemindersPage() {
           })}
         </Stack>
       )}
+      {dismissedReminders.length > 0 && (
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Dismissed reminders
+          </Typography>
+          <Stack spacing={1.5}>
+            {dismissedReminders.map((reminder) => (
+              <Card key={reminder.id} variant="outlined" sx={{ borderRadius: 3 }}>
+                <CardContent
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    '&:last-child': { pb: 2 },
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontWeight={600}>{reminder.title}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Dismissed
+                    </Typography>
+                  </Box>
+                  <Button
+                    size="small"
+                    onClick={() =>
+                      void db.reminders.update(reminder.id, {
+                        dismissedAt: undefined,
+                        updatedAt: new Date().toISOString(),
+                      })
+                    }
+                  >
+                    Restore
+                  </Button>
+                  <IconButton
+                    aria-label="Delete reminder permanently"
+                    onClick={() => void deleteReminder(reminder.id)}
+                  >
+                    <DeleteOutlineIcon />
+                  </IconButton>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </Box>
+      )}
+      <Dialog
+        open={Boolean(snoozeId)}
+        onClose={() => setSnoozeId(undefined)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Snooze reminder</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              select
+              label="Snooze for"
+              value={snoozeDays}
+              onChange={(e) => setSnoozeDays(e.target.value)}
+              fullWidth
+            >
+              <MenuItem value="1">1 day</MenuItem>
+              <MenuItem value="3">3 days</MenuItem>
+              <MenuItem value="7">7 days</MenuItem>
+              <MenuItem value="14">14 days</MenuItem>
+              <MenuItem value="custom">Custom number of days</MenuItem>
+            </TextField>
+            {snoozeDays === 'custom' && (
+              <TextField
+                label="Number of days"
+                type="number"
+                value={customDays}
+                onChange={(e) => setCustomDays(e.target.value)}
+                inputProps={{ min: 1, max: 365, step: 1 }}
+                fullWidth
+              />
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSnoozeId(undefined)}>Cancel</Button>
+          <Button variant="contained" onClick={() => void confirmSnooze()}>
+            Snooze
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
