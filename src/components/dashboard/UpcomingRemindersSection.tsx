@@ -8,7 +8,6 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -128,6 +127,7 @@ export function UpcomingRemindersSection() {
                           flexShrink: 0,
                         }}
                       >
+                        {/* eslint-disable-next-line react-hooks/static-components */}
                         <Icon sx={{ fontSize: 22 }} />
                       </Box>
                     )}
@@ -141,7 +141,7 @@ export function UpcomingRemindersSection() {
                       </Typography>
                       {entry && (
                         <Typography variant="caption" sx={{ color: colour, fontWeight: 700 }}>
-                          {mediaType?.name ?? entry.mediaType}
+                          {mediaType?.displayName ?? entry.mediaType}
                           {entry.title !== reminder.title ? ` · ${entry.title}` : ''}
                         </Typography>
                       )}
