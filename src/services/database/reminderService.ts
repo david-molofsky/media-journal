@@ -47,8 +47,9 @@ export async function snoozeReminder(id: string, days = 1): Promise<void> {
   const reminder = await db.reminders.get(id);
   if (!reminder) return;
   const originalDue = dayjs(reminder.dueAt);
-  const base = originalDue.isAfter(dayjs()) ? originalDue : dayjs();
-  const dueAt = base
+  // Snooze means defer from now, not add time to a future scheduled date.
+  // Keep the reminder's wall-clock time while moving it forward by whole days.
+  const dueAt = dayjs()
     .add(days, 'day')
     .hour(originalDue.hour())
     .minute(originalDue.minute())
