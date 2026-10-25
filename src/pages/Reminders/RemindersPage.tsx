@@ -57,7 +57,9 @@ export default function RemindersPage() {
   );
 
   const activeReminders = (reminders ?? []).filter((reminder) => !reminder.dismissedAt);
-  const dismissedReminders = (reminders ?? []).filter((reminder) => Boolean(reminder.dismissedAt));
+  const dismissedReminders = (reminders ?? []).filter((reminder) =>
+    Boolean(reminder.dismissedAt),
+  );
 
   const confirmSnooze = async () => {
     const days = snoozeDays === 'custom' ? Number(customDays) : Number(snoozeDays);
@@ -295,10 +297,20 @@ export default function RemindersPage() {
                   <IconButton aria-label="Edit reminder" onClick={() => edit(reminder)}>
                     <EditOutlinedIcon />
                   </IconButton>
-                  <IconButton aria-label="Snooze reminder" onClick={() => { setSnoozeId(reminder.id); setSnoozeDays('1'); setCustomDays('5'); }}>
+                  <IconButton
+                    aria-label="Snooze reminder"
+                    onClick={() => {
+                      setSnoozeId(reminder.id);
+                      setSnoozeDays('1');
+                      setCustomDays('5');
+                    }}
+                  >
                     <NotificationsActiveOutlinedIcon />
                   </IconButton>
-                  <IconButton aria-label="Dismiss reminder" onClick={() => void dismissReminder(reminder.id)}>
+                  <IconButton
+                    aria-label="Dismiss reminder"
+                    onClick={() => void dismissReminder(reminder.id)}
+                  >
                     <CloseOutlinedIcon />
                   </IconButton>
                   <IconButton
@@ -315,40 +327,88 @@ export default function RemindersPage() {
       )}
       {dismissedReminders.length > 0 && (
         <Box sx={{ mt: 3 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>Dismissed reminders</Typography>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Dismissed reminders
+          </Typography>
           <Stack spacing={1.5}>
             {dismissedReminders.map((reminder) => (
               <Card key={reminder.id} variant="outlined" sx={{ borderRadius: 3 }}>
-                <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 1, '&:last-child': { pb: 2 } }}>
+                <CardContent
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    '&:last-child': { pb: 2 },
+                  }}
+                >
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Typography fontWeight={600}>{reminder.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">Dismissed</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Dismissed
+                    </Typography>
                   </Box>
-                  <Button size="small" onClick={() => void db.reminders.update(reminder.id, { dismissedAt: undefined, updatedAt: new Date().toISOString() })}>Restore</Button>
-                  <IconButton aria-label="Delete reminder permanently" onClick={() => void deleteReminder(reminder.id)}><DeleteOutlineIcon /></IconButton>
+                  <Button
+                    size="small"
+                    onClick={() =>
+                      void db.reminders.update(reminder.id, {
+                        dismissedAt: undefined,
+                        updatedAt: new Date().toISOString(),
+                      })
+                    }
+                  >
+                    Restore
+                  </Button>
+                  <IconButton
+                    aria-label="Delete reminder permanently"
+                    onClick={() => void deleteReminder(reminder.id)}
+                  >
+                    <DeleteOutlineIcon />
+                  </IconButton>
                 </CardContent>
               </Card>
             ))}
           </Stack>
         </Box>
       )}
-      <Dialog open={Boolean(snoozeId)} onClose={() => setSnoozeId(undefined)} fullWidth maxWidth="xs">
+      <Dialog
+        open={Boolean(snoozeId)}
+        onClose={() => setSnoozeId(undefined)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>Snooze reminder</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField select label="Snooze for" value={snoozeDays} onChange={(e) => setSnoozeDays(e.target.value)} fullWidth>
+            <TextField
+              select
+              label="Snooze for"
+              value={snoozeDays}
+              onChange={(e) => setSnoozeDays(e.target.value)}
+              fullWidth
+            >
               <MenuItem value="1">1 day</MenuItem>
               <MenuItem value="3">3 days</MenuItem>
               <MenuItem value="7">7 days</MenuItem>
               <MenuItem value="14">14 days</MenuItem>
               <MenuItem value="custom">Custom number of days</MenuItem>
             </TextField>
-            {snoozeDays === 'custom' && <TextField label="Number of days" type="number" value={customDays} onChange={(e) => setCustomDays(e.target.value)} inputProps={{ min: 1, max: 365, step: 1 }} fullWidth />}
+            {snoozeDays === 'custom' && (
+              <TextField
+                label="Number of days"
+                type="number"
+                value={customDays}
+                onChange={(e) => setCustomDays(e.target.value)}
+                inputProps={{ min: 1, max: 365, step: 1 }}
+                fullWidth
+              />
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSnoozeId(undefined)}>Cancel</Button>
-          <Button variant="contained" onClick={() => void confirmSnooze()}>Snooze</Button>
+          <Button variant="contained" onClick={() => void confirmSnooze()}>
+            Snooze
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

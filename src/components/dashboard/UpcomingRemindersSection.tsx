@@ -15,21 +15,29 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function UpcomingRemindersSection() {
   const navigate = useNavigate();
-  const sections = useLiveQuery(async () => {
-    const now = Date.now();
-    const start = now - WINDOW_DAYS * DAY_MS;
-    const end = now + WINDOW_DAYS * DAY_MS;
-    const outstanding = (await db.reminders.orderBy('dueAt').toArray())
-      .filter((reminder) => !reminder.dismissedAt)
-      .filter((reminder) => {
-        const due = new Date(reminder.dueAt).getTime();
-        return due >= start && due <= end;
-      });
-    return {
-      overdue: outstanding.filter((reminder) => new Date(reminder.dueAt).getTime() < now),
-      upcoming: outstanding.filter((reminder) => new Date(reminder.dueAt).getTime() >= now),
-    };
-  }, [], { overdue: [], upcoming: [] });
+  const sections = useLiveQuery(
+    async () => {
+      const now = Date.now();
+      const start = now - WINDOW_DAYS * DAY_MS;
+      const end = now + WINDOW_DAYS * DAY_MS;
+      const outstanding = (await db.reminders.orderBy('dueAt').toArray())
+        .filter((reminder) => !reminder.dismissedAt)
+        .filter((reminder) => {
+          const due = new Date(reminder.dueAt).getTime();
+          return due >= start && due <= end;
+        });
+      return {
+        overdue: outstanding.filter(
+          (reminder) => new Date(reminder.dueAt).getTime() < now,
+        ),
+        upcoming: outstanding.filter(
+          (reminder) => new Date(reminder.dueAt).getTime() >= now,
+        ),
+      };
+    },
+    [],
+    { overdue: [], upcoming: [] },
+  );
 
   if (!sections.overdue.length && !sections.upcoming.length) return null;
 
@@ -45,7 +53,9 @@ export function UpcomingRemindersSection() {
             }
             sx={{ p: 1.5 }}
           >
-            <Typography variant="subtitle2" fontWeight={600}>{reminder.title}</Typography>
+            <Typography variant="subtitle2" fontWeight={600}>
+              {reminder.title}
+            </Typography>
             <Typography variant="body2" color="text.secondary">
               {dayjs(reminder.dueAt).format('ddd D MMM, HH:mm')}
             </Typography>
@@ -57,20 +67,33 @@ export function UpcomingRemindersSection() {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Typography variant="subtitle2" color="text.secondary">Reminders</Typography>
-        <Button size="small" onClick={() => navigate(ROUTES.reminders)}>Manage all</Button>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mb: 1.5 }}
+      >
+        <Typography variant="subtitle2" color="text.secondary">
+          Reminders
+        </Typography>
+        <Button size="small" onClick={() => navigate(ROUTES.reminders)}>
+          Manage all
+        </Button>
       </Stack>
       <Stack spacing={2.5}>
         {sections.overdue.length > 0 && (
           <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>Past 7 days</Typography>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+              Past 7 days
+            </Typography>
             {renderReminders(sections.overdue)}
           </Box>
         )}
         {sections.upcoming.length > 0 && (
           <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>Next 7 days</Typography>
+            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+              Next 7 days
+            </Typography>
             {renderReminders(sections.upcoming)}
           </Box>
         )}
