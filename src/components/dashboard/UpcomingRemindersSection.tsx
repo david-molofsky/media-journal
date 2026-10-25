@@ -44,7 +44,10 @@ export function UpcomingRemindersSection() {
   const end = now + WINDOW_DAYS * DAY_MS;
   const outstanding = (reminders ?? [])
     .filter((reminder) => !reminder.dismissedAt)
-    .filter((reminder) => !reminder.snoozedUntil || new Date(reminder.snoozedUntil).getTime() <= now)
+    .filter(
+      (reminder) =>
+        !reminder.snoozedUntil || new Date(reminder.snoozedUntil).getTime() <= now,
+    )
     .filter((reminder) => {
       const due = new Date(reminder.dueAt).getTime();
       return due >= start && due <= end;

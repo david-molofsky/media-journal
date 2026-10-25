@@ -76,7 +76,12 @@ export default function SettingsPage() {
             component={RouterLink}
             to={ROUTES.reminders}
             startIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
-            sx={{ justifyContent: 'flex-start', width: '100%', py: 0.5, color: 'text.secondary' }}
+            sx={{
+              justifyContent: 'flex-start',
+              width: '100%',
+              py: 0.5,
+              color: 'text.secondary',
+            }}
           >
             Reminders
           </Button>
@@ -87,7 +92,12 @@ export default function SettingsPage() {
             component={RouterLink}
             to={ROUTES.integrations}
             startIcon={<HubOutlinedIcon fontSize="small" />}
-            sx={{ justifyContent: 'flex-start', width: '100%', py: 0.5, color: 'text.secondary' }}
+            sx={{
+              justifyContent: 'flex-start',
+              width: '100%',
+              py: 0.5,
+              color: 'text.secondary',
+            }}
           >
             Integrations
           </Button>
