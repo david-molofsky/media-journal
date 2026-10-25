@@ -37,7 +37,7 @@ export function UpcomingRemindersSection() {
   const entries = useLiveQuery(() => db.mediaEntries.toArray(), [], []);
   const mediaTypes = useLiveQuery(() => db.mediaTypes.toArray(), [], []);
 
-  const now = Date.now();
+  const [now] = useState(() => Date.now());
   const start = now - WINDOW_DAYS * DAY_MS;
   const end = now + WINDOW_DAYS * DAY_MS;
   const outstanding = (reminders ?? [])
