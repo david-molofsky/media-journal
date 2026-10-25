@@ -5,6 +5,8 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import Dialog from '@mui/material/Dialog';
@@ -144,44 +146,43 @@ export function UpcomingRemindersSection() {
                       >
                         {reminder.title}
                       </Typography>
-                      {entry && (
-                        <Typography
-                          variant="caption"
-                          sx={{ color: colour, fontWeight: 700 }}
-                        >
-                          {mediaType?.displayName ?? entry.mediaType}
-                          {entry.title !== reminder.title ? ` · ${entry.title}` : ''}
-                        </Typography>
-                      )}
-                      <Typography variant="body2" color="text.secondary">
-                        {dayjs(reminder.dueAt).format('ddd D MMM, HH:mm')}
-                      </Typography>
                     </Box>
                   </Stack>
                 </CardActionArea>
-                <Stack direction="row" spacing={1} sx={{ px: 1.5, pb: 1.5 }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<ScheduleOutlinedIcon />}
-                    onClick={() => {
-                      setSnoozeId(reminder.id);
-                      setSnoozeDays('1');
-                      setCustomDays('5');
-                      setActionError('');
-                    }}
-                  >
-                    Snooze
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<CloseOutlinedIcon />}
-                    onClick={() => void dismissReminder(reminder.id)}
-                  >
-                    Dismiss
-                  </Button>
-                </Stack>
+                <Box sx={{ px: 2, pb: 1.5 }}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0, flex: 1 }}>
+                      {dayjs(reminder.dueAt).format('ddd D MMM, HH:mm')}
+                    </Typography>
+                    <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0, ml: 'auto' }}>
+                      <Tooltip title="Snooze reminder">
+                        <IconButton
+                          size="small"
+                          aria-label="Snooze reminder"
+                          onClick={() => {
+                            setSnoozeId(reminder.id);
+                            setSnoozeDays('1');
+                            setCustomDays('5');
+                            setActionError('');
+                          }}
+                          sx={{ width: 30, height: 30, color: colour, border: `1.5px solid ${colour}` }}
+                        >
+                          <ScheduleOutlinedIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Dismiss reminder">
+                        <IconButton
+                          size="small"
+                          aria-label="Dismiss reminder"
+                          onClick={() => void dismissReminder(reminder.id)}
+                          sx={{ width: 30, height: 30, color: colour, border: `1.5px solid ${colour}` }}
+                        >
+                          <CloseOutlinedIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                </Box>
               </Box>
             </Stack>
           </Card>
