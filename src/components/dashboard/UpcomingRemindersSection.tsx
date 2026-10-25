@@ -151,10 +151,18 @@ export function UpcomingRemindersSection() {
                 </CardActionArea>
                 <Box sx={{ px: 2, pb: 1.5 }}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
                       {dayjs(reminder.dueAt).format('ddd D MMM, HH:mm')}
                     </Typography>
-                    <Stack direction="row" spacing={0.75} sx={{ flexShrink: 0, ml: 'auto' }}>
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      sx={{ flexShrink: 0, ml: 'auto' }}
+                    >
                       <Tooltip title="Snooze reminder">
                         <IconButton
                           size="small"
@@ -165,7 +173,12 @@ export function UpcomingRemindersSection() {
                             setCustomDays('5');
                             setActionError('');
                           }}
-                          sx={{ width: 30, height: 30, color: colour, border: `1.5px solid ${colour}` }}
+                          sx={{
+                            width: 30,
+                            height: 30,
+                            color: colour,
+                            border: `1.5px solid ${colour}`,
+                          }}
                         >
                           <ScheduleOutlinedIcon sx={{ fontSize: 18 }} />
                         </IconButton>
@@ -175,7 +188,12 @@ export function UpcomingRemindersSection() {
                           size="small"
                           aria-label="Dismiss reminder"
                           onClick={() => void dismissReminder(reminder.id)}
-                          sx={{ width: 30, height: 30, color: colour, border: `1.5px solid ${colour}` }}
+                          sx={{
+                            width: 30,
+                            height: 30,
+                            color: colour,
+                            border: `1.5px solid ${colour}`,
+                          }}
                         >
                           <CloseOutlinedIcon sx={{ fontSize: 18 }} />
                         </IconButton>
