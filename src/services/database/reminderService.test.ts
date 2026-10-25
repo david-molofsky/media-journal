@@ -16,7 +16,12 @@ describe('reminder service', () => {
   });
 
   it('snoozes a future reminder from now and preserves its time of day', async () => {
-    const originalDue = dayjs().add(5, 'day').hour(19).minute(15).second(0).millisecond(0);
+    const originalDue = dayjs()
+      .add(5, 'day')
+      .hour(19)
+      .minute(15)
+      .second(0)
+      .millisecond(0);
     await db.reminders.add({
       id: 'future',
       title: 'Future reminder',
@@ -62,7 +67,11 @@ describe('reminder service', () => {
     };
     await db.reminders.bulkAdd([
       { ...base, id: 'active' },
-      { ...base, id: 'dismissed', dismissedAt: dayjs().subtract(1, 'hour').toISOString() },
+      {
+        ...base,
+        id: 'dismissed',
+        dismissedAt: dayjs().subtract(1, 'hour').toISOString(),
+      },
     ]);
 
     await dismissReminder('active');
