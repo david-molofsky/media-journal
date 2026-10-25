@@ -6,5 +6,7 @@ export interface Reminder {
   createdAt: string;
   updatedAt: string;
   notifiedAt?: string;
+  /** Until this time, keep the snoozed reminder off the dashboard. */
+  snoozedUntil?: string;
   dismissedAt?: string;
 }
