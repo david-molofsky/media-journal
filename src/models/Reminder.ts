@@ -6,4 +6,5 @@ export interface Reminder {
   createdAt: string;
   updatedAt: string;
   notifiedAt?: string;
+  dismissedAt?: string;
 }

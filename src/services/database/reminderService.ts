@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { db } from './db';
 import type { Reminder } from '@/models/Reminder';
 
@@ -15,14 +16,16 @@ export async function saveReminder(
   if (!Number.isFinite(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
     throw new Error('Choose a date and time in the future.');
   }
+  const existing = id ? await db.reminders.get(id) : undefined;
   const now = new Date().toISOString();
   await db.reminders.put({
     id: id ?? crypto.randomUUID(),
     title,
     dueAt: dueAt.toISOString(),
     ...(input.entryId ? { entryId: input.entryId } : {}),
-    createdAt: id ? ((await db.reminders.get(id))?.createdAt ?? now) : now,
+    createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+    ...(existing?.dismissedAt ? { dismissedAt: undefined } : {}),
   });
 }
 
@@ -30,19 +33,42 @@ export async function deleteReminder(id: string): Promise<void> {
   await db.reminders.delete(id);
 }
 
-export async function snoozeReminder(id: string): Promise<void> {
+export async function dismissReminder(id: string): Promise<void> {
   const reminder = await db.reminders.get(id);
   if (!reminder) return;
-  const dueAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+  await db.reminders.update(id, { dismissedAt: now, updatedAt: now });
+}
+
+export async function snoozeReminder(id: string, days = 1): Promise<void> {
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new Error('Choose a snooze duration between 1 and 365 days.');
+  }
+  const reminder = await db.reminders.get(id);
+  if (!reminder) return;
+  const originalDue = dayjs(reminder.dueAt);
+  const base = originalDue.isAfter(dayjs()) ? originalDue : dayjs();
+  const dueAt = base
+    .add(days, 'day')
+    .hour(originalDue.hour())
+    .minute(originalDue.minute())
+    .second(0)
+    .millisecond(0)
+    .toISOString();
+  const now = new Date().toISOString();
   await db.reminders.update(id, {
     dueAt,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
     notifiedAt: undefined,
+    dismissedAt: undefined,
   });
 }
 
 export async function getUpcomingReminders(): Promise<Reminder[]> {
-  return (await listReminders()).filter(
-    (reminder) => new Date(reminder.dueAt).getTime() > Date.now(),
-  );
+  const now = Date.now();
+  const windowEnd = now + 7 * 24 * 60 * 60 * 1000;
+  return (await listReminders()).filter((reminder) => {
+    const dueAt = new Date(reminder.dueAt).getTime();
+    return !reminder.dismissedAt && dueAt >= now && dueAt <= windowEnd;
+  });
 }
