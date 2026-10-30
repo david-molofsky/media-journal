@@ -4,6 +4,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -474,7 +476,7 @@ export function ShareEntrySheet({
 
   const [imageFailed, setImageFailed] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
-  const [includeMessage, setIncludeMessage] = useState(true);
+  const [includeMessage, setIncludeMessage] = useState(false);
   const imageUrl = getEntryImageUrl(entry, 'poster');
   const showImage = Boolean(imageUrl) && !imageFailed;
 
@@ -701,39 +703,39 @@ export function ShareEntrySheet({
             >
               Message
             </Typography>
-            <Button
-              size="small"
-              variant={includeMessage ? 'outlined' : 'text'}
-              aria-pressed={includeMessage}
-              onClick={() => setIncludeMessage((current) => !current)}
-            >
-              {includeMessage ? 'Include message ✓' : 'Include message'}
-            </Button>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={includeMessage}
+                  onChange={(event) => setIncludeMessage(event.target.checked)}
+                  size="small"
+                />
+              }
+              label="Include message"
+            />
           </Box>
-          {includeMessage && (
-            <Box
-              sx={{
-                bgcolor: 'action.hover',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1.5,
-                px: 1.5,
-                py: 1,
-                mb: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                {message}
-              </Typography>
-            </Box>
-          )}
+          <Box
+            sx={{
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              px: 1.5,
+              py: 1,
+              mb: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+              {message}
+            </Typography>
+          </Box>
           <Typography
             variant="caption"
             sx={{ display: 'block', color: 'text.secondary', mt: 0.75 }}
           >
             {includeMessage
-              ? 'Turn this off to share only the image.'
-              : 'The image will be shared without a message.'}
+              ? 'The message will be included with the shared card.'
+              : 'The message is shown here but will not be included unless you tick the box.'}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 2, pb: 2, gap: 1 }}>
