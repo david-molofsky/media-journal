@@ -26,6 +26,7 @@ export async function saveReminder(
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     ...(existing?.dismissedAt ? { dismissedAt: undefined } : {}),
+    snoozedUntil: undefined,
   });
 }
 
@@ -62,6 +63,7 @@ export async function snoozeReminder(id: string, days = 1): Promise<void> {
     updatedAt: now,
     notifiedAt: undefined,
     dismissedAt: undefined,
+    snoozedUntil: dueAt,
   });
 }
 

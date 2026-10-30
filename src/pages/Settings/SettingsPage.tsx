@@ -71,28 +71,37 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <CollapsibleSection title="Reminders" icon={NotificationsActiveOutlinedIcon}>
-          <Stack spacing={1.5} alignItems="flex-start">
-            <Typography variant="body2" color="text.secondary">
-              Schedule one-off reminders for things you want to read, watch or listen to.
-            </Typography>
-            <Button component={RouterLink} to={ROUTES.reminders} variant="outlined">
-              Open Reminders
-            </Button>
-          </Stack>
-        </CollapsibleSection>
+        <Box>
+          <Button
+            component={RouterLink}
+            to={ROUTES.reminders}
+            startIcon={<NotificationsActiveOutlinedIcon fontSize="small" />}
+            sx={{
+              justifyContent: 'flex-start',
+              width: '100%',
+              py: 0.5,
+              color: 'text.secondary',
+            }}
+          >
+            Reminders
+          </Button>
+        </Box>
 
-        <CollapsibleSection title="Integrations" icon={HubOutlinedIcon}>
-          <Stack spacing={1.5} alignItems="flex-start">
-            <Typography variant="body2" color="text.secondary">
-              Connect accounts, import files and review the outcome of previous imports in
-              one place.
-            </Typography>
-            <Button component={RouterLink} to={ROUTES.integrations} variant="outlined">
-              Open Integrations
-            </Button>
-          </Stack>
-        </CollapsibleSection>
+        <Box>
+          <Button
+            component={RouterLink}
+            to={ROUTES.integrations}
+            startIcon={<HubOutlinedIcon fontSize="small" />}
+            sx={{
+              justifyContent: 'flex-start',
+              width: '100%',
+              py: 0.5,
+              color: 'text.secondary',
+            }}
+          >
+            Integrations
+          </Button>
+        </Box>
 
         <CollapsibleSection title="Data health" icon={FactCheckOutlinedIcon}>
           <DataHealthSection />
