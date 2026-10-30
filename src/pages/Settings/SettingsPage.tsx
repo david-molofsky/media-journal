@@ -2,6 +2,9 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
 import CloudOutlinedIcon from '@mui/icons-material/CloudOutlined';
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
@@ -71,28 +74,29 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <CollapsibleSection title="Reminders" icon={NotificationsActiveOutlinedIcon}>
-          <Stack spacing={1.5} alignItems="flex-start">
-            <Typography variant="body2" color="text.secondary">
-              Schedule one-off reminders for things you want to read, watch or listen to.
-            </Typography>
-            <Button component={RouterLink} to={ROUTES.reminders} variant="outlined">
-              Open Reminders
-            </Button>
-          </Stack>
-        </CollapsibleSection>
+        <ListItemButton component={RouterLink} to={ROUTES.reminders} sx={{ px: 0, py: 0.5 }}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <NotificationsActiveOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Reminders"
+            secondary="Schedule one-off reminders for things you want to read, watch or listen to."
+            primaryTypographyProps={{ variant: 'subtitle2', color: 'text.secondary' }}
+            secondaryTypographyProps={{ variant: 'caption' }}
+          />
+        </ListItemButton>
 
-        <CollapsibleSection title="Integrations" icon={HubOutlinedIcon}>
-          <Stack spacing={1.5} alignItems="flex-start">
-            <Typography variant="body2" color="text.secondary">
-              Connect accounts, import files and review the outcome of previous imports in
-              one place.
-            </Typography>
-            <Button component={RouterLink} to={ROUTES.integrations} variant="outlined">
-              Open Integrations
-            </Button>
-          </Stack>
-        </CollapsibleSection>
+        <ListItemButton component={RouterLink} to={ROUTES.integrations} sx={{ px: 0, py: 0.5 }}>
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <HubOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+          </ListItemIcon>
+          <ListItemText
+            primary="Integrations"
+            secondary="Connect accounts, import files and review the outcome of previous imports in one place."
+            primaryTypographyProps={{ variant: 'subtitle2', color: 'text.secondary' }}
+            secondaryTypographyProps={{ variant: 'caption' }}
+          />
+        </ListItemButton>
 
         <CollapsibleSection title="Data health" icon={FactCheckOutlinedIcon}>
           <DataHealthSection />
