@@ -74,9 +74,16 @@ export default function SettingsPage() {
 
         <ImportExportSection />
 
-        <ListItemButton component={RouterLink} to={ROUTES.reminders} sx={{ px: 0, py: 0.5 }}>
+        <ListItemButton
+          component={RouterLink}
+          to={ROUTES.reminders}
+          sx={{ px: 0, py: 0.5 }}
+        >
           <ListItemIcon sx={{ minWidth: 36 }}>
-            <NotificationsActiveOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+            <NotificationsActiveOutlinedIcon
+              fontSize="small"
+              sx={{ color: 'text.secondary' }}
+            />
           </ListItemIcon>
           <ListItemText
             primary="Reminders"
@@ -86,7 +93,11 @@ export default function SettingsPage() {
           />
         </ListItemButton>
 
-        <ListItemButton component={RouterLink} to={ROUTES.integrations} sx={{ px: 0, py: 0.5 }}>
+        <ListItemButton
+          component={RouterLink}
+          to={ROUTES.integrations}
+          sx={{ px: 0, py: 0.5 }}
+        >
           <ListItemIcon sx={{ minWidth: 36 }}>
             <HubOutlinedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
           </ListItemIcon>

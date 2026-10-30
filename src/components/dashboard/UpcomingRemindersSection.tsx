@@ -227,7 +227,13 @@ export function UpcomingRemindersSection() {
           onClick={() => setExpanded((previous) => !previous)}
           aria-expanded={expanded}
           aria-controls="upcoming-reminders-content"
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.75, borderRadius: 1, py: 0.5 }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            borderRadius: 1,
+            py: 0.5,
+          }}
         >
           <Typography variant="subtitle2" color="text.secondary">
             Upcoming Reminders
