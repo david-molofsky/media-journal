@@ -5,6 +5,9 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import ButtonBase from '@mui/material/ButtonBase';
+import Collapse from '@mui/material/Collapse';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Card from '@mui/material/Card';
@@ -30,6 +33,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function UpcomingRemindersSection() {
   const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(true);
   const [snoozeId, setSnoozeId] = useState<string>();
   const [snoozeDays, setSnoozeDays] = useState('1');
   const [customDays, setCustomDays] = useState('5');
@@ -223,31 +227,56 @@ export function UpcomingRemindersSection() {
         justifyContent="space-between"
         sx={{ mb: 1.5 }}
       >
-        <Typography variant="subtitle2" color="text.secondary">
-          Reminders
-        </Typography>
+        <ButtonBase
+          onClick={() => setExpanded((previous) => !previous)}
+          aria-expanded={expanded}
+          aria-controls="upcoming-reminders-content"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            borderRadius: 1,
+            py: 0.5,
+          }}
+        >
+          <Typography variant="subtitle2" color="text.secondary">
+            Upcoming Reminders
+          </Typography>
+          <ExpandMoreIcon
+            fontSize="small"
+            sx={{
+              color: 'text.secondary',
+              transform: expanded ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.15s',
+            }}
+          />
+        </ButtonBase>
         <Button size="small" onClick={() => navigate(ROUTES.reminders)}>
           Manage all
         </Button>
       </Stack>
-      <Stack spacing={2.5}>
-        {overdue.length > 0 && (
-          <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-              Past 7 days
-            </Typography>
-            {renderReminders(overdue)}
-          </Box>
-        )}
-        {upcoming.length > 0 && (
-          <Box>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
-              Next 7 days
-            </Typography>
-            {renderReminders(upcoming)}
-          </Box>
-        )}
-      </Stack>
+      <Collapse in={expanded} timeout={150}>
+        <Box id="upcoming-reminders-content">
+          <Stack spacing={2.5}>
+            {overdue.length > 0 && (
+              <Box>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                  Past 7 days
+                </Typography>
+                {renderReminders(overdue)}
+              </Box>
+            )}
+            {upcoming.length > 0 && (
+              <Box>
+                <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+                  Next 7 days
+                </Typography>
+                {renderReminders(upcoming)}
+              </Box>
+            )}
+          </Stack>
+        </Box>
+      </Collapse>
       <Dialog
         open={Boolean(snoozeId)}
         onClose={() => setSnoozeId(undefined)}
