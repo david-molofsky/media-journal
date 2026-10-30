@@ -715,20 +715,20 @@ export function ShareEntrySheet({
             />
           </Box>
           <Box
-              sx={{
-                bgcolor: 'action.hover',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1.5,
-                px: 1.5,
-                py: 1,
-                mb: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                {message}
-              </Typography>
-            </Box>
+            sx={{
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              px: 1.5,
+              py: 1,
+              mb: 1,
+            }}
+          >
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+              {message}
+            </Typography>
+          </Box>
           <Typography
             variant="caption"
             sx={{ display: 'block', color: 'text.secondary', mt: 0.75 }}
