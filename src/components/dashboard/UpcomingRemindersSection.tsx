@@ -48,6 +48,10 @@ export function UpcomingRemindersSection() {
   const end = now + WINDOW_DAYS * DAY_MS;
   const outstanding = (reminders ?? [])
     .filter((reminder) => !reminder.dismissedAt)
+    .filter(
+      (reminder) =>
+        !reminder.snoozedUntil || new Date(reminder.snoozedUntil).getTime() <= now,
+    )
     .filter((reminder) => {
       const due = new Date(reminder.dueAt).getTime();
       return due >= start && due <= end;
@@ -107,7 +111,7 @@ export function UpcomingRemindersSection() {
                         : ROUTES.reminders,
                     )
                   }
-                  sx={{ p: 1.5 }}
+                  sx={{ p: 2 }}
                 >
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     {imageUrl ? (
