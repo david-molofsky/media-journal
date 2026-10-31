@@ -33,7 +33,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function UpcomingRemindersSection() {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [snoozeId, setSnoozeId] = useState<string>();
   const [snoozeDays, setSnoozeDays] = useState('1');
   const [customDays, setCustomDays] = useState('5');
