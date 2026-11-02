@@ -76,7 +76,9 @@ export async function updateEntry(
     completedYear: merged.completedDate ? yearOf(merged.completedDate) : undefined,
     completedAt:
       merged.status === 'completed'
-        ? (existing.status === 'completed' ? existing.completedAt ?? existing.createdAt : updatedAt)
+        ? existing.status === 'completed'
+          ? (existing.completedAt ?? existing.createdAt)
+          : updatedAt
         : undefined,
     updatedAt,
   };
@@ -108,9 +110,10 @@ export async function updateEntryStatus(
   const update: Partial<MediaEntry> = { status, updatedAt: nowIso() };
 
   if (status === 'completed') {
-    update.completedAt = existing.status === 'completed'
-      ? (existing.completedAt ?? existing.createdAt)
-      : update.updatedAt;
+    update.completedAt =
+      existing.status === 'completed'
+        ? (existing.completedAt ?? existing.createdAt)
+        : update.updatedAt;
     const date = completedDate ?? existing.completedDate;
     update.completedDate = date;
     update.completedYear = date ? yearOf(date) : undefined;
