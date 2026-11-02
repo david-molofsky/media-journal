@@ -24,6 +24,8 @@ export interface MediaEntry {
   startedDate?: string;
   /** Required when status === 'completed'; absent for other statuses. */
   completedDate?: string;
+  /** Exact instant this entry was marked complete; immutable during ordinary edits. */
+  completedAt?: string;
   rating?: number;
   notes?: string;
   repeatConsumption: boolean;
@@ -65,7 +67,7 @@ export interface MediaEntry {
 
 export type NewMediaEntryInput = Omit<
   MediaEntry,
-  'id' | 'completedYear' | 'createdAt' | 'updatedAt'
+  'id' | 'completedYear' | 'completedAt' | 'createdAt' | 'updatedAt'
 >;
 
 export type MediaEntryUpdate = Partial<NewMediaEntryInput>;
