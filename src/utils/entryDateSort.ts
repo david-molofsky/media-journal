@@ -1,10 +1,11 @@
 import type { MediaEntry } from '@/models';
 
-/** Keep completion date as the primary sort, then preserve logging order within a day. */
+/** Sort by the completion date, then the exact instant the entry was marked complete.
+ * Legacy entries without completedAt fall back to createdAt. */
 export function compareCompletionNewest(a: MediaEntry, b: MediaEntry): number {
   return (
     (b.completedDate ?? '').localeCompare(a.completedDate ?? '') ||
-    b.createdAt.localeCompare(a.createdAt) ||
+    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt) ||
     b.id.localeCompare(a.id)
   );
 }
@@ -12,7 +13,7 @@ export function compareCompletionNewest(a: MediaEntry, b: MediaEntry): number {
 export function compareCompletionOldest(a: MediaEntry, b: MediaEntry): number {
   return (
     (a.completedDate ?? '').localeCompare(b.completedDate ?? '') ||
-    a.createdAt.localeCompare(b.createdAt) ||
+    (a.completedAt ?? a.createdAt).localeCompare(b.completedAt ?? b.createdAt) ||
     a.id.localeCompare(b.id)
   );
 }

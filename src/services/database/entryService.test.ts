@@ -57,24 +57,27 @@ describe('entry service journeys', () => {
     expect(await db.mediaEntries.count()).toBe(0);
   });
 
-  it('orders same-day completions by the order they were logged', async () => {
+  it('orders same-day completions by completion timestamp, not entry creation time', async () => {
     await db.mediaEntries.bulkAdd([
       {
         ...completedEntryInput({ title: 'First', completedDate: '2026-09-25' }),
         id: 'first',
-        createdAt: '2026-09-25T09:00:00Z',
+        completedAt: '2026-09-25T09:00:00Z',
+        createdAt: '2026-09-25T11:00:00Z',
         updatedAt: '2026-09-25T09:00:00Z',
       },
       {
         ...completedEntryInput({ title: 'Yesterday', completedDate: '2026-09-24' }),
         id: 'yesterday',
+        completedAt: '2026-09-25T12:00:00Z',
         createdAt: '2026-09-25T12:00:00Z',
         updatedAt: '2026-09-25T12:00:00Z',
       },
       {
         ...completedEntryInput({ title: 'Second', completedDate: '2026-09-25' }),
         id: 'second',
-        createdAt: '2026-09-25T10:00:00Z',
+        completedAt: '2026-09-25T10:00:00Z',
+        createdAt: '2026-09-25T08:00:00Z',
         updatedAt: '2026-09-25T10:00:00Z',
       },
     ]);
