@@ -24,6 +24,7 @@ export async function createEntry(input: NewMediaEntryInput): Promise<MediaEntry
     ...input,
     id: generateId(),
     completedYear: input.completedDate ? yearOf(input.completedDate) : undefined,
+    completedAt: input.status === 'completed' ? timestamp : undefined,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -68,11 +69,16 @@ export async function updateEntry(
 
   validateEntry(merged);
 
+  const updatedAt = nowIso();
   const updated: MediaEntry = {
     ...existing,
     ...merged,
     completedYear: merged.completedDate ? yearOf(merged.completedDate) : undefined,
-    updatedAt: nowIso(),
+    completedAt:
+      merged.status === 'completed'
+        ? (existing.status === 'completed' ? existing.completedAt ?? existing.createdAt : updatedAt)
+        : undefined,
+    updatedAt,
   };
 
   await db.mediaEntries.put(updated);
@@ -102,6 +108,9 @@ export async function updateEntryStatus(
   const update: Partial<MediaEntry> = { status, updatedAt: nowIso() };
 
   if (status === 'completed') {
+    update.completedAt = existing.status === 'completed'
+      ? (existing.completedAt ?? existing.createdAt)
+      : update.updatedAt;
     const date = completedDate ?? existing.completedDate;
     update.completedDate = date;
     update.completedYear = date ? yearOf(date) : undefined;
@@ -115,6 +124,7 @@ export async function updateEntryStatus(
   } else {
     update.completedDate = undefined;
     update.completedYear = undefined;
+    update.completedAt = undefined;
     if (status === 'in_progress' && !existing.startedDate) {
       update.startedDate = todayIso();
     }
