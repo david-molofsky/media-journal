@@ -57,46 +57,43 @@ describe('entry service journeys', () => {
     expect(await db.mediaEntries.count()).toBe(0);
   });
 
-  it('orders completions globally by completion timestamp, regardless of completion date or creation time', async () => {
+  it('keeps completion months chronological and orders entries within a date by completion timestamp', async () => {
     await db.mediaEntries.bulkAdd([
       {
-        ...completedEntryInput({ title: 'Completed first', completedDate: '2026-09-25' }),
-        id: 'first',
-        completedAt: '2026-09-25T09:00:00Z',
-        createdAt: '2026-09-25T11:00:00Z',
-        updatedAt: '2026-09-25T09:00:00Z',
+        ...completedEntryInput({ title: 'October', completedDate: '2026-10-01' }),
+        id: 'october',
+        completedAt: '2026-10-01T08:00:00Z',
+        createdAt: '2026-10-01T08:00:00Z',
+        updatedAt: '2026-10-01T08:00:00Z',
+      },
+      {
+        ...completedEntryInput({ title: 'September first', completedDate: '2026-09-30' }),
+        id: 'september-first',
+        completedAt: '2026-09-30T09:00:00Z',
+        createdAt: '2026-09-30T11:00:00Z',
+        updatedAt: '2026-09-30T09:00:00Z',
       },
       {
         ...completedEntryInput({
-          title: 'Completed most recently',
-          completedDate: '2026-09-24',
+          title: 'September latest',
+          completedDate: '2026-09-30',
         }),
-        id: 'most-recent',
-        completedAt: '2026-09-25T12:00:00Z',
-        createdAt: '2026-09-25T12:00:00Z',
-        updatedAt: '2026-09-25T12:00:00Z',
-      },
-      {
-        ...completedEntryInput({
-          title: 'Completed second',
-          completedDate: '2026-09-25',
-        }),
-        id: 'second',
-        completedAt: '2026-09-25T10:00:00Z',
-        createdAt: '2026-09-25T08:00:00Z',
-        updatedAt: '2026-09-25T10:00:00Z',
+        id: 'september-latest',
+        completedAt: '2026-09-30T12:00:00Z',
+        createdAt: '2026-09-30T08:00:00Z',
+        updatedAt: '2026-09-30T12:00:00Z',
       },
     ]);
 
     expect(
       (await listEntries({}, 'completedDateDesc')).map(({ title }) => title),
-    ).toEqual(['Completed most recently', 'Completed second', 'Completed first']);
+    ).toEqual(['October', 'September latest', 'September first']);
     expect((await listEntries({}, 'completedDateAsc')).map(({ title }) => title)).toEqual(
-      ['Completed first', 'Completed second', 'Completed most recently'],
+      ['September first', 'September latest', 'October'],
     );
     expect((await getRecentEntries(2)).map(({ title }) => title)).toEqual([
-      'Completed most recently',
-      'Completed second',
+      'October',
+      'September latest',
     ]);
   });
 
