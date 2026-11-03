@@ -74,7 +74,10 @@ describe('entry service journeys', () => {
         updatedAt: '2026-09-30T09:00:00Z',
       },
       {
-        ...completedEntryInput({ title: 'September latest', completedDate: '2026-09-30' }),
+        ...completedEntryInput({
+          title: 'September latest',
+          completedDate: '2026-09-30',
+        }),
         id: 'september-latest',
         completedAt: '2026-09-30T12:00:00Z',
         createdAt: '2026-09-30T08:00:00Z',
