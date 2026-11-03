@@ -57,24 +57,30 @@ describe('entry service journeys', () => {
     expect(await db.mediaEntries.count()).toBe(0);
   });
 
-  it('orders same-day completions by completion timestamp, not entry creation time', async () => {
+  it('orders completions globally by completion timestamp, regardless of completion date or creation time', async () => {
     await db.mediaEntries.bulkAdd([
       {
-        ...completedEntryInput({ title: 'First', completedDate: '2026-09-25' }),
+        ...completedEntryInput({ title: 'Completed first', completedDate: '2026-09-25' }),
         id: 'first',
         completedAt: '2026-09-25T09:00:00Z',
         createdAt: '2026-09-25T11:00:00Z',
         updatedAt: '2026-09-25T09:00:00Z',
       },
       {
-        ...completedEntryInput({ title: 'Yesterday', completedDate: '2026-09-24' }),
-        id: 'yesterday',
+        ...completedEntryInput({
+          title: 'Completed most recently',
+          completedDate: '2026-09-24',
+        }),
+        id: 'most-recent',
         completedAt: '2026-09-25T12:00:00Z',
         createdAt: '2026-09-25T12:00:00Z',
         updatedAt: '2026-09-25T12:00:00Z',
       },
       {
-        ...completedEntryInput({ title: 'Second', completedDate: '2026-09-25' }),
+        ...completedEntryInput({
+          title: 'Completed second',
+          completedDate: '2026-09-25',
+        }),
         id: 'second',
         completedAt: '2026-09-25T10:00:00Z',
         createdAt: '2026-09-25T08:00:00Z',
@@ -84,13 +90,13 @@ describe('entry service journeys', () => {
 
     expect(
       (await listEntries({}, 'completedDateDesc')).map(({ title }) => title),
-    ).toEqual(['Second', 'First', 'Yesterday']);
+    ).toEqual(['Completed most recently', 'Completed second', 'Completed first']);
     expect((await listEntries({}, 'completedDateAsc')).map(({ title }) => title)).toEqual(
-      ['Yesterday', 'First', 'Second'],
+      ['Completed first', 'Completed second', 'Completed most recently'],
     );
     expect((await getRecentEntries(2)).map(({ title }) => title)).toEqual([
-      'Second',
-      'First',
+      'Completed most recently',
+      'Completed second',
     ]);
   });
 
