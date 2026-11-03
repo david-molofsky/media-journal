@@ -8,6 +8,7 @@ import {
   MISSING_CATEGORY_FILTER_VALUE,
   restoreEntriesSnapshot,
   updateEntry,
+  updateEntryStatus,
 } from './entryService';
 import { completedEntryInput } from '@/test/factories';
 import { getRecentEntries } from '@/services/statistics/statisticsService';
@@ -48,6 +49,33 @@ describe('entry service journeys', () => {
     expect((await db.appSettings.get(SETTINGS_KEYS.entryDeletionEvents))?.value).toEqual([
       expect.objectContaining({ id: created.id, undone: true }),
     ]);
+  });
+
+  it('records an exact completion timestamp when an entry is created as completed', async () => {
+    const created = await createEntry(
+      completedEntryInput({ title: 'Completed immediately' }),
+    );
+
+    expect(created.completedAt).toBeDefined();
+    expect(created.completedAt).toBe(created.createdAt);
+    expect(Number.isNaN(Date.parse(created.completedAt!))).toBe(false);
+  });
+
+  it('records the moment an in-progress entry is marked completed', async () => {
+    const created = await createEntry({
+      ...completedEntryInput({ title: 'Finished later' }),
+      status: 'in_progress',
+      completedDate: undefined,
+    });
+
+    expect(created.completedAt).toBeUndefined();
+
+    await updateEntryStatus(created.id, 'completed', '2026-10-30');
+    const completed = await getEntry(created.id);
+
+    expect(completed?.completedAt).toBeDefined();
+    expect(completed?.completedAt).toBe(completed?.updatedAt);
+    expect(Number.isNaN(Date.parse(completed!.completedAt!))).toBe(false);
   });
 
   it('does not persist an invalid completed entry', async () => {
