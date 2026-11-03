@@ -261,7 +261,11 @@ export default function EntryDetailPage() {
                 lineHeight: 0,
                 cursor: 'zoom-in',
                 flexShrink: 0,
-                '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 3 },
+                '&:focus-visible': {
+                  outline: '2px solid',
+                  outlineColor: 'primary.main',
+                  outlineOffset: 3,
+                },
               }}
             >
               <Box
