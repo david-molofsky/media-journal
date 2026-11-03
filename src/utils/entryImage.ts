@@ -3,16 +3,16 @@ import type { MediaEntry } from '@/models';
 /** TMDB's hosted image CDN. Two sizes in use:
  * - `thumb` (w92) — the small ~44px-wide list row thumbnail (EntryCard),
  *   crisp at up to 2x device pixel ratio.
- * - `poster` (w342) — the larger ~120×180 share-card poster (both the
- *   in-app preview and the exported/shared PNG, see chat). Requested
- *   once at a size that stays sharp when the canvas export scales it
- *   up further, rather than adding a third TMDB size for that case. */
+ * - `poster` (w342) — the larger ~120×180 entry/share-card image.
+ * - `original` — TMDB's original uploaded image, used by the full-screen
+ *   entry image viewer so the artwork is not limited to the thumbnail size. */
 const TMDB_IMAGE_BASE: Record<EntryImageSize, string> = {
   thumb: 'https://image.tmdb.org/t/p/w92',
   poster: 'https://image.tmdb.org/t/p/w342',
+  original: 'https://image.tmdb.org/t/p/original',
 };
 
-export type EntryImageSize = 'thumb' | 'poster';
+export type EntryImageSize = 'thumb' | 'poster' | 'original';
 
 /** Turns a raw TMDB `posterPath` path fragment (e.g. "/abc123.jpg")
  * into a complete, standalone, hosted URL at the given size. Exported

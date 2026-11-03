@@ -7,6 +7,8 @@ import IconButton from '@mui/material/IconButton';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Divider from '@mui/material/Divider';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
@@ -15,6 +17,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import dayjs from 'dayjs';
 import { useMediaEntry } from '@/hooks/useMediaEntry';
 import { useMediaTypes } from '@/hooks/useMediaTypes';
@@ -89,6 +92,7 @@ export default function EntryDetailPage() {
   const mediaTypes = useMediaTypes();
   const tvMode = useTvTrackingMode();
   const [shareOpen, setShareOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   // Quick-action "Mark finished" dialog — same combined Completed
   // Date + Rating confirmation as the Library card's equivalent
   // action (see chat, Aug 2026), via the shared MarkFinishedDialog.
@@ -159,6 +163,7 @@ export default function EntryDetailPage() {
   const statusMeta = STATUS_META[status];
   const StatusIcon = statusMeta.Icon;
   const imageUrl = getEntryImageUrl(entry, 'poster');
+  const fullSizeImageUrl = getEntryImageUrl(entry, 'original');
 
   const imdbUrl = entry.metadata.imdbUrl;
   const showImdbLink =
@@ -244,17 +249,38 @@ export default function EntryDetailPage() {
         <Stack direction="row" spacing={2}>
           {imageUrl ? (
             <Box
-              component="img"
-              src={imageUrl}
-              alt=""
+              component="button"
+              type="button"
+              aria-label={`View full-size image for ${entry.title}`}
+              onClick={() => setImageOpen(true)}
               sx={{
-                width: 84,
-                height: 126,
+                p: 0,
+                border: 0,
                 borderRadius: 1.5,
-                objectFit: 'cover',
+                bgcolor: 'transparent',
+                lineHeight: 0,
+                cursor: 'zoom-in',
                 flexShrink: 0,
+                '&:focus-visible': {
+                  outline: '2px solid',
+                  outlineColor: 'primary.main',
+                  outlineOffset: 3,
+                },
               }}
-            />
+            >
+              <Box
+                component="img"
+                src={imageUrl}
+                alt={`${entry.title} artwork`}
+                sx={{
+                  display: 'block',
+                  width: 84,
+                  height: 126,
+                  borderRadius: 1.5,
+                  objectFit: 'cover',
+                }}
+              />
+            </Box>
           ) : (
             <Box
               sx={{
@@ -537,6 +563,64 @@ export default function EntryDetailPage() {
 
         <WishlistRecommendationsSection entry={entry} mediaTypes={mediaTypes} />
       </Stack>
+
+      {fullSizeImageUrl && (
+        <Dialog
+          fullScreen
+          open={imageOpen}
+          onClose={() => setImageOpen(false)}
+          aria-label={`${entry.title} full-size artwork`}
+          slotProps={{
+            paper: {
+              sx: {
+                bgcolor: 'rgba(0, 0, 0, 0.96)',
+                color: '#fff',
+              },
+            },
+          }}
+        >
+          <DialogContent
+            onClick={() => setImageOpen(false)}
+            sx={{
+              p: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            <IconButton
+              aria-label="Close full-size image"
+              onClick={() => setImageOpen(false)}
+              sx={{
+                position: 'fixed',
+                top: 'max(12px, env(safe-area-inset-top))',
+                right: 'max(12px, env(safe-area-inset-right))',
+                zIndex: 1,
+                color: '#fff',
+                bgcolor: 'rgba(0, 0, 0, 0.55)',
+                '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.16)' },
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+            <Box
+              component="img"
+              src={fullSizeImageUrl}
+              alt={`${entry.title} artwork`}
+              onClick={(event) => event.stopPropagation()}
+              sx={{
+                display: 'block',
+                maxWidth: '100vw',
+                maxHeight: '100dvh',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ShareEntrySheet
         open={shareOpen}
