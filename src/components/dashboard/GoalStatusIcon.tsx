@@ -46,7 +46,7 @@ export function GoalStatusIcon({ status }: GoalStatusIconProps) {
       aria-label={LABELS[status]}
       sx={{ width: 31, height: 27, fontSize: 22, lineHeight: 1, textAlign: 'center' }}
     >
-      {status === 'on-track' ? '📈' : '⏳'}
+      {status === 'on-track' ? '🛤️' : '🐌'}
     </Box>
   );
 }
