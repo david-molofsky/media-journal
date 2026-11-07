@@ -13,10 +13,10 @@ export function GoalStatusLegend() {
       aria-label="Goal status legend"
     >
       <Typography variant="caption" color="text.secondary">
-        📈 On track
+        🛤️ On track
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        ⏳ Behind pace
+        🐌 Behind pace
       </Typography>
       <Typography variant="caption" color="text.secondary">
         🥅⚽ Goal achieved
