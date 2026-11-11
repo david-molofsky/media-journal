@@ -467,10 +467,10 @@ export default function LibraryPage() {
     void setSetting('lastLibraryStatusTab', statusTab);
   }, [statusTab]);
 
-  // Reorder mode now works while filtered/searched (arrows are gated
-  // separately, per-card, since swapping visually-adjacent filtered
-  // items isn't meaningful against true full-list order — see
-  // renderCard below). Still requires Wishlist tab + "My Order" sort.
+  // Reorder mode is available with filters/search active. The arrows
+  // swap the saved positions of adjacent entries in the currently
+  // displayed filtered list, while preserving every other entry's
+  // position. Still requires Wishlist tab + "My Order" sort.
   const isReordering =
     reorderMode && statusTab === 'wishlist' && sort === 'wishlistOrderAsc';
 
@@ -1009,28 +1009,18 @@ export default function LibraryPage() {
           ? {
               position: wishlistPositionById.get(entry.id) ?? index + 1,
               maxPosition: wishlistOrderedEntries?.length ?? entries.length,
-              // Swapping only makes sense against true full-list
-              // adjacency — while any filter/search narrows the
-              // visible list, visually-adjacent cards aren't
-              // necessarily true neighbours, so the arrows are
-              // disabled (jump-to-position, which always targets the
-              // real full-list position, stays available below).
-              onMoveUp: hasActiveFilters
-                ? undefined
-                : (() => {
-                    const prev = entries[index - 1];
-                    return prev
-                      ? () => void swapWishlistOrder(entry.id, prev.id)
-                      : undefined;
-                  })(),
-              onMoveDown: hasActiveFilters
-                ? undefined
-                : (() => {
-                    const next = entries[index + 1];
-                    return next
-                      ? () => void swapWishlistOrder(entry.id, next.id)
-                      : undefined;
-                  })(),
+              // Neighbours are determined from the currently displayed
+              // list (after all active filters/search). swapWishlistOrder
+              // exchanges only these two entries' saved positions, so
+              // entries outside the filtered result retain their positions.
+              onMoveUp: (() => {
+                const prev = entries[index - 1];
+                return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
+              })(),
+              onMoveDown: (() => {
+                const next = entries[index + 1];
+                return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
+              })(),
               onJumpToPosition: (newPosition) =>
                 void jumpWishlistOrder(entry.id, newPosition),
             }
