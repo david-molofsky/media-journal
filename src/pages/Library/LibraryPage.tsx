@@ -1015,15 +1015,11 @@ export default function LibraryPage() {
               // entries outside the filtered result retain their positions.
               onMoveUp: (() => {
                 const prev = entries[index - 1];
-                return prev
-                  ? () => void swapWishlistOrder(entry.id, prev.id)
-                  : undefined;
+                return prev ? () => void swapWishlistOrder(entry.id, prev.id) : undefined;
               })(),
               onMoveDown: (() => {
                 const next = entries[index + 1];
-                return next
-                  ? () => void swapWishlistOrder(entry.id, next.id)
-                  : undefined;
+                return next ? () => void swapWishlistOrder(entry.id, next.id) : undefined;
               })(),
               onJumpToPosition: (newPosition) =>
                 void jumpWishlistOrder(entry.id, newPosition),
