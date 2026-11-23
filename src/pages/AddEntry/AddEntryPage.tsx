@@ -17,6 +17,7 @@ import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { useNumberSetting } from '@/hooks/useNumberSetting';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
+import { MediaTypeThemeProvider } from '@/components/forms/MediaTypeThemeProvider';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
   createEntry,
@@ -380,115 +381,117 @@ export default function AddEntryPage() {
   }
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton
-          aria-label="Back to media type selection"
-          onClick={() => {
-            if (
-              draftInitialValues &&
-              !window.confirm('Discard this unfinished entry draft?')
-            ) {
-              return;
-            }
-            if (draftInitialValues) {
-              setEntryDraft(null);
-              // Let EntryForm unmount and flush any pending keystroke,
-              // then remove that final snapshot as the explicit discard.
-              window.setTimeout(clearAddEntryDraft, 0);
-            }
-            setSelectedType(null);
-            if (isSharedLink) abandonSharedLink();
-            if (relogValues) setRelogDismissed(true);
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" component="h1" fontWeight={600}>
-          New {effectiveMediaType.displayName}
-        </Typography>
-      </Stack>
-      {sharedValues && (
-        <Alert
-          icon={<LinkOutlinedIcon fontSize="inherit" />}
-          severity="info"
-          sx={{ mb: 2 }}
-        >
-          Filled in from a shared link — review and save.
-        </Alert>
-      )}
-      {platformShareInitialValues && (
-        <Alert
-          icon={<ShareOutlinedIcon fontSize="inherit" />}
-          severity="info"
-          sx={{ mb: 2 }}
-        >
-          Shared to Media Journal — review this Wishlist entry and save.
-        </Alert>
-      )}
-      {relogInitialValues && (
-        <Alert icon={<ReplayIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
-          Pre-filled from your previous entry — review and save.
-        </Alert>
-      )}
-      {draftInitialValues && (
-        <Alert
-          severity="info"
-          sx={{ mb: 2 }}
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => {
+    <MediaTypeThemeProvider mediaType={effectiveMediaType}>
+      <Box sx={{ px: 2, pt: 2, pb: 4 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <IconButton
+            aria-label="Back to media type selection"
+            onClick={() => {
+              if (
+                draftInitialValues &&
+                !window.confirm('Discard this unfinished entry draft?')
+              ) {
+                return;
+              }
+              if (draftInitialValues) {
                 setEntryDraft(null);
+                // Let EntryForm unmount and flush any pending keystroke,
+                // then remove that final snapshot as the explicit discard.
                 window.setTimeout(clearAddEntryDraft, 0);
-              }}
-            >
-              Discard
-            </Button>
+              }
+              setSelectedType(null);
+              if (isSharedLink) abandonSharedLink();
+              if (relogValues) setRelogDismissed(true);
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" component="h1" fontWeight={600}>
+            New {effectiveMediaType.displayName}
+          </Typography>
+        </Stack>
+        {sharedValues && (
+          <Alert
+            icon={<LinkOutlinedIcon fontSize="inherit" />}
+            severity="info"
+            sx={{ mb: 2 }}
+          >
+            Filled in from a shared link — review and save.
+          </Alert>
+        )}
+        {platformShareInitialValues && (
+          <Alert
+            icon={<ShareOutlinedIcon fontSize="inherit" />}
+            severity="info"
+            sx={{ mb: 2 }}
+          >
+            Shared to Media Journal — review this Wishlist entry and save.
+          </Alert>
+        )}
+        {relogInitialValues && (
+          <Alert icon={<ReplayIcon fontSize="inherit" />} severity="info" sx={{ mb: 2 }}>
+            Pre-filled from your previous entry — review and save.
+          </Alert>
+        )}
+        {draftInitialValues && (
+          <Alert
+            severity="info"
+            sx={{ mb: 2 }}
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => {
+                  setEntryDraft(null);
+                  window.setTimeout(clearAddEntryDraft, 0);
+                }}
+              >
+                Discard
+              </Button>
+            }
+          >
+            Your unfinished entry was restored. Changes save automatically on this device.
+          </Alert>
+        )}
+        <EntryForm
+          detectRepeat
+          key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : platformShareInitialValues ? 'platform-share' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
+          mediaType={effectiveMediaType}
+          initialValues={
+            sharedValues ??
+            platformShareInitialValues ??
+            relogInitialValues ??
+            draftInitialValues ??
+            undefined
           }
-        >
-          Your unfinished entry was restored. Changes save automatically on this device.
-        </Alert>
-      )}
-      <EntryForm
-        detectRepeat
-        key={`${effectiveMediaType.id}-${tvMode}-${defaultStatus}-${sharedValues ? 'shared' : platformShareInitialValues ? 'platform-share' : relogInitialValues ? 'relog' : draftInitialValues ? 'draft' : 'manual'}`}
-        mediaType={effectiveMediaType}
-        initialValues={
-          sharedValues ??
-          platformShareInitialValues ??
-          relogInitialValues ??
-          draftInitialValues ??
-          undefined
-        }
-        defaultStatus={defaultStatus}
-        submitLabel="Save Entry"
-        onDraftChange={saveAddEntryDraft}
-        onSubmit={async (values) => {
-          const librarySizeBefore = await db.mediaEntries.count();
-          const entry = await createEntry(values);
-          trackEntryCreated(entry, {
-            creationSource: sharedValues
-              ? 'shared_link'
-              : relogInitialValues
-                ? 'relog'
-                : 'manual',
-            librarySizeBefore,
-          });
-          if (entry.status === 'wishlist') {
-            await normalizeWishlistOrder();
-            await jumpWishlistOrder(entry.id, DEFAULT_WISHLIST_POSITION);
-          }
-          if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
-          clearAddEntryDraft();
-          if (platformShare) {
-            clearPlatformShareFromAddressBar();
-            setPlatformShare(null);
-          }
-          navigate(ROUTES.library);
-        }}
-      />
-    </Box>
+          defaultStatus={defaultStatus}
+          submitLabel="Save Entry"
+          onDraftChange={saveAddEntryDraft}
+          onSubmit={async (values) => {
+            const librarySizeBefore = await db.mediaEntries.count();
+            const entry = await createEntry(values);
+            trackEntryCreated(entry, {
+              creationSource: sharedValues
+                ? 'shared_link'
+                : relogInitialValues
+                  ? 'relog'
+                  : 'manual',
+              librarySizeBefore,
+            });
+            if (entry.status === 'wishlist') {
+              await normalizeWishlistOrder();
+              await jumpWishlistOrder(entry.id, DEFAULT_WISHLIST_POSITION);
+            }
+            if (tipShownCount < TIP_MAX_SHOWS) setTipShownCount(tipShownCount + 1);
+            clearAddEntryDraft();
+            if (platformShare) {
+              clearPlatformShareFromAddressBar();
+              setPlatformShare(null);
+            }
+            navigate(ROUTES.library);
+          }}
+        />
+      </Box>
+    </MediaTypeThemeProvider>
   );
 }

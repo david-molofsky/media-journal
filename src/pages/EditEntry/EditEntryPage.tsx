@@ -29,6 +29,7 @@ import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { EntryForm } from '@/components/forms/EntryForm';
+import { MediaTypeThemeProvider } from '@/components/forms/MediaTypeThemeProvider';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -289,214 +290,226 @@ export default function EditEntryPage() {
     // (header, delete dialog, share sheet) correctly reflects the new
     // one. Remounting also cleanly resets unrelated local state
     // (delete/convert dialogs left open) from the previous entry.
-    <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton
-          aria-label="Back to library"
-          onClick={() => navigate(ROUTES.library, { state: incomingFilters })}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" component="h1" fontWeight={600}>
-          Edit {effectiveMediaType.displayName}
-        </Typography>
-        <IconButton aria-label="Share entry" onClick={() => setShareOpen(true)}>
-          <ShareOutlinedIcon />
-        </IconButton>
-      </Stack>
+    <MediaTypeThemeProvider mediaType={effectiveMediaType}>
+      <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <IconButton
+            aria-label="Back to library"
+            onClick={() => navigate(ROUTES.library, { state: incomingFilters })}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" component="h1" fontWeight={600}>
+            Edit {effectiveMediaType.displayName}
+          </Typography>
+          <IconButton aria-label="Share entry" onClick={() => setShareOpen(true)}>
+            <ShareOutlinedIcon />
+          </IconButton>
+        </Stack>
 
-      {storedEditDraft &&
-        storedEditDraft.values.mediaType === entry.mediaType &&
-        Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Your unfinished changes were restored. They save automatically on this
-            device.
-          </Alert>
-        )}
-
-      <EntryForm
-        mediaType={effectiveMediaType}
-        initialValues={
-          storedEditDraft &&
+        {storedEditDraft &&
           storedEditDraft.values.mediaType === entry.mediaType &&
-          Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
-            ? storedEditDraft.values
-            : {
-          title: entry.title,
-          mediaType: entry.mediaType,
-          status: entry.status ?? 'completed',
-          startedDate: entry.startedDate,
-          completedDate: entry.completedDate,
-          rating: entry.rating,
-          notes: entry.notes,
-          repeatConsumption: entry.repeatConsumption,
-          tags: entry.tags ?? [],
-          genres: entry.genres ?? [],
-          watchedWith: entry.watchedWith ?? [],
-          recommendedBy: entry.recommendedBy ?? [],
-          metadata: entry.metadata,
-        }
-        }
-        submitLabel="Save Changes"
-        onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
-        stickySubmit
-        onSubmit={async (values) => {
-          await updateEntry(entry.id, values);
-          clearEditEntryDraft(entry.id);
-          navigate(ROUTES.library, { state: incomingFilters });
-        }}
-        secondaryActions={
-          <Stack spacing={2}>
-            {entry.status !== 'wishlist' && (
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<ReplayIcon />}
-                onClick={handleRelog}
-              >
-                {relogButtonLabel(effectiveMediaType.id)}
-              </Button>
-            )}
+          Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Your unfinished changes were restored. They save automatically on this
+              device.
+            </Alert>
+          )}
 
-            <Divider />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              {convertCandidates.length > 0 && (
+        <EntryForm
+          mediaType={effectiveMediaType}
+          initialValues={
+            storedEditDraft &&
+            storedEditDraft.values.mediaType === entry.mediaType &&
+            Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
+              ? storedEditDraft.values
+              : {
+                  title: entry.title,
+                  mediaType: entry.mediaType,
+                  status: entry.status ?? 'completed',
+                  startedDate: entry.startedDate,
+                  completedDate: entry.completedDate,
+                  rating: entry.rating,
+                  notes: entry.notes,
+                  repeatConsumption: entry.repeatConsumption,
+                  tags: entry.tags ?? [],
+                  genres: entry.genres ?? [],
+                  watchedWith: entry.watchedWith ?? [],
+                  recommendedBy: entry.recommendedBy ?? [],
+                  metadata: entry.metadata,
+                }
+          }
+          submitLabel="Save Changes"
+          onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
+          stickySubmit
+          onSubmit={async (values) => {
+            await updateEntry(entry.id, values);
+            clearEditEntryDraft(entry.id);
+            navigate(ROUTES.library, { state: incomingFilters });
+          }}
+          secondaryActions={
+            <Stack spacing={2}>
+              {entry.status !== 'wishlist' && (
                 <Button
-                  startIcon={<SwapHorizIcon />}
-                  onClick={(e) => setConvertMenuAnchor(e.currentTarget)}
-                  color="inherit"
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<ReplayIcon />}
+                  onClick={handleRelog}
                 >
-                  Convert
+                  {relogButtonLabel(effectiveMediaType.id)}
                 </Button>
               )}
-              <Button
-                startIcon={<DeleteOutlineIcon />}
-                onClick={() => setDeleteOpen(true)}
-                color="error"
-              >
-                Delete
-              </Button>
-            </Stack>
 
-            {previousEntries !== undefined && previousEntries.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Previous Entries with This Title
-                </Typography>
-                <List dense disablePadding>
-                  {previousEntries.map((previous) => (
-                    <ListItemButton
-                      key={previous.id}
-                      onClick={() => navigate(entryDetailPath(previous.id))}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <ListItemText
-                        primary={previous.completedDate}
-                        secondary={
-                          previous.rating !== undefined
-                            ? `Rated ${previous.rating}/10`
-                            : 'Not rated'
-                        }
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Box>
+              <Divider />
+              <Stack direction="row" spacing={2} justifyContent="flex-end">
+                {convertCandidates.length > 0 && (
+                  <Button
+                    startIcon={<SwapHorizIcon />}
+                    onClick={(e) => setConvertMenuAnchor(e.currentTarget)}
+                    color="inherit"
+                  >
+                    Convert
+                  </Button>
+                )}
+                <Button
+                  startIcon={<DeleteOutlineIcon />}
+                  onClick={() => setDeleteOpen(true)}
+                  color="error"
+                >
+                  Delete
+                </Button>
+              </Stack>
+
+              {previousEntries !== undefined && previousEntries.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Previous Entries with This Title
+                  </Typography>
+                  <List dense disablePadding>
+                    {previousEntries.map((previous) => (
+                      <ListItemButton
+                        key={previous.id}
+                        onClick={() => navigate(entryDetailPath(previous.id))}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        <ListItemText
+                          primary={previous.completedDate}
+                          secondary={
+                            previous.rating !== undefined
+                              ? `Rated ${previous.rating}/10`
+                              : 'Not rated'
+                          }
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Box>
+              )}
+            </Stack>
+          }
+        />
+
+        <Menu
+          anchorEl={convertMenuAnchor}
+          open={Boolean(convertMenuAnchor)}
+          onClose={() => setConvertMenuAnchor(null)}
+        >
+          {convertCandidates.map((type) => (
+            <MenuItem
+              key={type.id}
+              onClick={() => {
+                setConvertTargetId(type.id);
+                setConvertMenuAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: type.colour,
+                  }}
+                />
+              </ListItemIcon>
+              <ListItemText>{type.displayName}</ListItemText>
+            </MenuItem>
+          ))}
+        </Menu>
+
+        <Dialog
+          open={Boolean(convertTargetType)}
+          onClose={() => setConvertTargetId(null)}
+        >
+          <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 1.5 }}>
+              Title, dates, rating, tags and genres carry over unchanged.
+            </DialogContentText>
+            {conversionPreview && (
+              <Stack spacing={0.75}>
+                {conversionPreview.carried.map(({ targetKey }) => (
+                  <Typography key={targetKey} variant="body2" color="text.secondary">
+                    {targetFieldLabels[targetKey] ?? targetKey} carries over as-is
+                  </Typography>
+                ))}
+                {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
+                  <Typography key={targetKey} variant="body2" color="text.secondary">
+                    {sourceFieldLabels[sourceKey] ?? sourceKey} becomes{' '}
+                    {targetFieldLabels[targetKey] ?? targetKey}
+                  </Typography>
+                ))}
+                {conversionPreview.dropped.length > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {formatFieldList(
+                      conversionPreview.dropped.map(
+                        (key) => sourceFieldLabels[key] ?? key,
+                      ),
+                    )}{' '}
+                    won't carry over
+                  </Typography>
+                )}
+                {conversionPreview.blank.length > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {formatFieldList(
+                      conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key),
+                    )}{' '}
+                    start
+                    {conversionPreview.blank.length === 1 ? 's' : ''} blank
+                  </Typography>
+                )}
+              </Stack>
             )}
-          </Stack>
-        }
-      />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConvertTargetId(null)}>Cancel</Button>
+            <Button onClick={handleConvert}>Convert</Button>
+          </DialogActions>
+        </Dialog>
 
-      <Menu
-        anchorEl={convertMenuAnchor}
-        open={Boolean(convertMenuAnchor)}
-        onClose={() => setConvertMenuAnchor(null)}
-      >
-        {convertCandidates.map((type) => (
-          <MenuItem
-            key={type.id}
-            onClick={() => {
-              setConvertTargetId(type.id);
-              setConvertMenuAnchor(null);
-            }}
-          >
-            <ListItemIcon>
-              <Box
-                sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }}
-              />
-            </ListItemIcon>
-            <ListItemText>{type.displayName}</ListItemText>
-          </MenuItem>
-        ))}
-      </Menu>
+        <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+          <DialogTitle>Delete this entry?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              This removes “{entry.title}” from your library. You can undo the deletion
+              briefly after returning to the Library.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button color="error" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-      <Dialog open={Boolean(convertTargetType)} onClose={() => setConvertTargetId(null)}>
-        <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 1.5 }}>
-            Title, dates, rating, tags and genres carry over unchanged.
-          </DialogContentText>
-          {conversionPreview && (
-            <Stack spacing={0.75}>
-              {conversionPreview.carried.map(({ targetKey }) => (
-                <Typography key={targetKey} variant="body2" color="text.secondary">
-                  {targetFieldLabels[targetKey] ?? targetKey} carries over as-is
-                </Typography>
-              ))}
-              {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
-                <Typography key={targetKey} variant="body2" color="text.secondary">
-                  {sourceFieldLabels[sourceKey] ?? sourceKey} becomes{' '}
-                  {targetFieldLabels[targetKey] ?? targetKey}
-                </Typography>
-              ))}
-              {conversionPreview.dropped.length > 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(
-                    conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key),
-                  )}{' '}
-                  won't carry over
-                </Typography>
-              )}
-              {conversionPreview.blank.length > 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(
-                    conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key),
-                  )}{' '}
-                  start
-                  {conversionPreview.blank.length === 1 ? 's' : ''} blank
-                </Typography>
-              )}
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConvertTargetId(null)}>Cancel</Button>
-          <Button onClick={handleConvert}>Convert</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>Delete this entry?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This removes “{entry.title}” from your library. You can undo the deletion
-            briefly after returning to the Library.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-          <Button color="error" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <ShareEntrySheet
-        open={shareOpen}
-        entry={entry}
-        mediaType={effectiveMediaType}
-        onClose={() => setShareOpen(false)}
-      />
-    </Box>
+        <ShareEntrySheet
+          open={shareOpen}
+          entry={entry}
+          mediaType={effectiveMediaType}
+          onClose={() => setShareOpen(false)}
+        />
+      </Box>
+    </MediaTypeThemeProvider>
   );
 }
