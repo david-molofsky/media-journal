@@ -306,7 +306,7 @@ export default function EditEntryPage() {
             <ShareOutlinedIcon />
           </IconButton>
         </Stack>
-  
+
         {storedEditDraft &&
           storedEditDraft.values.mediaType === entry.mediaType &&
           Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
@@ -315,7 +315,7 @@ export default function EditEntryPage() {
               device.
             </Alert>
           )}
-  
+
         <EntryForm
           mediaType={effectiveMediaType}
           initialValues={
@@ -324,20 +324,20 @@ export default function EditEntryPage() {
             Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
               ? storedEditDraft.values
               : {
-            title: entry.title,
-            mediaType: entry.mediaType,
-            status: entry.status ?? 'completed',
-            startedDate: entry.startedDate,
-            completedDate: entry.completedDate,
-            rating: entry.rating,
-            notes: entry.notes,
-            repeatConsumption: entry.repeatConsumption,
-            tags: entry.tags ?? [],
-            genres: entry.genres ?? [],
-            watchedWith: entry.watchedWith ?? [],
-            recommendedBy: entry.recommendedBy ?? [],
-            metadata: entry.metadata,
-          }
+                  title: entry.title,
+                  mediaType: entry.mediaType,
+                  status: entry.status ?? 'completed',
+                  startedDate: entry.startedDate,
+                  completedDate: entry.completedDate,
+                  rating: entry.rating,
+                  notes: entry.notes,
+                  repeatConsumption: entry.repeatConsumption,
+                  tags: entry.tags ?? [],
+                  genres: entry.genres ?? [],
+                  watchedWith: entry.watchedWith ?? [],
+                  recommendedBy: entry.recommendedBy ?? [],
+                  metadata: entry.metadata,
+                }
           }
           submitLabel="Save Changes"
           onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
@@ -359,7 +359,7 @@ export default function EditEntryPage() {
                   {relogButtonLabel(effectiveMediaType.id)}
                 </Button>
               )}
-  
+
               <Divider />
               <Stack direction="row" spacing={2} justifyContent="flex-end">
                 {convertCandidates.length > 0 && (
@@ -379,7 +379,7 @@ export default function EditEntryPage() {
                   Delete
                 </Button>
               </Stack>
-  
+
               {previousEntries !== undefined && previousEntries.length > 0 && (
                 <Box>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -408,7 +408,7 @@ export default function EditEntryPage() {
             </Stack>
           }
         />
-  
+
         <Menu
           anchorEl={convertMenuAnchor}
           open={Boolean(convertMenuAnchor)}
@@ -424,15 +424,23 @@ export default function EditEntryPage() {
             >
               <ListItemIcon>
                 <Box
-                  sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }}
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: type.colour,
+                  }}
                 />
               </ListItemIcon>
               <ListItemText>{type.displayName}</ListItemText>
             </MenuItem>
           ))}
         </Menu>
-  
-        <Dialog open={Boolean(convertTargetType)} onClose={() => setConvertTargetId(null)}>
+
+        <Dialog
+          open={Boolean(convertTargetType)}
+          onClose={() => setConvertTargetId(null)}
+        >
           <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
           <DialogContent>
             <DialogContentText sx={{ mb: 1.5 }}>
@@ -454,7 +462,9 @@ export default function EditEntryPage() {
                 {conversionPreview.dropped.length > 0 && (
                   <Typography variant="body2" color="text.secondary">
                     {formatFieldList(
-                      conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key),
+                      conversionPreview.dropped.map(
+                        (key) => sourceFieldLabels[key] ?? key,
+                      ),
                     )}{' '}
                     won't carry over
                   </Typography>
@@ -476,7 +486,7 @@ export default function EditEntryPage() {
             <Button onClick={handleConvert}>Convert</Button>
           </DialogActions>
         </Dialog>
-  
+
         <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
           <DialogTitle>Delete this entry?</DialogTitle>
           <DialogContent>
@@ -492,7 +502,7 @@ export default function EditEntryPage() {
             </Button>
           </DialogActions>
         </Dialog>
-  
+
         <ShareEntrySheet
           open={shareOpen}
           entry={entry}
