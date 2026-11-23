@@ -17,6 +17,7 @@ import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { useNumberSetting } from '@/hooks/useNumberSetting';
 import { MediaTypePicker } from '@/components/forms/MediaTypePicker';
 import { EntryForm } from '@/components/forms/EntryForm';
+import { MediaTypeThemeProvider } from '@/components/forms/MediaTypeThemeProvider';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import {
   createEntry,
@@ -380,7 +381,8 @@ export default function AddEntryPage() {
   }
 
   return (
-    <Box sx={{ px: 2, pt: 2, pb: 4 }}>
+    <MediaTypeThemeProvider mediaType={effectiveMediaType}>
+      <Box sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
         <IconButton
           aria-label="Back to media type selection"
@@ -489,6 +491,7 @@ export default function AddEntryPage() {
           navigate(ROUTES.library);
         }}
       />
-    </Box>
+      </Box>
+    </MediaTypeThemeProvider>
   );
 }
