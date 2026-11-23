@@ -403,102 +403,102 @@ export default function EditEntryPage() {
                       </ListItemButton>
                     ))}
                   </List>
-              </Box>
-            )}
-          </Stack>
-        }
-      />
-
-      <Menu
-        anchorEl={convertMenuAnchor}
-        open={Boolean(convertMenuAnchor)}
-        onClose={() => setConvertMenuAnchor(null)}
-      >
-        {convertCandidates.map((type) => (
-          <MenuItem
-            key={type.id}
-            onClick={() => {
-              setConvertTargetId(type.id);
-              setConvertMenuAnchor(null);
-            }}
-          >
-            <ListItemIcon>
-              <Box
-                sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }}
-              />
-            </ListItemIcon>
-            <ListItemText>{type.displayName}</ListItemText>
-          </MenuItem>
-        ))}
-      </Menu>
-
-      <Dialog open={Boolean(convertTargetType)} onClose={() => setConvertTargetId(null)}>
-        <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
-        <DialogContent>
-          <DialogContentText sx={{ mb: 1.5 }}>
-            Title, dates, rating, tags and genres carry over unchanged.
-          </DialogContentText>
-          {conversionPreview && (
-            <Stack spacing={0.75}>
-              {conversionPreview.carried.map(({ targetKey }) => (
-                <Typography key={targetKey} variant="body2" color="text.secondary">
-                  {targetFieldLabels[targetKey] ?? targetKey} carries over as-is
-                </Typography>
-              ))}
-              {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
-                <Typography key={targetKey} variant="body2" color="text.secondary">
-                  {sourceFieldLabels[sourceKey] ?? sourceKey} becomes{' '}
-                  {targetFieldLabels[targetKey] ?? targetKey}
-                </Typography>
-              ))}
-              {conversionPreview.dropped.length > 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(
-                    conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key),
-                  )}{' '}
-                  won't carry over
-                </Typography>
-              )}
-              {conversionPreview.blank.length > 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  {formatFieldList(
-                    conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key),
-                  )}{' '}
-                  start
-                  {conversionPreview.blank.length === 1 ? 's' : ''} blank
-                </Typography>
+                </Box>
               )}
             </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConvertTargetId(null)}>Cancel</Button>
-          <Button onClick={handleConvert}>Convert</Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
-        <DialogTitle>Delete this entry?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This removes “{entry.title}” from your library. You can undo the deletion
-            briefly after returning to the Library.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
-          <Button color="error" onClick={handleDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <ShareEntrySheet
-        open={shareOpen}
-        entry={entry}
-        mediaType={effectiveMediaType}
-        onClose={() => setShareOpen(false)}
-      />
+          }
+        />
+  
+        <Menu
+          anchorEl={convertMenuAnchor}
+          open={Boolean(convertMenuAnchor)}
+          onClose={() => setConvertMenuAnchor(null)}
+        >
+          {convertCandidates.map((type) => (
+            <MenuItem
+              key={type.id}
+              onClick={() => {
+                setConvertTargetId(type.id);
+                setConvertMenuAnchor(null);
+              }}
+            >
+              <ListItemIcon>
+                <Box
+                  sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: type.colour }}
+                />
+              </ListItemIcon>
+              <ListItemText>{type.displayName}</ListItemText>
+            </MenuItem>
+          ))}
+        </Menu>
+  
+        <Dialog open={Boolean(convertTargetType)} onClose={() => setConvertTargetId(null)}>
+          <DialogTitle>Convert to {convertTargetType?.displayName}?</DialogTitle>
+          <DialogContent>
+            <DialogContentText sx={{ mb: 1.5 }}>
+              Title, dates, rating, tags and genres carry over unchanged.
+            </DialogContentText>
+            {conversionPreview && (
+              <Stack spacing={0.75}>
+                {conversionPreview.carried.map(({ targetKey }) => (
+                  <Typography key={targetKey} variant="body2" color="text.secondary">
+                    {targetFieldLabels[targetKey] ?? targetKey} carries over as-is
+                  </Typography>
+                ))}
+                {conversionPreview.renamed.map(({ targetKey, sourceKey }) => (
+                  <Typography key={targetKey} variant="body2" color="text.secondary">
+                    {sourceFieldLabels[sourceKey] ?? sourceKey} becomes{' '}
+                    {targetFieldLabels[targetKey] ?? targetKey}
+                  </Typography>
+                ))}
+                {conversionPreview.dropped.length > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {formatFieldList(
+                      conversionPreview.dropped.map((key) => sourceFieldLabels[key] ?? key),
+                    )}{' '}
+                    won't carry over
+                  </Typography>
+                )}
+                {conversionPreview.blank.length > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {formatFieldList(
+                      conversionPreview.blank.map((key) => targetFieldLabels[key] ?? key),
+                    )}{' '}
+                    start
+                    {conversionPreview.blank.length === 1 ? 's' : ''} blank
+                  </Typography>
+                )}
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConvertTargetId(null)}>Cancel</Button>
+            <Button onClick={handleConvert}>Convert</Button>
+          </DialogActions>
+        </Dialog>
+  
+        <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+          <DialogTitle>Delete this entry?</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              This removes “{entry.title}” from your library. You can undo the deletion
+              briefly after returning to the Library.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteOpen(false)}>Cancel</Button>
+            <Button color="error" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+  
+        <ShareEntrySheet
+          open={shareOpen}
+          entry={entry}
+          mediaType={effectiveMediaType}
+          onClose={() => setShareOpen(false)}
+        />
       </Box>
     </MediaTypeThemeProvider>
   );
