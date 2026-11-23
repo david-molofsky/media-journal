@@ -292,117 +292,117 @@ export default function EditEntryPage() {
     // (delete/convert dialogs left open) from the previous entry.
     <MediaTypeThemeProvider mediaType={effectiveMediaType}>
       <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <IconButton
-          aria-label="Back to library"
-          onClick={() => navigate(ROUTES.library, { state: incomingFilters })}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h6" component="h1" fontWeight={600}>
-          Edit {effectiveMediaType.displayName}
-        </Typography>
-        <IconButton aria-label="Share entry" onClick={() => setShareOpen(true)}>
-          <ShareOutlinedIcon />
-        </IconButton>
-      </Stack>
-
-      {storedEditDraft &&
-        storedEditDraft.values.mediaType === entry.mediaType &&
-        Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Your unfinished changes were restored. They save automatically on this
-            device.
-          </Alert>
-        )}
-
-      <EntryForm
-        mediaType={effectiveMediaType}
-        initialValues={
-          storedEditDraft &&
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <IconButton
+            aria-label="Back to library"
+            onClick={() => navigate(ROUTES.library, { state: incomingFilters })}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" component="h1" fontWeight={600}>
+            Edit {effectiveMediaType.displayName}
+          </Typography>
+          <IconButton aria-label="Share entry" onClick={() => setShareOpen(true)}>
+            <ShareOutlinedIcon />
+          </IconButton>
+        </Stack>
+  
+        {storedEditDraft &&
           storedEditDraft.values.mediaType === entry.mediaType &&
-          Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
-            ? storedEditDraft.values
-            : {
-          title: entry.title,
-          mediaType: entry.mediaType,
-          status: entry.status ?? 'completed',
-          startedDate: entry.startedDate,
-          completedDate: entry.completedDate,
-          rating: entry.rating,
-          notes: entry.notes,
-          repeatConsumption: entry.repeatConsumption,
-          tags: entry.tags ?? [],
-          genres: entry.genres ?? [],
-          watchedWith: entry.watchedWith ?? [],
-          recommendedBy: entry.recommendedBy ?? [],
-          metadata: entry.metadata,
-        }
-        }
-        submitLabel="Save Changes"
-        onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
-        stickySubmit
-        onSubmit={async (values) => {
-          await updateEntry(entry.id, values);
-          clearEditEntryDraft(entry.id);
-          navigate(ROUTES.library, { state: incomingFilters });
-        }}
-        secondaryActions={
-          <Stack spacing={2}>
-            {entry.status !== 'wishlist' && (
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<ReplayIcon />}
-                onClick={handleRelog}
-              >
-                {relogButtonLabel(effectiveMediaType.id)}
-              </Button>
-            )}
-
-            <Divider />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              {convertCandidates.length > 0 && (
+          Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt) && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Your unfinished changes were restored. They save automatically on this
+              device.
+            </Alert>
+          )}
+  
+        <EntryForm
+          mediaType={effectiveMediaType}
+          initialValues={
+            storedEditDraft &&
+            storedEditDraft.values.mediaType === entry.mediaType &&
+            Date.parse(storedEditDraft.savedAt) > Date.parse(entry.updatedAt)
+              ? storedEditDraft.values
+              : {
+            title: entry.title,
+            mediaType: entry.mediaType,
+            status: entry.status ?? 'completed',
+            startedDate: entry.startedDate,
+            completedDate: entry.completedDate,
+            rating: entry.rating,
+            notes: entry.notes,
+            repeatConsumption: entry.repeatConsumption,
+            tags: entry.tags ?? [],
+            genres: entry.genres ?? [],
+            watchedWith: entry.watchedWith ?? [],
+            recommendedBy: entry.recommendedBy ?? [],
+            metadata: entry.metadata,
+          }
+          }
+          submitLabel="Save Changes"
+          onDraftChange={(values) => saveEditEntryDraft(entry.id, values)}
+          stickySubmit
+          onSubmit={async (values) => {
+            await updateEntry(entry.id, values);
+            clearEditEntryDraft(entry.id);
+            navigate(ROUTES.library, { state: incomingFilters });
+          }}
+          secondaryActions={
+            <Stack spacing={2}>
+              {entry.status !== 'wishlist' && (
                 <Button
-                  startIcon={<SwapHorizIcon />}
-                  onClick={(e) => setConvertMenuAnchor(e.currentTarget)}
-                  color="inherit"
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<ReplayIcon />}
+                  onClick={handleRelog}
                 >
-                  Convert
+                  {relogButtonLabel(effectiveMediaType.id)}
                 </Button>
               )}
-              <Button
-                startIcon={<DeleteOutlineIcon />}
-                onClick={() => setDeleteOpen(true)}
-                color="error"
-              >
-                Delete
-              </Button>
-            </Stack>
-
-            {previousEntries !== undefined && previousEntries.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Previous Entries with This Title
-                </Typography>
-                <List dense disablePadding>
-                  {previousEntries.map((previous) => (
-                    <ListItemButton
-                      key={previous.id}
-                      onClick={() => navigate(entryDetailPath(previous.id))}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      <ListItemText
-                        primary={previous.completedDate}
-                        secondary={
-                          previous.rating !== undefined
-                            ? `Rated ${previous.rating}/10`
-                            : 'Not rated'
-                        }
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
+  
+              <Divider />
+              <Stack direction="row" spacing={2} justifyContent="flex-end">
+                {convertCandidates.length > 0 && (
+                  <Button
+                    startIcon={<SwapHorizIcon />}
+                    onClick={(e) => setConvertMenuAnchor(e.currentTarget)}
+                    color="inherit"
+                  >
+                    Convert
+                  </Button>
+                )}
+                <Button
+                  startIcon={<DeleteOutlineIcon />}
+                  onClick={() => setDeleteOpen(true)}
+                  color="error"
+                >
+                  Delete
+                </Button>
+              </Stack>
+  
+              {previousEntries !== undefined && previousEntries.length > 0 && (
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Previous Entries with This Title
+                  </Typography>
+                  <List dense disablePadding>
+                    {previousEntries.map((previous) => (
+                      <ListItemButton
+                        key={previous.id}
+                        onClick={() => navigate(entryDetailPath(previous.id))}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        <ListItemText
+                          primary={previous.completedDate}
+                          secondary={
+                            previous.rating !== undefined
+                              ? `Rated ${previous.rating}/10`
+                              : 'Not rated'
+                          }
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
               </Box>
             )}
           </Stack>
