@@ -29,6 +29,7 @@ import { useMediaTypes } from '@/hooks/useMediaTypes';
 import { useTvTrackingMode } from '@/hooks/useTvTrackingMode';
 import { useDefaultEntryStatus } from '@/hooks/useDefaultEntryStatus';
 import { EntryForm } from '@/components/forms/EntryForm';
+import { MediaTypeThemeProvider } from '@/components/forms/MediaTypeThemeProvider';
 import { ShareEntrySheet } from '@/components/entry/ShareEntrySheet';
 import { PagePlaceholder } from '@/components/common/PagePlaceholder';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
@@ -289,7 +290,8 @@ export default function EditEntryPage() {
     // (header, delete dialog, share sheet) correctly reflects the new
     // one. Remounting also cleanly resets unrelated local state
     // (delete/convert dialogs left open) from the previous entry.
-    <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
+    <MediaTypeThemeProvider mediaType={effectiveMediaType}>
+      <Box key={id} sx={{ px: 2, pt: 2, pb: 4 }}>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
         <IconButton
           aria-label="Back to library"
@@ -497,6 +499,7 @@ export default function EditEntryPage() {
         mediaType={effectiveMediaType}
         onClose={() => setShareOpen(false)}
       />
-    </Box>
+      </Box>
+    </MediaTypeThemeProvider>
   );
 }
