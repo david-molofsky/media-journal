@@ -39,7 +39,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Physical Copy', 'Kindle', 'Libby', 'Kobo', 'Apple Books'],
+        options: ['Physical Copy', 'Kindle', 'Libby', 'Kobo', 'Apple Books', 'Library'],
       },
       // Added for Open Library auto-fill (Settings > Metadata auto-fill).
       // Year-only — see matching comment on releaseYear in
@@ -68,7 +68,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Audible', 'Spotify', 'Libby', 'Physical CD'],
+        options: ['Audible', 'Spotify', 'Libby', 'Physical CD', 'Library'],
       },
       // Added for Google Books auto-fill — see chat, Aug 2026.
       { key: 'isbn', label: 'ISBN', type: 'text', required: false },
@@ -106,6 +106,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Paramount+',
           'Physical Media',
           'Digital',
+          'Library',
         ],
       },
       // Added for TMDB auto-fill (Settings > Metadata auto-fill). Appended
@@ -162,6 +163,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Paramount+',
           'Physical Media',
           'Digital',
+          'Library',
         ],
       },
       // Added for TMDB auto-fill — see the matching comment on 'film'
@@ -209,6 +211,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Global Comix',
           'Comichaus',
           'Webtoons',
+          'Library',
         ],
       },
       // Added for ComicVine auto-fill (Settings > Metadata auto-fill).
@@ -247,7 +250,14 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Physical', 'Marvel Unlimited', 'Kindle/Comixology', 'Hoopla', 'Libby'],
+        options: [
+          'Physical',
+          'Marvel Unlimited',
+          'Kindle/Comixology',
+          'Hoopla',
+          'Libby',
+          'Library',
+        ],
       },
     ],
   },
@@ -270,7 +280,14 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['Steam', 'PlayStation', 'Xbox', 'Nintendo Switch', 'Physical'],
+        options: [
+          'Steam',
+          'PlayStation',
+          'Xbox',
+          'Nintendo Switch',
+          'Physical',
+          'Library',
+        ],
       },
       {
         key: 'platform',
@@ -297,13 +314,34 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Game Mode',
         type: 'autocomplete',
         required: false,
-        options: ['Single-player', 'Multiplayer', 'Co-op', 'Online Multiplayer', 'Split-screen'],
+        options: [
+          'Single-player',
+          'Multiplayer',
+          'Co-op',
+          'Online Multiplayer',
+          'Split-screen',
+        ],
       },
       { key: 'releaseYear', label: 'Release Year', type: 'number', required: false },
       { key: 'hoursPlayed', label: 'Hours Played', type: 'number', required: false },
-      { key: 'completionPercent', label: 'Completion %', type: 'number', required: false },
-      { key: 'achievementsEarned', label: 'Achievements Earned', type: 'number', required: false },
-      { key: 'achievementsTotal', label: 'Achievements Total', type: 'number', required: false },
+      {
+        key: 'completionPercent',
+        label: 'Completion %',
+        type: 'number',
+        required: false,
+      },
+      {
+        key: 'achievementsEarned',
+        label: 'Achievements Earned',
+        type: 'number',
+        required: false,
+      },
+      {
+        key: 'achievementsTotal',
+        label: 'Achievements Total',
+        type: 'number',
+        required: false,
+      },
     ],
   },
   {
@@ -325,6 +363,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Overcast',
           'Podcast Addict',
           'PodBean',
+          'Library',
         ],
       },
       // Added for Podcast RSS auto-fill (see chat) — itunes:season,
@@ -351,7 +390,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['In-Person', 'Museum', 'Online', 'Print'],
+        options: ['In-Person', 'Museum', 'Online', 'Print', 'Library'],
       },
     ],
   },
@@ -367,7 +406,7 @@ export const defaultMediaTypes: MediaType[] = [
         label: 'Source',
         type: 'autocomplete',
         required: false,
-        options: ['In-Person', 'Broadcast/Streamed'],
+        options: ['In-Person', 'Broadcast/Streamed', 'Library'],
       },
     ],
   },
@@ -384,6 +423,13 @@ export const defaultMediaTypes: MediaType[] = [
     // `scoreB`/`supporting`/`outcome` together drive the entry title
     // ("{teamA} vs {teamB}") and the Library card's score display.
     fields: [
+      {
+        key: 'source',
+        label: 'Source',
+        type: 'autocomplete',
+        required: false,
+        options: ['Library'],
+      },
       {
         key: 'sport',
         label: 'Sport',
@@ -470,6 +516,7 @@ export const defaultMediaTypes: MediaType[] = [
           'BritBox',
           'Physical Media',
           'Digital',
+          'Library',
         ],
       },
       {
@@ -537,6 +584,7 @@ export const defaultMediaTypes: MediaType[] = [
           'Digital',
           'Shonen Jump',
           'Webtoons',
+          'Library',
         ],
       },
     ],

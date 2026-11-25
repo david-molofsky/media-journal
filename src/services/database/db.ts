@@ -1460,6 +1460,74 @@ export class MediaJournalDatabase extends Dexie {
         fields.splice(authorIndex >= 0 ? authorIndex + 1 : 0, 0, narratorField);
         await table.put({ ...audiobook, fields });
       });
+
+    /**
+     * Version 34: adds "Library" to the Source suggestions for every
+     * built-in media type. Sport previously used only "Watched via";
+     * it now also receives a separate Source field so the new source
+     * remains semantically distinct from how a match was watched.
+     *
+     * Existing media-type customisations are preserved: the migration
+     * only appends the suggestion when missing, and only adds Sport's
+     * Source field when one does not already exist. Entry metadata is
+     * never changed.
+     */
+    this.version(34)
+      .stores({
+        mediaEntries:
+          'id, completedDate, mediaType, title, rating, completedYear, status, createdAt, [completedYear+mediaType], [completedDate+rating]',
+        mediaTypes: 'id, enabled',
+        appSettings: 'key',
+        inProgressEntries: null,
+        podcastSubscriptions: 'id, feedUrl, createdAt',
+        reminders: 'id, dueAt, entryId',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<MediaType>('mediaTypes');
+
+        for (const canonicalType of defaultMediaTypes) {
+          const existing = await table.get(canonicalType.id);
+          if (!existing) continue;
+
+          const canonicalSource = canonicalType.fields.find(
+            (field) => field.key === 'source',
+          );
+          const existingSource = existing.fields.find((field) => field.key === 'source');
+
+          if (!existingSource) {
+            const sourceField = canonicalSource ?? {
+              key: 'source',
+              label: 'Source',
+              type: 'autocomplete' as const,
+              required: false,
+              options: ['Library'],
+            };
+            const watchedViaIndex = existing.fields.findIndex(
+              (field) => field.key === 'watchedVia',
+            );
+            const fields = [...existing.fields];
+            fields.splice(
+              watchedViaIndex >= 0 ? watchedViaIndex : fields.length,
+              0,
+              sourceField,
+            );
+            await table.put({ ...existing, fields });
+            continue;
+          }
+
+          if (existingSource.type !== 'autocomplete') continue;
+          const options = existingSource.options ?? [];
+          if (options.includes('Library')) continue;
+
+          const fields = existing.fields.map((field) =>
+            field.key === 'source'
+              ? { ...field, options: [...options, 'Library'] }
+              : field,
+          );
+          await table.put({ ...existing, fields });
+        }
+      });
+
     // One-off reminders are stored locally alongside the journal.
     this.version(33).stores({
       mediaEntries:
