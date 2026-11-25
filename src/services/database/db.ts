@@ -1489,7 +1489,9 @@ export class MediaJournalDatabase extends Dexie {
           const existing = await table.get(canonicalType.id);
           if (!existing) continue;
 
-          const canonicalSource = canonicalType.fields.find((field) => field.key === 'source');
+          const canonicalSource = canonicalType.fields.find(
+            (field) => field.key === 'source',
+          );
           const existingSource = existing.fields.find((field) => field.key === 'source');
 
           if (!existingSource) {
@@ -1500,9 +1502,15 @@ export class MediaJournalDatabase extends Dexie {
               required: false,
               options: ['Library'],
             };
-            const watchedViaIndex = existing.fields.findIndex((field) => field.key === 'watchedVia');
+            const watchedViaIndex = existing.fields.findIndex(
+              (field) => field.key === 'watchedVia',
+            );
             const fields = [...existing.fields];
-            fields.splice(watchedViaIndex >= 0 ? watchedViaIndex : fields.length, 0, sourceField);
+            fields.splice(
+              watchedViaIndex >= 0 ? watchedViaIndex : fields.length,
+              0,
+              sourceField,
+            );
             await table.put({ ...existing, fields });
             continue;
           }
@@ -1512,7 +1520,9 @@ export class MediaJournalDatabase extends Dexie {
           if (options.includes('Library')) continue;
 
           const fields = existing.fields.map((field) =>
-            field.key === 'source' ? { ...field, options: [...options, 'Library'] } : field,
+            field.key === 'source'
+              ? { ...field, options: [...options, 'Library'] }
+              : field,
           );
           await table.put({ ...existing, fields });
         }
